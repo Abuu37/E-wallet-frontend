@@ -113,8 +113,8 @@ export default function MainService() {
           <CtaBanner
             title="Bring every payment onto one card"
             subtitle="Whether you're paying or getting paid, WalletPesa has you covered."
-            primaryLabel="Get the Card"
-            primaryTo="/get-card"
+            primaryLabel="Register"
+            primaryTo="/register"
             secondaryLabel="See Fees"
             secondaryTo="/fees"
           />

@@ -99,8 +99,8 @@ export default function BankTransfers() {
           <CtaBanner
             title="Ready to link your bank?"
             subtitle="Get your WalletPesa card and move money freely between your wallet and bank."
-            primaryLabel="Get the Card"
-            primaryTo="/get-card"
+            primaryLabel="Register"
+            primaryTo="/register"
             secondaryLabel="Back to Services"
             secondaryTo="/services"
           />

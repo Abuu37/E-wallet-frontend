@@ -10,7 +10,8 @@ import BecomeAnAgent from './pages/services/BecomeAnAgent'
 import Fees from './pages/Fees/Fees'
 import Faq from './pages/Faq/Faq'
 import Contact from './pages/Contact/Contact'
-import GetCard from './pages/GetCard/GetCard'
+import Login from './pages/Login/Login'
+import Register from './pages/Register/Register'
 
 const router = createBrowserRouter([
   {
@@ -27,7 +28,8 @@ const router = createBrowserRouter([
       { path: 'fees', element: <Fees /> },
       { path: 'faq', element: <Faq /> },
       { path: 'contact', element: <Contact /> },
-      { path: 'get-card', element: <GetCard /> },
+      { path: 'login', element: <Login /> },
+      { path: 'register', element: <Register /> },
     ],
   },
 ])

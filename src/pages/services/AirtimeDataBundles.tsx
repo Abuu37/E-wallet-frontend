@@ -104,8 +104,8 @@ export default function AirtimeDataBundles() {
           <CtaBanner
             title="Ready to top up?"
             subtitle="Get your WalletPesa card and top up airtime or data in seconds."
-            primaryLabel="Get the Card"
-            primaryTo="/get-card"
+            primaryLabel="Register"
+            primaryTo="/register"
             secondaryLabel="Back to Services"
             secondaryTo="/services"
           />

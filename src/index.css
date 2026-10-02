@@ -15,6 +15,7 @@
   --color-line: #e2e8f0;
 
   --animate-card-float: card-float 5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  --animate-gradient-pan: gradient-pan 8s ease-in-out infinite;
 }
 
 @keyframes card-float {
@@ -24,6 +25,16 @@
   }
   50% {
     transform: translateY(-14px);
+  }
+}
+
+@keyframes gradient-pan {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
   }
 }
 

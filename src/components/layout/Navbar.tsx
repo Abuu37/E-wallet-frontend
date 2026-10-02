@@ -155,7 +155,7 @@ export default function Navbar() {
         </div>
 
         <div className="hidden md:block">
-          <Button to="/get-card">Get the Card</Button>
+          <Button to="/login">Login</Button>
         </div>
 
         <button
@@ -225,8 +225,8 @@ export default function Navbar() {
                 </NavLink>
               ),
             )}
-            <Button to="/get-card" className="mt-2 w-full" onClick={() => setOpen(false)}>
-              Get the Card
+            <Button to="/login" className="mt-2 w-full" onClick={() => setOpen(false)}>
+              Login
             </Button>
           </div>
         </div>

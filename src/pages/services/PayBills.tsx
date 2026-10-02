@@ -126,8 +126,8 @@ export default function PayBills() {
           <CtaBanner
             title="Ready to pay smarter?"
             subtitle="Get your WalletPesa card and settle every bill from one place."
-            primaryLabel="Get the Card"
-            primaryTo="/get-card"
+            primaryLabel="Register"
+            primaryTo="/register"
             secondaryLabel="Back to Services"
             secondaryTo="/services"
           />

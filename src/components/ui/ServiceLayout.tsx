@@ -47,8 +47,8 @@ export default function ServiceLayout({
           <CtaBanner
             title="Ready to get started?"
             subtitle="Get your WalletPesa card and start using this feature today."
-            primaryLabel="Get the Card"
-            primaryTo="/get-card"
+            primaryLabel="Register"
+            primaryTo="/register"
             secondaryLabel="Back to Services"
             secondaryTo="/services"
           />

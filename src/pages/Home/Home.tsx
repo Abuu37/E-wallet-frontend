@@ -143,8 +143,8 @@ export default function Home() {
               single card: instant, secure, and built to keep fees low.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
-              <Button to="/get-card" size="lg">
-                Get the Card
+              <Button to="/register" size="lg">
+                Register
                 <ArrowRight size={18} />
               </Button>
               <Button to="/fees" size="lg" variant="outline-light">
@@ -286,8 +286,8 @@ export default function Home() {
           <CtaBanner
             title="Ready to get your card?"
             subtitle="Join thousands already paying smarter with WalletPesa."
-            primaryLabel="Get the Card"
-            primaryTo="/get-card"
+            primaryLabel="Register"
+            primaryTo="/register"
             secondaryLabel="Talk to Us"
             secondaryTo="/contact"
           />

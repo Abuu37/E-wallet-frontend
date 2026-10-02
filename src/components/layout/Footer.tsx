@@ -31,7 +31,7 @@ const columns = [
     links: [
       { label: 'Services', to: '/services' },
       { label: 'Fees', to: '/fees' },
-      { label: 'Get the Card', to: '/get-card' },
+      { label: 'Register', to: '/register' },
     ],
   },
   {

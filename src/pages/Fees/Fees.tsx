@@ -62,8 +62,8 @@ export default function Fees() {
           <CtaBanner
             title="No hidden fees. Ever."
             subtitle="Get your WalletPesa card and start paying smarter today."
-            primaryLabel="Get the Card"
-            primaryTo="/get-card"
+            primaryLabel="Register"
+            primaryTo="/register"
             secondaryLabel="Read FAQ"
             secondaryTo="/faq"
           />
