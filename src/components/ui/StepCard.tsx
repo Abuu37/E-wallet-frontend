@@ -20,7 +20,7 @@ export default function StepCard({ step, title, description, light = false }: St
 
   return (
     <div className="relative rounded-2xl border border-line bg-white p-6">
-      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-ink text-sm font-bold text-white">
+      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
         {step}
       </span>
       <h3 className="mt-4 text-lg font-bold text-ink">{title}</h3>

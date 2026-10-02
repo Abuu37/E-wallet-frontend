@@ -1,11 +1,16 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import Layout from './components/layout/Layout'
-import Home from './pages/Home'
-import Services from './pages/Services'
-import Fees from './pages/Fees'
-import Faq from './pages/Faq'
-import Contact from './pages/Contact'
-import GetCard from './pages/GetCard'
+import Home from './pages/Home/Home'
+import MainService from './pages/services/MainService'
+import SendMoney from './pages/services/SendMoney'
+import PayBills from './pages/services/PayBills'
+import BankTransfers from './pages/services/BankTransfers'
+import AirtimeDataBundles from './pages/services/AirtimeDataBundles'
+import BecomeAnAgent from './pages/services/BecomeAnAgent'
+import Fees from './pages/Fees/Fees'
+import Faq from './pages/Faq/Faq'
+import Contact from './pages/Contact/Contact'
+import GetCard from './pages/GetCard/GetCard'
 
 const router = createBrowserRouter([
   {
@@ -13,7 +18,12 @@ const router = createBrowserRouter([
     element: <Layout />,
     children: [
       { index: true, element: <Home /> },
-      { path: 'services', element: <Services /> },
+      { path: 'services', element: <MainService /> },
+      { path: 'services/send-money', element: <SendMoney /> },
+      { path: 'services/pay-bills', element: <PayBills /> },
+      { path: 'services/bank-transfers', element: <BankTransfers /> },
+      { path: 'services/airtime-data-bundles', element: <AirtimeDataBundles /> },
+      { path: 'services/become-an-agent', element: <BecomeAnAgent /> },
       { path: 'fees', element: <Fees /> },
       { path: 'faq', element: <Faq /> },
       { path: 'contact', element: <Contact /> },

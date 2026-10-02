@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Mail, Phone, MapPin, Clock } from 'lucide-react'
-import SectionHeading from '../components/ui/SectionHeading'
-import Button from '../components/ui/Button'
+import { Mail, Phone, MapPin, Clock, User, MessageSquare } from 'lucide-react'
+import SectionHeading from '../../components/ui/SectionHeading'
+import Button from '../../components/ui/Button'
 
 const info = [
-  { icon: Phone, label: 'Phone', value: '+255 700 000 000' },
+  { icon: Phone, label: 'Phone', value: '+255 617 812 845' },
   { icon: Mail, label: 'Email', value: 'support@walletpesa.co.tz' },
   { icon: MapPin, label: 'Office', value: 'Dar es Salaam, Tanzania' },
   { icon: Clock, label: 'Support Hours', value: 'Mon–Sat, 8:00–20:00' },
@@ -17,7 +17,6 @@ export default function Contact() {
     <div className="px-6 py-20">
       <div className="mx-auto max-w-6xl">
         <SectionHeading
-          eyebrow="Contact"
           title="We're here to help"
           subtitle="Reach out with questions about your card, fees, or becoming a merchant partner."
         />
@@ -25,8 +24,8 @@ export default function Contact() {
         <div className="mt-16 grid grid-cols-1 gap-12 lg:grid-cols-2">
           <div className="divide-y divide-line rounded-2xl border border-line bg-white">
             {info.map(({ icon: Icon, label, value }) => (
-              <div key={label} className="flex items-center gap-4 p-5">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line text-brand">
+              <div key={label} className="group flex items-center gap-4 p-5">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line text-brand transition-colors duration-200 group-hover:border-brand group-hover:bg-brand group-hover:text-white">
                   <Icon size={18} />
                 </span>
                 <div>
@@ -54,7 +53,8 @@ export default function Contact() {
                 }}
               >
                 <div>
-                  <label htmlFor="name" className="text-sm font-medium text-ink">
+                  <label htmlFor="name" className="flex items-center gap-2 text-sm font-medium text-ink">
+                    <User size={16} className="text-brand" />
                     Full name
                   </label>
                   <input
@@ -66,7 +66,8 @@ export default function Contact() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="email" className="text-sm font-medium text-ink">
+                  <label htmlFor="email" className="flex items-center gap-2 text-sm font-medium text-ink">
+                    <Mail size={16} className="text-brand" />
                     Email
                   </label>
                   <input
@@ -78,7 +79,8 @@ export default function Contact() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="message" className="text-sm font-medium text-ink">
+                  <label htmlFor="message" className="flex items-center gap-2 text-sm font-medium text-ink">
+                    <MessageSquare size={16} className="text-brand" />
                     Message
                   </label>
                   <textarea

@@ -1,5 +1,29 @@
 import { Link } from 'react-router-dom'
-import { CreditCard, Globe, Mail, MessageCircle } from 'lucide-react'
+import { CreditCard, ChevronRight } from 'lucide-react'
+import xIcon from '../../assets/icons/x.svg?raw'
+import facebookIcon from '../../assets/icons/facebook.svg?raw'
+import instagramIcon from '../../assets/icons/instagram.svg?raw'
+import linkedinIcon from '../../assets/icons/linkedin.svg?raw'
+
+const socialLinks = [
+  { label: 'X', href: '#', svg: xIcon },
+  { label: 'Facebook', href: '#', svg: facebookIcon },
+  { label: 'Instagram', href: '#', svg: instagramIcon },
+  { label: 'LinkedIn', href: '#', svg: linkedinIcon },
+]
+
+function SocialIcon({ label, href, svg }: { label: string; href: string; svg: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={label}
+      className="flex h-9 w-9 items-center justify-center rounded-full border border-white/20 text-white/70 transition-colors hover:border-white hover:text-white [&>svg]:h-4 [&>svg]:w-4"
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  )
+}
 
 const columns = [
   {
@@ -15,12 +39,6 @@ const columns = [
     links: [
       { label: 'FAQ', to: '/faq' },
       { label: 'Contact Us', to: '/contact' },
-    ],
-  },
-  {
-    title: 'Company',
-    links: [
-      { label: 'Contact', to: '/contact' },
       { label: 'Privacy Policy', to: '/contact' },
       { label: 'Terms of Service', to: '/contact' },
     ],
@@ -38,20 +56,18 @@ export default function Footer() {
             </span>
             WalletPesa
           </Link>
-          <p className="mt-4 text-sm leading-relaxed">
-            One card for every payment: send money, pay bills, and shop with
-            confidence.
-          </p>
-          <div className="mt-5 flex gap-4">
-            <a href="#" aria-label="Website" className="hover:text-white">
-              <Globe size={18} />
-            </a>
-            <a href="#" aria-label="Email" className="hover:text-white">
-              <Mail size={18} />
-            </a>
-            <a href="#" aria-label="Live chat" className="hover:text-white">
-              <MessageCircle size={18} />
-            </a>
+          <div className="mt-4 space-y-3 text-sm leading-relaxed">
+            <p>
+              12107 Ukonga Street
+              <br />
+              Dar es Salaam, Tanzania
+            </p>
+            <p>
+              <span className="font-semibold text-white">Phone:</span> +255 617 812 845
+            </p>
+            <p>
+              <span className="font-semibold text-white">Email:</span> support@walletpesa.co.tz
+            </p>
           </div>
         </div>
 
@@ -61,7 +77,8 @@ export default function Footer() {
             <ul className="mt-4 space-y-3">
               {column.links.map((link) => (
                 <li key={link.label}>
-                  <Link to={link.to} className="text-sm hover:text-white">
+                  <Link to={link.to} className="flex items-center gap-1.5 text-sm hover:text-white">
+                    <ChevronRight size={14} className="shrink-0" />
                     {link.label}
                   </Link>
                 </li>
@@ -69,10 +86,22 @@ export default function Footer() {
             </ul>
           </div>
         ))}
+
+        <div>
+          <h4 className="text-sm font-semibold text-white">Follow Us</h4>
+          <p className="mt-4 text-sm leading-relaxed">
+            Stay connected for product updates, tips, and offers.
+          </p>
+          <div className="mt-5 flex gap-3">
+            {socialLinks.map((social) => (
+              <SocialIcon key={social.label} {...social} />
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="border-t border-white/10 px-6 py-6 text-center text-xs">
-        © {new Date().getFullYear()} WalletPesa. All rights reserved.
+        © {new Date().getFullYear()} <span className="font-bold text-white">WalletPesa</span>. All rights reserved.
       </div>
     </footer>
   )

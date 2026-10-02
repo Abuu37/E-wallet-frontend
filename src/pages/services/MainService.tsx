@@ -8,19 +8,22 @@ import {
   QrCode,
   BarChart3,
   Users,
+  UserPlus,
   Wallet,
 } from 'lucide-react'
-import SectionHeading from '../components/ui/SectionHeading'
-import ServiceCard from '../components/ui/ServiceCard'
-import CtaBanner from '../components/ui/CtaBanner'
+import SectionHeading from '../../components/ui/SectionHeading'
+import ServiceCard from '../../components/ui/ServiceCard'
+import CtaBanner from '../../components/ui/CtaBanner'
 
 const personal = [
   {
+    to: '/services/send-money',
     icon: Send,
     title: 'Send Money',
     description: 'Instant, free transfers to any WalletPesa user, any time.',
   },
   {
+    to: '/services/pay-bills',
     icon: Receipt,
     title: 'Pay Bills',
     description: 'Electricity, water, TV, and internet bills settled in seconds.',
@@ -31,11 +34,13 @@ const personal = [
     description: 'Instant virtual card issuance, plus an optional physical card for in-store use.',
   },
   {
+    to: '/services/bank-transfers',
     icon: Landmark,
     title: 'Bank Transfers',
     description: 'Move funds freely between WalletPesa and your linked bank account.',
   },
   {
+    to: '/services/airtime-data-bundles',
     icon: Smartphone,
     title: 'Airtime & Data Bundles',
     description: 'Top up your own line or send credit to friends and family.',
@@ -68,9 +73,15 @@ const merchant = [
     title: 'Staff Accounts',
     description: 'Give employees limited access to accept payments without full control.',
   },
+  {
+    to: '/services/become-an-agent',
+    icon: UserPlus,
+    title: 'Become an Agent',
+    description: 'Join the WalletPesa agent network to handle cash-in, cash-out, and card pickup nearby.',
+  },
 ]
 
-export default function Services() {
+export default function MainService() {
   return (
     <div className="px-6 py-20">
       <div className="mx-auto max-w-6xl">

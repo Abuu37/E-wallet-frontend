@@ -1,6 +1,6 @@
-import SectionHeading from '../components/ui/SectionHeading'
-import FaqAccordion, { type FaqItem } from '../components/ui/FaqAccordion'
-import CtaBanner from '../components/ui/CtaBanner'
+import SectionHeading from '../../components/ui/SectionHeading'
+import FaqAccordion, { type FaqItem } from '../../components/ui/FaqAccordion'
+import CtaBanner from '../../components/ui/CtaBanner'
 
 const faqs: FaqItem[] = [
   {
@@ -38,9 +38,8 @@ const faqs: FaqItem[] = [
 export default function Faq() {
   return (
     <div className="px-6 py-20">
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-4xl">
         <SectionHeading
-          eyebrow="FAQ"
           title="Frequently asked questions"
           subtitle="Can't find what you're looking for? Reach out on the Contact page."
         />

@@ -1,7 +1,7 @@
-import { Check } from 'lucide-react'
-import SectionHeading from '../components/ui/SectionHeading'
-import PricingTable from '../components/ui/PricingTable'
-import CtaBanner from '../components/ui/CtaBanner'
+import SectionHeading from '../../components/ui/SectionHeading'
+import PricingTable from '../../components/ui/PricingTable'
+import CtaBanner from '../../components/ui/CtaBanner'
+import CheckIcon from '../../components/ui/CheckIcon'
 
 const cardFees = [
   { service: 'Virtual card issuance', fee: 'Free', note: 'Instant, unlimited' },
@@ -34,7 +34,6 @@ export default function Fees() {
     <div className="px-6 py-20">
       <div className="mx-auto max-w-6xl">
         <SectionHeading
-          eyebrow="Fees"
           title="Simple, transparent pricing"
           subtitle="No surprise charges. All figures below are illustrative and may vary by region."
         />
@@ -52,7 +51,7 @@ export default function Fees() {
           <ul className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {comparisons.map((item) => (
               <li key={item} className="flex items-start gap-3 text-sm text-muted">
-                <Check size={18} className="mt-0.5 shrink-0 text-positive" />
+                <CheckIcon className="mt-0.5" />
                 {item}
               </li>
             ))}

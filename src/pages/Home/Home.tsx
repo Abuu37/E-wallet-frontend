@@ -11,13 +11,13 @@ import {
   ArrowRight,
   Wifi,
 } from 'lucide-react'
-import Button from '../components/ui/Button'
-import SectionHeading from '../components/ui/SectionHeading'
-import ServiceCard from '../components/ui/ServiceCard'
-import StepCard from '../components/ui/StepCard'
-import StatsBar from '../components/ui/StatsBar'
-import CtaBanner from '../components/ui/CtaBanner'
-import digitalWallet from '../assets/imgs/Digital-wallet.png.webp'
+import Button from '../../components/ui/Button'
+import SectionHeading from '../../components/ui/SectionHeading'
+import ServiceCard from '../../components/ui/ServiceCard'
+import StepCard from '../../components/ui/StepCard'
+import StatsBar from '../../components/ui/StatsBar'
+import CtaBanner from '../../components/ui/CtaBanner'
+import digitalWallet from '../../assets/imgs/Digital-wallet.png.webp'
 
 function CardChip() {
   return (

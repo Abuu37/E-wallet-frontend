@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { CreditCard, ShieldCheck, Zap } from 'lucide-react'
-import SectionHeading from '../components/ui/SectionHeading'
-import StepCard from '../components/ui/StepCard'
-import Button from '../components/ui/Button'
+import SectionHeading from '../../components/ui/SectionHeading'
+import StepCard from '../../components/ui/StepCard'
+import Button from '../../components/ui/Button'
 
 const steps = [
   { title: 'Enter your details', description: 'Phone number, full name, and a valid ID.' },
