@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { Menu, X, CreditCard, ChevronDown } from 'lucide-react'
-import { motion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import Button from '../ui/Button'
 
 interface NavChild {
@@ -160,77 +160,112 @@ export default function Navbar() {
 
         <button
           type="button"
-          className="text-ink md:hidden"
+          className="relative text-ink md:hidden"
           onClick={() => setOpen((prev) => !prev)}
           aria-label="Toggle menu"
         >
-          {open ? <X size={26} /> : <Menu size={26} />}
+          <AnimatePresence initial={false} mode="wait">
+            <motion.span
+              key={open ? 'close' : 'open'}
+              className="flex"
+              initial={{ rotate: -90, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: 90, opacity: 0 }}
+              transition={{ duration: 0.2, ease: 'easeInOut' }}
+            >
+              {open ? <X size={26} /> : <Menu size={26} />}
+            </motion.span>
+          </AnimatePresence>
         </button>
       </nav>
 
-      {open && (
-        <div className="border-t border-line bg-white px-6 py-4 md:hidden">
-          <div className="flex flex-col gap-4">
-            {links.map((link) =>
-              link.children ? (
-                <div key={link.label}>
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between text-sm font-medium text-ink/80"
-                    onClick={() =>
-                      setOpenSubmenu((prev) => (prev === link.label ? null : link.label))
-                    }
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            key="mobile-menu"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="overflow-hidden border-t border-line bg-white md:hidden"
+          >
+            <div className="flex flex-col gap-4 px-6 py-4">
+              {links.map((link) =>
+                link.children ? (
+                  <div key={link.label}>
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between text-sm font-medium text-ink/80"
+                      onClick={() =>
+                        setOpenSubmenu((prev) => (prev === link.label ? null : link.label))
+                      }
+                    >
+                      {link.label}
+                      <ChevronDown
+                        size={16}
+                        className={`transition-transform duration-200 ${
+                          openSubmenu === link.label ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {openSubmenu === link.label && (
+                        <motion.div
+                          key="submenu"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.25, ease: 'easeInOut' }}
+                          className="overflow-hidden"
+                        >
+                          <div className="mt-3 flex flex-col gap-3 border-l border-line pl-4">
+                            {link.children.map((child) =>
+                              child.disabled || !child.to ? (
+                                <span
+                                  key={child.label}
+                                  aria-disabled="true"
+                                  className={dropdownLinkClass}
+                                >
+                                  {child.label}
+                                </span>
+                              ) : (
+                                <Link
+                                  key={child.label}
+                                  to={child.to}
+                                  className={dropdownLinkClass}
+                                  onClick={() => {
+                                    setOpen(false)
+                                    setOpenSubmenu(null)
+                                  }}
+                                >
+                                  {child.label}
+                                </Link>
+                              ),
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                ) : (
+                  <NavLink
+                    key={link.label}
+                    to={link.to!}
+                    className={mobileLinkClass}
+                    end={link.to === '/'}
+                    onClick={() => setOpen(false)}
                   >
                     {link.label}
-                    <ChevronDown
-                      size={16}
-                      className={`transition-transform duration-200 ${
-                        openSubmenu === link.label ? 'rotate-180' : ''
-                      }`}
-                    />
-                  </button>
-                  {openSubmenu === link.label && (
-                    <div className="mt-3 flex flex-col gap-3 border-l border-line pl-4">
-                      {link.children.map((child) =>
-                        child.disabled || !child.to ? (
-                          <span key={child.label} aria-disabled="true" className={dropdownLinkClass}>
-                            {child.label}
-                          </span>
-                        ) : (
-                          <Link
-                            key={child.label}
-                            to={child.to}
-                            className={dropdownLinkClass}
-                            onClick={() => {
-                              setOpen(false)
-                              setOpenSubmenu(null)
-                            }}
-                          >
-                            {child.label}
-                          </Link>
-                        ),
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <NavLink
-                  key={link.label}
-                  to={link.to!}
-                  className={mobileLinkClass}
-                  end={link.to === '/'}
-                  onClick={() => setOpen(false)}
-                >
-                  {link.label}
-                </NavLink>
-              ),
-            )}
-            <Button to="/login" className="mt-2 w-full" onClick={() => setOpen(false)}>
-              Login
-            </Button>
-          </div>
-        </div>
-      )}
+                  </NavLink>
+                ),
+              )}
+              <Button to="/login" className="mt-2 w-full" onClick={() => setOpen(false)}>
+                Login
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   )
 }

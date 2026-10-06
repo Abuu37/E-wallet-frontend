@@ -10,8 +10,14 @@ import BecomeAnAgent from './pages/services/BecomeAnAgent'
 import Fees from './pages/Fees/Fees'
 import Faq from './pages/Faq/Faq'
 import Contact from './pages/Contact/Contact'
-import Login from './pages/Login/Login'
-import Register from './pages/Register/Register'
+import Login from './features/auth/pages/Login'
+import Register from './features/auth/pages/Register'
+import DashboardLayout from './features/dashboard/components/DashboardLayout'
+import Dashboard from './features/dashboard/pages/Dashboard'
+import DashboardTransactions from './features/dashboard/pages/Transactions'
+import DashboardCustomers from './features/dashboard/pages/Customers'
+import DashboardCards from './features/dashboard/pages/Cards'
+import DashboardSettings from './features/dashboard/pages/Settings'
 
 const router = createBrowserRouter([
   {
@@ -30,6 +36,17 @@ const router = createBrowserRouter([
       { path: 'contact', element: <Contact /> },
       { path: 'login', element: <Login /> },
       { path: 'register', element: <Register /> },
+    ],
+  },
+  {
+    path: '/dashboard',
+    element: <DashboardLayout />,
+    children: [
+      { index: true, element: <Dashboard /> },
+      { path: 'transactions', element: <DashboardTransactions /> },
+      { path: 'customers', element: <DashboardCustomers /> },
+      { path: 'cards', element: <DashboardCards /> },
+      { path: 'settings', element: <DashboardSettings /> },
     ],
   },
 ])

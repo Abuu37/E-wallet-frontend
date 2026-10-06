@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { CreditCard, Mail, Lock, Eye, EyeOff, ShieldCheck, Sparkles } from 'lucide-react'
-import Button from '../../components/ui/Button'
-import ewalletImage from '../../assets/imgs/ewallet.webp'
-import paymentImage from '../../assets/imgs/payment-img1.jpg'
-import appScreenImage from '../../assets/imgs/image 2.avif'
+import { CreditCard, Mail, Lock, Eye, EyeOff, Sparkles } from 'lucide-react'
+import Button from '../../../components/ui/Button'
+import ewalletImage from '../../../assets/imgs/ewallet.webp'
+import paymentImage from '../../../assets/imgs/payment-img1.jpg'
+import appScreenImage from '../../../assets/imgs/image 2.avif'
 
 const slides = [ewalletImage, paymentImage, appScreenImage]
 const SLIDE_DURATION = 15000
 
+const fieldClass =
+  'w-full rounded-full border border-transparent bg-surface py-2.5 pl-11 pr-4 text-sm outline-none transition-colors focus:border-brand focus:bg-white'
+
 export default function Login() {
-  const [submitted, setSubmitted] = useState(false)
+  const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
   const [activeSlide, setActiveSlide] = useState(0)
 
@@ -140,88 +143,77 @@ export default function Login() {
           </div>
 
           <div className="mt-8 rounded-3xl bg-white p-8 shadow-2xl shadow-ink/10">
-            {submitted ? (
-              <div className="flex flex-col items-center py-4 text-center">
-                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-positive/10 text-positive">
-                  <ShieldCheck size={24} />
-                </span>
-                <h3 className="mt-4 text-lg font-bold text-ink">You're logged in</h3>
-                <p className="mt-2 text-sm text-muted">
-                  This is a demo flow, so no account was actually created.
-                </p>
+            <form
+              className="space-y-5"
+              onSubmit={(event) => {
+                event.preventDefault()
+                navigate('/dashboard')
+              }}
+            >
+              <div>
+                <label htmlFor="email" className="text-sm font-medium text-ink">
+                  Email
+                </label>
+                <div className="relative mt-2">
+                  <Mail
+                    size={18}
+                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                  />
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    className={fieldClass}
+                    placeholder="you@example.com"
+                  />
+                </div>
               </div>
-            ) : (
-              <form
-                className="space-y-5"
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  setSubmitted(true)
-                }}
-              >
-                <div>
-                  <label htmlFor="email" className="text-sm font-medium text-ink">
-                    Email
-                  </label>
-                  <div className="relative mt-2">
-                    <Mail
-                      size={18}
-                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-                    />
-                    <input
-                      id="email"
-                      type="email"
-                      required
-                      className="w-full rounded-full border border-transparent bg-surface py-2.5 pl-11 pr-4 text-sm outline-none transition-colors focus:border-brand focus:bg-white"
-                      placeholder="you@example.com"
-                    />
-                  </div>
-                </div>
 
-                <div>
-                  <label htmlFor="password" className="text-sm font-medium text-ink">
-                    Password
-                  </label>
-                  <div className="relative mt-2">
-                    <Lock
-                      size={18}
-                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-                    />
-                    <input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      className="w-full rounded-full border border-transparent bg-surface py-2.5 pl-11 pr-11 text-sm outline-none transition-colors focus:border-brand focus:bg-white"
-                      placeholder="••••••••"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((prev) => !prev)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-brand"
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between">
-                    <label htmlFor="remember" className="flex items-center gap-2 text-sm text-muted">
-                      <input
-                        id="remember"
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-line text-brand focus:ring-brand"
-                      />
-                      Remember me
-                    </label>
-                    <Link to="/contact" className="text-xs font-medium text-brand hover:underline">
-                      Forgot password?
-                    </Link>
-                  </div>
+              <div>
+                <label htmlFor="password" className="text-sm font-medium text-ink">
+                  Password
+                </label>
+                <div className="relative mt-2">
+                  <Lock
+                    size={18}
+                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                  />
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    className={`${fieldClass} pr-11`}
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-brand"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
                 </div>
+                <div className="mt-3 flex items-center justify-between">
+                  <label htmlFor="remember" className="flex items-center gap-2 text-sm text-muted">
+                    <input
+                      id="remember"
+                      name="remember"
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-line text-brand focus:ring-brand"
+                    />
+                    Remember me
+                  </label>
+                  <Link to="/contact" className="text-xs font-medium text-brand hover:underline">
+                    Forgot password?
+                  </Link>
+                </div>
+              </div>
 
-                <Button type="submit" className="w-full">
-                  Log In
-                </Button>
-              </form>
-            )}
+              <Button type="submit" className="w-full">
+                Log In
+              </Button>
+            </form>
           </div>
 
           <p className="mt-6 text-center text-sm text-muted">

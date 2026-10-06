@@ -27,6 +27,7 @@ interface ButtonProps {
   variant?: Variant
   size?: Size
   className?: string
+  disabled?: boolean
 }
 
 export default function Button({
@@ -38,8 +39,9 @@ export default function Button({
   variant = 'primary',
   size = 'md',
   className = '',
+  disabled = false,
 }: ButtonProps) {
-  const classes = `inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-colors duration-200 ${variantClasses[variant]} ${sizeClasses[size]} ${className}`
+  const classes = `inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-60 ${variantClasses[variant]} ${sizeClasses[size]} ${className}`
 
   if (to) {
     return (
@@ -58,7 +60,7 @@ export default function Button({
   }
 
   return (
-    <button type={type} onClick={onClick} className={classes}>
+    <button type={type} onClick={onClick} disabled={disabled} className={classes}>
       {children}
     </button>
   )
