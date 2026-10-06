@@ -6,8 +6,8 @@ import DashboardTopbar from './DashboardTopbar'
 const titles: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/dashboard/transactions': 'Transactions',
+  '/dashboard/wallets': 'Wallets',
   '/dashboard/customers': 'Customers',
-  '/dashboard/cards': 'Cards',
   '/dashboard/settings': 'Settings',
 }
 

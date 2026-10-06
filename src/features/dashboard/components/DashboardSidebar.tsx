@@ -1,21 +1,39 @@
 import { NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'motion/react'
+import type { LucideIcon } from 'lucide-react'
 import {
   CreditCard,
   LayoutDashboard,
   ArrowLeftRight,
-  Users,
   WalletCards,
+  Users,
   Settings,
   X,
 } from 'lucide-react'
 
-const navItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/dashboard/transactions', label: 'Transactions', icon: ArrowLeftRight },
-  { to: '/dashboard/customers', label: 'Customers', icon: Users },
-  { to: '/dashboard/cards', label: 'Cards', icon: WalletCards },
-  { to: '/dashboard/settings', label: 'Settings', icon: Settings },
+interface NavItem {
+  to: string
+  label: string
+  icon: LucideIcon
+  end?: boolean
+}
+
+const navGroups: Array<{ label: string | null; items: NavItem[] }> = [
+  {
+    label: null,
+    items: [{ to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true }],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { to: '/dashboard/transactions', label: 'Transactions', icon: ArrowLeftRight },
+      { to: '/dashboard/wallets', label: 'Wallets', icon: WalletCards },
+    ],
+  },
+  {
+    label: 'People',
+    items: [{ to: '/dashboard/customers', label: 'Customers', icon: Users }],
+  },
 ]
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
@@ -38,19 +56,37 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         WalletPesa
       </NavLink>
 
-      <nav className="mt-8 flex flex-col gap-1">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.label}
-            to={item.to}
-            end={item.end}
-            className={linkClass}
-            onClick={onNavigate}
-          >
-            <item.icon size={18} />
-            {item.label}
-          </NavLink>
+      <nav className="mt-8 flex flex-1 flex-col gap-1">
+        {navGroups.map((group) => (
+          <div key={group.label ?? 'root'}>
+            {group.label && (
+              <p className="mb-1 mt-4 px-3 text-[11px] font-bold uppercase tracking-wide text-white/35">
+                {group.label}
+              </p>
+            )}
+            <div className="flex flex-col gap-1">
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.label}
+                  to={item.to}
+                  end={item.end}
+                  className={linkClass}
+                  onClick={onNavigate}
+                >
+                  <item.icon size={18} />
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
+          </div>
         ))}
+
+        <div className="mt-auto border-t border-white/10 pt-3">
+          <NavLink to="/dashboard/settings" className={linkClass} onClick={onNavigate}>
+            <Settings size={18} />
+            Settings
+          </NavLink>
+        </div>
       </nav>
     </>
   )

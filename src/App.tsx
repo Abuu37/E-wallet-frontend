@@ -16,7 +16,7 @@ import DashboardLayout from './features/dashboard/components/DashboardLayout'
 import Dashboard from './features/dashboard/pages/Dashboard'
 import DashboardTransactions from './features/dashboard/pages/Transactions'
 import DashboardCustomers from './features/dashboard/pages/Customers'
-import DashboardCards from './features/dashboard/pages/Cards'
+import DashboardWallets from './features/dashboard/pages/Wallets'
 import DashboardSettings from './features/dashboard/pages/Settings'
 
 const router = createBrowserRouter([
@@ -45,7 +45,7 @@ const router = createBrowserRouter([
       { index: true, element: <Dashboard /> },
       { path: 'transactions', element: <DashboardTransactions /> },
       { path: 'customers', element: <DashboardCustomers /> },
-      { path: 'cards', element: <DashboardCards /> },
+      { path: 'wallets', element: <DashboardWallets /> },
       { path: 'settings', element: <DashboardSettings /> },
     ],
   },
