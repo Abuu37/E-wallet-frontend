@@ -14,6 +14,14 @@
   --color-muted: #64748b;
   --color-line: #e2e8f0;
 
+  /* Categorical chart palette - fixed order, validated for CVD-safe adjacency */
+  --color-chart-blue: #2a78d6;
+  --color-chart-orange: #eb6834;
+  --color-chart-aqua: #1baf7a;
+  --color-chart-amber: #eda100;
+  --color-chart-magenta: #e87ba4;
+  --color-chart-green: #008300;
+
   --animate-card-float: card-float 5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   --animate-gradient-pan: gradient-pan 8s ease-in-out infinite;
 }

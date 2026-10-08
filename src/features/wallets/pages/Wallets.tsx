@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Search, Wallet as WalletIcon, CircleCheck, Lock, ShieldAlert } from 'lucide-react'
-import StatCard from '../components/StatCard'
-import StatusBadge from '../components/StatusBadge'
-import Drawer from '../components/Drawer'
+import StatCard from '../../../components/ui/StatCard'
+import StatusBadge from '../../../components/ui/StatusBadge'
+import Drawer from '../../../components/ui/Drawer'
 import { wallets as initialWallets, type Wallet, type WalletStatus } from '../data'
 
 const statusVariant = {
@@ -146,7 +146,7 @@ export default function Wallets() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl bg-white shadow-xl shadow-ink/5 ring-1 ring-line">
+      <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="border-y border-line bg-surface text-xs uppercase tracking-wide text-muted">

@@ -6,7 +6,7 @@ const fieldClass =
 
 export default function Settings() {
   return (
-    <div className="max-w-2xl rounded-2xl bg-white p-8 shadow-xl shadow-ink/5 ring-1 ring-line">
+    <div className="max-w-2xl rounded-2xl bg-white p-8 ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
       <h2 className="text-lg font-bold text-ink">Profile settings</h2>
       <p className="mt-1 text-sm text-muted">
         Update the details shown across the dashboard.
@@ -26,7 +26,7 @@ export default function Settings() {
                 size={18}
                 className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
               />
-              <input id="name" type="text" defaultValue="Asha Juma" className={fieldClass} />
+              <input id="name" type="text" defaultValue="Code Abuu" className={fieldClass} />
             </div>
           </div>
 
@@ -56,7 +56,7 @@ export default function Settings() {
             <input
               id="email"
               type="email"
-              defaultValue="asha.juma@walletpesa.co.tz"
+              defaultValue="code.abuu@walletpesa.co.tz"
               className={fieldClass}
             />
           </div>

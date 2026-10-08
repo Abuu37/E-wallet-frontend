@@ -190,7 +190,7 @@ export default function Home() {
                     </div>
                     <span className="text-base font-bold tracking-tight">WalletPesa</span>
                   </div>
-                  <p className="text-lg font-semibold tracking-[0.15em]">4821 3090 5412 7734</p>
+                  <p className="text-lg font-semibold tracking-[0.15em]">4821 **** **** 7734</p>
                   <div className="flex items-end justify-between">
                     <div>
                       <p className="text-[10px] uppercase tracking-wide text-white/50">Card holder</p>

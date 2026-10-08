@@ -12,12 +12,12 @@ import Faq from './pages/Faq/Faq'
 import Contact from './pages/Contact/Contact'
 import Login from './features/auth/pages/Login'
 import Register from './features/auth/pages/Register'
-import DashboardLayout from './features/dashboard/components/DashboardLayout'
-import Dashboard from './features/dashboard/pages/Dashboard'
-import DashboardTransactions from './features/dashboard/pages/Transactions'
-import DashboardCustomers from './features/dashboard/pages/Customers'
-import DashboardWallets from './features/dashboard/pages/Wallets'
-import DashboardSettings from './features/dashboard/pages/Settings'
+import DashboardLayout from './components/layout/DashboardLayout'
+import Overview from './features/overview/pages/Overview'
+import DashboardTransactions from './features/transactions/pages/Transactions'
+import DashboardCustomers from './features/customers/pages/Customers'
+import DashboardWallets from './features/wallets/pages/Wallets'
+import DashboardSettings from './features/settings/pages/Settings'
 
 const router = createBrowserRouter([
   {
@@ -42,7 +42,7 @@ const router = createBrowserRouter([
     path: '/dashboard',
     element: <DashboardLayout />,
     children: [
-      { index: true, element: <Dashboard /> },
+      { index: true, element: <Overview /> },
       { path: 'transactions', element: <DashboardTransactions /> },
       { path: 'customers', element: <DashboardCustomers /> },
       { path: 'wallets', element: <DashboardWallets /> },

@@ -1,0 +1,54 @@
+
+export const Permission = {
+  /** User */
+  USER_CREATE: "USER_CREATE",
+  USER_VIEW: "USER_VIEW",
+  USER_UPDATE: "USER_UPDATE",
+
+  /** Customer */
+  CUSTOMER_VIEW: "CUSTOMER_VIEW",
+  CUSTOMER_UPDATE: "CUSTOMER_UPDATE",
+
+  /** Wallet */
+  WALLET_VIEW: "WALLET_VIEW",
+  WALLET_TRANSFER: "WALLET_TRANSFER",
+
+  /** Transactions */
+  TRANSACTION_VIEW: "TRANSACTION_VIEW",
+
+  /** Top Up */
+  TOPUP_CREATE: "TOPUP_CREATE",
+  TOPUP_VIEW: "TOPUP_VIEW",
+
+  /** Withdrawal */
+  WITHDRAWAL_CREATE: "WITHDRAWAL_CREATE",
+
+  /** Cashier / Float */
+  FLOAT_VIEW: "FLOAT_VIEW",
+  FLOAT_MANAGE: "FLOAT_MANAGE",
+
+  /** Loans */
+  LOAN_VIEW: "LOAN_VIEW",
+  LOAN_APPLY: "LOAN_APPLY",
+  LOAN_APPROVE: "LOAN_APPROVE",
+  LOAN_REPAY: "LOAN_REPAY",
+
+  /** Financial */
+  RECONCILIATION_VIEW: "RECONCILIATION_VIEW",
+  RECONCILIATION_MANAGE: "RECONCILIATION_MANAGE",
+  FINANCIAL_REPORT_VIEW: "FINANCIAL_REPORT_VIEW",
+
+  /** Roles */
+  ROLE_VIEW: "ROLE_VIEW",
+  ROLE_ASSIGN: "ROLE_ASSIGN",
+
+  /** Charges */
+  CHARGE_VIEW: "CHARGE_VIEW",
+  CHARGE_MANAGE: "CHARGE_MANAGE",
+
+  /** System */
+  SYSTEM_CONFIG: "SYSTEM_CONFIG",
+} as const;
+
+export type Permission = (typeof Permission)[keyof typeof Permission];
+

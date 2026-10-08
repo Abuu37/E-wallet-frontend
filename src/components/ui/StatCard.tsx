@@ -1,6 +1,14 @@
 import type { LucideIcon } from 'lucide-react'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
-import AnimatedNumber from '../../../components/ui/AnimatedNumber'
+import AnimatedNumber from './AnimatedNumber'
+
+type StatCardTone = 'brand' | 'accent' | 'positive'
+
+const toneStyles: Record<StatCardTone, string> = {
+  brand: 'bg-brand/10 text-brand',
+  accent: 'bg-accent/10 text-accent',
+  positive: 'bg-positive/10 text-positive',
+}
 
 interface StatCardProps {
   icon: LucideIcon
@@ -8,15 +16,23 @@ interface StatCardProps {
   value: string
   delta: number
   deltaLabel?: string
+  tone?: StatCardTone
 }
 
-export default function StatCard({ icon: Icon, label, value, delta, deltaLabel }: StatCardProps) {
+export default function StatCard({
+  icon: Icon,
+  label,
+  value,
+  delta,
+  deltaLabel,
+  tone = 'brand',
+}: StatCardProps) {
   const isUp = delta >= 0
 
   return (
-    <div className="rounded-2xl bg-white p-6 shadow-xl shadow-ink/5 ring-1 ring-line">
+    <div className="rounded-2xl bg-white p-6 ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
       <div className="flex items-start justify-between">
-        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand/10 text-brand">
+        <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${toneStyles[tone]}`}>
           <Icon size={20} />
         </span>
         <span
