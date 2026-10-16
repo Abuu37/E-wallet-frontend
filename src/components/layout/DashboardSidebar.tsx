@@ -7,6 +7,11 @@ import {
   ArrowLeftRight,
   WalletCards,
   Users,
+  UserCog,
+  UserCheck,
+  Banknote,
+  HandCoins,
+  Percent,
   Settings,
   X,
 } from 'lucide-react'
@@ -31,8 +36,20 @@ const navGroups: Array<{ label: string | null; items: NavItem[] }> = [
     ],
   },
   {
-    label: 'People',
-    items: [{ to: '/dashboard/customers', label: 'Customers', icon: Users }],
+    label: 'Administration',
+    items: [
+      { to: '/dashboard/customers', label: 'Customers', icon: Users },
+      { to: '/dashboard/cashiers', label: 'Cashiers', icon: UserCog },
+      { to: '/dashboard/financial-officers', label: 'Financial Officers', icon: UserCheck },
+    ],
+  },
+  {
+    label: 'Management',
+    items: [
+      { to: '/dashboard/financial', label: 'Financial', icon: Banknote },
+      { to: '/dashboard/loans', label: 'Loans', icon: HandCoins },
+      { to: '/dashboard/fees', label: 'Fees', icon: Percent },
+    ],
   },
 ]
 
@@ -100,7 +117,7 @@ interface DashboardSidebarProps {
 export default function DashboardSidebar({ open, onClose }: DashboardSidebarProps) {
   return (
     <>
-      <aside className="hidden w-64 flex-col bg-ink px-4 py-6 lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-64 flex-col overflow-y-auto bg-ink px-4 py-6 lg:flex">
         <SidebarContent />
       </aside>
 

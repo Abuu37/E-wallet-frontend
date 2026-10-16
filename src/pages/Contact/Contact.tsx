@@ -7,7 +7,7 @@ const info = [
   { icon: Phone, label: 'Phone', value: '+255 617 812 845' },
   { icon: Mail, label: 'Email', value: 'support@walletpesa.co.tz' },
   { icon: MapPin, label: 'Office', value: 'Dar es Salaam, Tanzania' },
-  { icon: Clock, label: 'Support Hours', value: 'Mon–Sat, 8:00–20:00' },
+  { icon: Clock, label: 'Support Hours', value: 'Mon to Sat, 8:00 to 20:00' },
 ]
 
 export default function Contact() {

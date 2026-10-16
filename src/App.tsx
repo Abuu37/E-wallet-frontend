@@ -17,6 +17,11 @@ import Overview from './features/overview/pages/Overview'
 import DashboardTransactions from './features/transactions/pages/Transactions'
 import DashboardCustomers from './features/customers/pages/Customers'
 import DashboardWallets from './features/wallets/pages/Wallets'
+import DashboardCashiers from './features/cashiers/pages/Cashiers'
+import DashboardFinancial from './features/financial/pages/Financial'
+import DashboardFinancialOfficers from './features/financial-officers/pages/FinancialOfficers'
+import DashboardLoans from './features/loans/pages/Loans'
+import DashboardFees from './features/fees/pages/Fees'
 import DashboardSettings from './features/settings/pages/Settings'
 
 const router = createBrowserRouter([
@@ -46,6 +51,11 @@ const router = createBrowserRouter([
       { path: 'transactions', element: <DashboardTransactions /> },
       { path: 'customers', element: <DashboardCustomers /> },
       { path: 'wallets', element: <DashboardWallets /> },
+      { path: 'cashiers', element: <DashboardCashiers /> },
+      { path: 'financial', element: <DashboardFinancial /> },
+      { path: 'financial-officers', element: <DashboardFinancialOfficers /> },
+      { path: 'loans', element: <DashboardLoans /> },
+      { path: 'fees', element: <DashboardFees /> },
       { path: 'settings', element: <DashboardSettings /> },
     ],
   },

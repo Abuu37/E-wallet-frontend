@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import TypeBadge from '../../../components/ui/TypeBadge'
 import {
   UserCog,
   Users,
@@ -13,6 +14,16 @@ import {
   AlertTriangle,
   Banknote,
   Download,
+  Eye,
+  User,
+  CreditCard,
+  Tag,
+  Globe,
+  Percent,
+  Send,
+  Receipt,
+  RotateCcw,
+  CalendarDays,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -29,6 +40,7 @@ import {
 } from 'recharts'
 import StatCard from '../../../components/ui/StatCard'
 import StatusBadge from '../../../components/ui/StatusBadge'
+import Drawer from '../../../components/ui/Drawer'
 import {
   overviewStats,
   volumeByRange,
@@ -36,16 +48,18 @@ import {
   transactionByType,
   walletOverview,
   loanOverview,
-  recentOverviewTransactions,
   type VolumeRange,
 } from '../data'
+import { transactions } from '../../transactions/data'
+import { maskAccount } from '../../../utils/mask'
 
-const statusVariant = {
+const txStatusVariant = {
   Successful: 'positive',
   Pending: 'warning',
   Failed: 'negative',
-  Reversed: 'neutral',
 } as const
+
+const RECENT_TRANSACTIONS_PAGE_SIZE = 10
 
 const rangeOptions: { value: VolumeRange | 'custom'; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -55,18 +69,11 @@ const rangeOptions: { value: VolumeRange | 'custom'; label: string }[] = [
 ]
 
 function currency(value: number) {
-  return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `TSh ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 function number(value: number) {
   return value.toLocaleString()
-}
-
-// Keeps the country code and last 4 digits visible — the rest is masked for display security.
-function maskAccount(account: string) {
-  const countryCode = account.match(/^\+\d+/)?.[0] ?? ''
-  const digits = account.replace(/\D/g, '')
-  return `${countryCode} **** **** ${digits.slice(-4)}`.trim()
 }
 
 function escapeCsvCell(value: string | number) {
@@ -74,15 +81,52 @@ function escapeCsvCell(value: string | number) {
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
 }
 
-function exportTransactionsCsv(rows: typeof recentOverviewTransactions) {
-  const header = ['ID', 'Customer', 'Type', 'Account Number', 'Amount', 'Status']
-  const lines = [header, ...rows.map((tx) => [tx.id, tx.customer, tx.type, tx.account, tx.amount.toFixed(2), tx.status])]
+// Cashiers use their float account code (e.g. "FA-384021"), not a phone number, so only
+// mask values that actually look like a phone number; masking a float code would just
+// mangle it into something unrecognizable.
+function displayAccount(value: string) {
+  return value.startsWith('+') ? maskAccount(value) : value
+}
+
+// Cashier Topup is filed under the receiving customer's own wallet, so the usual
+// customer→recipient direction is reversed: the cashier is the source, not the destination.
+function getTxFlow(tx: (typeof transactions)[number]) {
+  if (tx.type === 'Cashier Topup') {
+    return {
+      fromName: tx.recipientName ?? tx.customer,
+      fromAccount: tx.recipientAccount ?? tx.phone,
+      toName: tx.customer,
+    }
+  }
+  return {
+    fromName: tx.customer,
+    fromAccount: tx.phone,
+    toName: tx.recipientName ?? 'N/A',
+  }
+}
+
+const typeTone = {
+  'Wallet Transfer': 'blue',
+  'Bank Transfer': 'green',
+  'Cashier Topup': 'purple',
+  Withdraw: 'rose',
+} as const
+
+function exportTransactionsCsv(rows: typeof transactions) {
+  const header = ['Transaction ID', 'From', 'Account', 'Type', 'To', 'Amount', 'Status', 'Date']
+  const lines = [
+    header,
+    ...rows.map((row) => {
+      const { fromName, fromAccount, toName } = getTxFlow(row)
+      return [row.id, fromName, fromAccount, row.type, toName, row.amount.toFixed(2), row.status, row.date]
+    }),
+  ]
   const csv = lines.map((line) => line.map(escapeCsvCell).join(',')).join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `recent-transactions-${new Date().toISOString().slice(0, 10)}.csv`
+  link.download = `recent-financial-transactions-${new Date().toISOString().slice(0, 10)}.csv`
   link.click()
   URL.revokeObjectURL(url)
 }
@@ -158,10 +202,31 @@ export default function Overview() {
     return volumeByRange[range]
   }, [range, customStart, customEnd])
 
-  const recentTransactions = recentOverviewTransactions
+  const [recentPage, setRecentPage] = useState(1)
+  const recentTotalPages = Math.max(1, Math.ceil(transactions.length / RECENT_TRANSACTIONS_PAGE_SIZE))
+  const recentTransactions = transactions.slice(
+    (recentPage - 1) * RECENT_TRANSACTIONS_PAGE_SIZE,
+    recentPage * RECENT_TRANSACTIONS_PAGE_SIZE,
+  )
+
+  const [selectedTxId, setSelectedTxId] = useState<string | null>(null)
+  const [txDrawerOpen, setTxDrawerOpen] = useState(false)
+  const selectedTx = transactions.find((tx) => tx.id === selectedTxId) ?? null
+
+  const openTxDetail = (id: string) => {
+    setSelectedTxId(id)
+    setTxDrawerOpen(true)
+  }
 
   return (
     <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-extrabold text-ink">Overview</h1>
+        <p className="mt-1 text-sm text-muted">
+          A snapshot of platform activity across wallets, customers, and transactions.
+        </p>
+      </div>
+
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         <StatCard
           icon={UserCog}
@@ -388,45 +453,239 @@ export default function Overview() {
 
       <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
         <div className="flex items-center justify-between px-6 py-5">
-          <h2 className="text-base font-bold text-ink">Recent transactions</h2>
-          <button
-            type="button"
-            onClick={() => exportTransactionsCsv(recentTransactions)}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-brand ring-1 ring-line transition-colors hover:bg-surface"
-          >
-            <Download size={14} />
-            Export CSV
-          </button>
+          <h2 className="text-base font-bold text-ink">Recent Financial Transactions</h2>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => exportTransactionsCsv(transactions)}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-brand ring-1 ring-line transition-colors hover:bg-surface"
+            >
+              <Download size={14} />
+              Export CSV
+            </button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="border-y border-line bg-surface text-xs uppercase tracking-wide text-muted">
               <tr>
-                <th className="px-6 py-3 font-semibold">ID</th>
-                <th className="px-6 py-3 font-semibold">Customer</th>
+                <th className="px-6 py-3 font-semibold">#</th>
+                <th className="px-6 py-3 font-semibold">Transaction ID</th>
+                <th className="px-6 py-3 font-semibold">From</th>
+                <th className="px-6 py-3 font-semibold">Account</th>
                 <th className="px-6 py-3 font-semibold">Type</th>
-                <th className="px-6 py-3 font-semibold">Account Number</th>
-                <th className="px-6 py-3 font-semibold">Amount</th>
+                <th className="px-6 py-3 font-semibold">To</th>
+                <th className="px-6 py-3 text-right font-semibold">Amount</th>
                 <th className="px-6 py-3 font-semibold">Status</th>
+                <th className="px-6 py-3 font-semibold">Date</th>
+                <th className="px-6 py-3 text-right font-semibold">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {recentTransactions.map((tx) => (
-                <tr key={tx.id}>
-                  <td className="px-6 py-3.5 font-mono text-xs text-muted">{tx.id}</td>
-                  <td className="px-6 py-3.5 font-medium text-ink">{tx.customer}</td>
-                  <td className="px-6 py-3.5 text-ink/70">{tx.type}</td>
-                  <td className="px-6 py-3.5 font-mono text-ink/70">{maskAccount(tx.account)}</td>
-                  <td className="px-6 py-3.5 font-semibold text-ink">{currency(tx.amount)}</td>
-                  <td className="px-6 py-3.5">
-                    <StatusBadge status={statusVariant[tx.status]} label={tx.status} />
-                  </td>
-                </tr>
-              ))}
+              {recentTransactions.map((tx, index) => {
+                const { fromName, fromAccount, toName } = getTxFlow(tx)
+                return (
+                  <tr key={tx.id}>
+                    <td className="px-6 py-3.5 text-xs text-muted">
+                      {(recentPage - 1) * RECENT_TRANSACTIONS_PAGE_SIZE + index + 1}
+                    </td>
+                    <td className="px-6 py-3.5 font-mono text-xs text-muted">{tx.id}</td>
+                    <td className="px-6 py-3.5 font-medium text-ink">{fromName}</td>
+                    <td className="px-6 py-3.5 font-mono text-ink/70">{displayAccount(fromAccount)}</td>
+                    <td className="px-6 py-3.5">
+                      <TypeBadge tone={typeTone[tx.type]} label={tx.type} />
+                    </td>
+                    <td className="px-6 py-3.5 text-ink/70">{toName}</td>
+                    <td className="px-6 py-3.5 text-right font-semibold text-ink">{currency(tx.amount)}</td>
+                    <td className="px-6 py-3.5">
+                      <StatusBadge status={txStatusVariant[tx.status]} label={tx.status} />
+                    </td>
+                    <td className="px-6 py-3.5 text-ink/70">{tx.date}</td>
+                    <td className="px-6 py-3.5 text-right">
+                      <button
+                        type="button"
+                        onClick={() => openTxDetail(tx.id)}
+                        aria-label="View transaction"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink/80 transition-colors hover:border-brand hover:bg-brand hover:text-white"
+                      >
+                        <Eye size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
+
+        <div className="flex items-center justify-between border-t border-line px-6 py-4 text-sm text-muted">
+          <span>
+            Page {recentPage} of {recentTotalPages}
+          </span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={recentPage === 1}
+              onClick={() => setRecentPage((prev) => Math.max(1, prev - 1))}
+              className="rounded-full border border-line px-3 py-1.5 font-medium text-ink/80 transition-colors hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:text-ink/80"
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              disabled={recentPage === recentTotalPages}
+              onClick={() => setRecentPage((prev) => Math.min(recentTotalPages, prev + 1))}
+              className="rounded-full border border-line px-3 py-1.5 font-medium text-ink/80 transition-colors hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:text-ink/80"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </div>
+
+      <Drawer
+        open={txDrawerOpen}
+        onClose={() => setTxDrawerOpen(false)}
+        title="Transaction detail"
+        footer={
+          selectedTx ? (
+            <>
+              <button
+                type="button"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-line py-2.5 text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand"
+              >
+                <Receipt size={16} /> Receipt
+              </button>
+              <button
+                type="button"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-red-200 bg-red-50 py-2.5 text-sm font-semibold text-red-700"
+              >
+                <RotateCcw size={16} /> Reverse
+              </button>
+            </>
+          ) : null
+        }
+      >
+        {selectedTx && (
+          <div className="space-y-5">
+            <div className="flex items-start gap-3">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand ring-1 ring-brand/15">
+                <ArrowLeftRight size={20} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-mono text-base font-bold text-ink">{selectedTx.id}</p>
+              </div>
+              <StatusBadge status={txStatusVariant[selectedTx.status]} label={selectedTx.status} />
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Overview</p>
+              <div className="mt-3 divide-y divide-line rounded-xl ring-1 ring-line">
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <User size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Customer</p>
+                  </div>
+                  <p className="min-w-0 truncate text-sm font-semibold text-ink">{selectedTx.customer}</p>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <CreditCard size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Account Number</p>
+                  </div>
+                  <p className="shrink-0 truncate font-mono text-sm font-semibold text-ink">
+                    {selectedTx.phone}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <Wallet size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Amount</p>
+                  </div>
+                  <p className="shrink-0 text-sm font-semibold text-ink">{currency(selectedTx.amount)}</p>
+                </div>
+                {(selectedTx.type === 'Wallet Transfer' ||
+                  selectedTx.type === 'Bank Transfer' ||
+                  selectedTx.type === 'Cashier Topup') &&
+                  selectedTx.recipientName && (
+                    <div className="flex items-center justify-between gap-3 p-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                          {selectedTx.type === 'Wallet Transfer' ? (
+                            <Send size={16} />
+                          ) : selectedTx.type === 'Bank Transfer' ? (
+                            <Landmark size={16} />
+                          ) : (
+                            <UserCog size={16} />
+                          )}
+                        </span>
+                        <p className="text-xs text-muted">
+                          {selectedTx.type === 'Wallet Transfer'
+                            ? 'Recipient wallet'
+                            : selectedTx.type === 'Bank Transfer'
+                              ? 'Recipient bank'
+                              : 'Topped up by (cashier)'}
+                        </p>
+                      </div>
+                      <div className="min-w-0 shrink-0 text-right">
+                        <p className="truncate text-sm font-semibold text-ink">
+                          {selectedTx.recipientName}
+                        </p>
+                        <p className="truncate font-mono text-xs text-muted">
+                          {selectedTx.recipientAccount}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <Tag size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Type</p>
+                  </div>
+                  <TypeBadge tone={typeTone[selectedTx.type]} label={selectedTx.type} />
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <Globe size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Channel</p>
+                  </div>
+                  <p className="shrink-0 text-sm font-semibold text-ink">{selectedTx.channel}</p>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <Percent size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Fee</p>
+                  </div>
+                  <p className="shrink-0 text-sm font-semibold text-ink">
+                    {selectedTx.fee > 0 ? currency(selectedTx.fee) : 'N/A'}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <CalendarDays size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Date</p>
+                  </div>
+                  <p className="shrink-0 text-sm font-semibold text-ink">{selectedTx.date}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </Drawer>
     </div>
   )
 }

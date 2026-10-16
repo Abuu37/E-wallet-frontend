@@ -5,7 +5,6 @@ import { Menu, Search, ChevronDown, Settings, LogOut, Bell, AlertTriangle, Info,
 
 interface DashboardTopbarProps {
   onMenuClick: () => void
-  title: string
 }
 
 interface Notification {
@@ -40,7 +39,7 @@ const currentUser = {
   initials: 'CA',
 }
 
-export default function DashboardTopbar({ onMenuClick, title }: DashboardTopbarProps) {
+export default function DashboardTopbar({ onMenuClick }: DashboardTopbarProps) {
   const navigate = useNavigate()
   const [profileOpen, setProfileOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
@@ -60,12 +59,9 @@ export default function DashboardTopbar({ onMenuClick, title }: DashboardTopbarP
         >
           <Menu size={24} />
         </button>
-        <div>
-          <p className="text-xs font-medium text-muted">
-            {getGreeting()}, {currentUser.name.split(' ')[0]} 👋
-          </p>
-          <h1 className="text-lg font-bold text-ink">{title}</h1>
-        </div>
+        <p className="text-sm font-medium text-ink">
+          {getGreeting()}, <span className="text-base font-bold">{currentUser.name.split(' ')[0]}</span>
+        </p>
       </div>
 
       <div className="hidden flex-1 justify-center sm:flex">

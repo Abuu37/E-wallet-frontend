@@ -42,9 +42,9 @@ export const Permission = {
   ROLE_VIEW: "ROLE_VIEW",
   ROLE_ASSIGN: "ROLE_ASSIGN",
 
-  /** Charges */
-  CHARGE_VIEW: "CHARGE_VIEW",
-  CHARGE_MANAGE: "CHARGE_MANAGE",
+  /** Fees */
+  FEE_VIEW: "FEE_VIEW",
+  FEE_MANAGE: "FEE_MANAGE",
 
   /** System */
   SYSTEM_CONFIG: "SYSTEM_CONFIG",

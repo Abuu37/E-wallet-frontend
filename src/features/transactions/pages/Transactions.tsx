@@ -1,67 +1,184 @@
-import { useMemo, useState } from 'react'
-import { Search, Wallet, CircleCheck, Clock, CircleAlert } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
+import {
+  Search,
+  ArrowLeftRight,
+  CircleCheck,
+  Clock,
+  CircleAlert,
+  CalendarDays,
+  MoreVertical,
+  Eye,
+  Trash2,
+  User,
+  CreditCard,
+  Tag,
+  Globe,
+  Percent,
+  Receipt,
+  RotateCcw,
+  Wallet,
+  Send,
+  Landmark,
+  UserCog,
+  ArrowUpRight,
+  ArrowDownRight,
+} from 'lucide-react'
 import StatCard from '../../../components/ui/StatCard'
 import StatusBadge from '../../../components/ui/StatusBadge'
+import TypeBadge from '../../../components/ui/TypeBadge'
 import Drawer from '../../../components/ui/Drawer'
-import { transactions, type Transaction, type TxStatus, type TxChannel } from '../data'
+import Modal from '../../../components/ui/Modal'
+import { transactions as initialTransactions, type Transaction, type TxStatus, type TxType } from '../data'
+import { maskAccount } from '../../../utils/mask'
 
 const statusVariant = {
-  Completed: 'positive',
+  Successful: 'positive',
   Pending: 'warning',
   Failed: 'negative',
 } as const
 
-const statusOptions: Array<TxStatus | 'All'> = ['All', 'Completed', 'Pending', 'Failed']
-const channelOptions: Array<TxChannel | 'All'> = ['All', 'App', 'USSD', 'Agent']
+const typeTone = {
+  'Wallet Transfer': 'blue',
+  'Bank Transfer': 'green',
+  'Cashier Topup': 'purple',
+  Withdraw: 'rose',
+} as const
 
-const PAGE_SIZE = 6
+const statusOptions: Array<TxStatus | 'All'> = ['All', 'Successful', 'Pending', 'Failed']
+const typeOptions: Array<TxType | 'All'> = [
+  'All',
+  'Wallet Transfer',
+  'Bank Transfer',
+  'Cashier Topup',
+  'Withdraw',
+]
 
-const formatAmount = (value: number) => `$${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+const PAGE_SIZE = 10
+
+const formatAmount = (value: number) => `TSh ${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+
+interface ActionMenuState {
+  id: string
+  top: number
+  left: number
+}
 
 export default function Transactions() {
+  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions)
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<TxStatus | 'All'>('All')
-  const [channel, setChannel] = useState<TxChannel | 'All'>('All')
+  const [type, setType] = useState<TxType | 'All'>('All')
+  const [date, setDate] = useState('')
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [actionMenu, setActionMenu] = useState<ActionMenuState | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null)
+  const menuButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
 
   const filtered = useMemo(() => {
+    const q = query.toLowerCase()
     return transactions.filter((tx) => {
       const matchesQuery =
-        tx.customer.toLowerCase().includes(query.toLowerCase()) ||
-        tx.id.toLowerCase().includes(query.toLowerCase())
+        tx.customer.toLowerCase().includes(q) ||
+        tx.id.toLowerCase().includes(q) ||
+        tx.type.toLowerCase().includes(q)
       const matchesStatus = status === 'All' || tx.status === status
-      const matchesChannel = channel === 'All' || tx.channel === channel
-      return matchesQuery && matchesStatus && matchesChannel
+      const matchesType = type === 'All' || tx.type === type
+      const matchesDate = !date || tx.date === date
+      return matchesQuery && matchesStatus && matchesType && matchesDate
     })
-  }, [query, status, channel])
+  }, [transactions, query, status, type, date])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const selected: Transaction | null = transactions.find((tx) => tx.id === selectedId) ?? null
 
-  const totalVolume = transactions.reduce((sum, tx) => sum + tx.amount, 0)
-  const completedCount = transactions.filter((tx) => tx.status === 'Completed').length
+  const totalCount = transactions.length
+  const successfulCount = transactions.filter((tx) => tx.status === 'Successful').length
   const pendingCount = transactions.filter((tx) => tx.status === 'Pending').length
   const failedCount = transactions.filter((tx) => tx.status === 'Failed').length
+
+  const resetToFirstPage = () => setPage(1)
+
+  const closeActionMenu = () => setActionMenu(null)
+
+  const toggleActionMenu = (id: string) => {
+    if (actionMenu?.id === id) {
+      closeActionMenu()
+      return
+    }
+    const button = menuButtonRefs.current[id]
+    if (!button) return
+    const rect = button.getBoundingClientRect()
+    setActionMenu({ id, top: rect.bottom + 6, left: rect.right - 160 })
+  }
 
   const openTransaction = (id: string) => {
     setSelectedId(id)
     setDrawerOpen(true)
+    closeActionMenu()
+  }
+
+  const requestDelete = (id: string) => {
+    const tx = transactions.find((item) => item.id === id)
+    if (!tx) return
+    setDeleteTarget(tx)
+    closeActionMenu()
+  }
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return
+    setTransactions((prev) => prev.filter((tx) => tx.id !== deleteTarget.id))
+    if (selectedId === deleteTarget.id) {
+      setDrawerOpen(false)
+    }
+    setDeleteTarget(null)
   }
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={Wallet} label="Total volume" value={formatAmount(totalVolume)} delta={12.4} />
-        <StatCard icon={CircleCheck} label="Completed" value={String(completedCount)} delta={3.1} />
-        <StatCard icon={Clock} label="Pending" value={String(pendingCount)} delta={-1.8} />
-        <StatCard icon={CircleAlert} label="Failed" value={String(failedCount)} delta={-0.4} />
+      <div>
+        <h1 className="text-2xl font-extrabold text-ink">Transactions</h1>
+        <p className="mt-1 text-sm text-muted">
+          Monitor and manage wallet, bank, and cashier transactions across the platform.
+        </p>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          icon={ArrowLeftRight}
+          tone="brand"
+          label="Total Transactions"
+          value={String(totalCount)}
+          delta={6.4}
+        />
+        <StatCard
+          icon={CircleCheck}
+          tone="positive"
+          label="Successful Transactions"
+          value={String(successfulCount)}
+          delta={4.8}
+        />
+        <StatCard
+          icon={Clock}
+          tone="warning"
+          label="Pending Transactions"
+          value={String(pendingCount)}
+          delta={-1.8}
+        />
+        <StatCard
+          icon={CircleAlert}
+          tone="negative"
+          label="Failed Transactions"
+          value={String(failedCount)}
+          delta={-0.4}
+        />
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-xs">
           <Search
             size={16}
@@ -72,19 +189,19 @@ export default function Transactions() {
             value={query}
             onChange={(event) => {
               setQuery(event.target.value)
-              setPage(1)
+              resetToFirstPage()
             }}
-            placeholder="Search by customer or ID..."
+            placeholder="Search by transaction ID, customer or type..."
             className="w-full rounded-full border border-transparent bg-white py-2.5 pl-10 pr-4 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
           />
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <select
             value={status}
             onChange={(event) => {
               setStatus(event.target.value as TxStatus | 'All')
-              setPage(1)
+              resetToFirstPage()
             }}
             className="rounded-full border border-transparent bg-white px-4 py-2.5 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
           >
@@ -96,19 +213,35 @@ export default function Transactions() {
           </select>
 
           <select
-            value={channel}
+            value={type}
             onChange={(event) => {
-              setChannel(event.target.value as TxChannel | 'All')
-              setPage(1)
+              setType(event.target.value as TxType | 'All')
+              resetToFirstPage()
             }}
             className="rounded-full border border-transparent bg-white px-4 py-2.5 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
           >
-            {channelOptions.map((option) => (
+            {typeOptions.map((option) => (
               <option key={option} value={option}>
-                {option === 'All' ? 'All channels' : option}
+                {option === 'All' ? 'All types' : option}
               </option>
             ))}
           </select>
+
+          <div className="relative">
+            <CalendarDays
+              size={16}
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+            />
+            <input
+              type="date"
+              value={date}
+              onChange={(event) => {
+                setDate(event.target.value)
+                resetToFirstPage()
+              }}
+              className="rounded-full border border-transparent bg-white py-2.5 pl-10 pr-4 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
+            />
+          </div>
         </div>
       </div>
 
@@ -117,29 +250,37 @@ export default function Transactions() {
           <table className="w-full text-left text-sm">
             <thead className="border-y border-line bg-surface text-xs uppercase tracking-wide text-muted">
               <tr>
+                <th className="px-6 py-3 font-semibold">ID</th>
                 <th className="px-6 py-3 font-semibold">Transaction ID</th>
                 <th className="px-6 py-3 font-semibold">Customer</th>
+                <th className="px-6 py-3 font-semibold">Account Number</th>
                 <th className="px-6 py-3 font-semibold">Type</th>
                 <th className="px-6 py-3 font-semibold">Channel</th>
                 <th className="px-6 py-3 text-right font-semibold">Amount</th>
                 <th className="px-6 py-3 text-right font-semibold">Fee</th>
                 <th className="px-6 py-3 font-semibold">Status</th>
                 <th className="px-6 py-3 font-semibold">Date</th>
-                <th className="px-6 py-3 font-semibold" />
+                <th className="px-6 py-3 text-right font-semibold">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {pageItems.map((tx) => (
+              {pageItems.map((tx, index) => (
                 <tr key={tx.id}>
+                  <td className="px-6 py-3.5 text-xs text-muted">
+                    {(page - 1) * PAGE_SIZE + index + 1}
+                  </td>
                   <td className="px-6 py-3.5 font-mono text-xs text-muted">{tx.id}</td>
                   <td className="px-6 py-3.5 font-medium text-ink">{tx.customer}</td>
-                  <td className="px-6 py-3.5 text-ink/70">{tx.type}</td>
+                  <td className="px-6 py-3.5 font-mono text-ink/70">{maskAccount(tx.phone)}</td>
+                  <td className="px-6 py-3.5">
+                    <TypeBadge tone={typeTone[tx.type]} label={tx.type} />
+                  </td>
                   <td className="px-6 py-3.5 text-ink/70">{tx.channel}</td>
                   <td className="px-6 py-3.5 text-right font-semibold text-ink">
                     {formatAmount(tx.amount)}
                   </td>
                   <td className="px-6 py-3.5 text-right text-ink/70">
-                    {tx.fee > 0 ? formatAmount(tx.fee) : '—'}
+                    {tx.fee > 0 ? formatAmount(tx.fee) : 'N/A'}
                   </td>
                   <td className="px-6 py-3.5">
                     <StatusBadge status={statusVariant[tx.status]} label={tx.status} />
@@ -148,17 +289,21 @@ export default function Transactions() {
                   <td className="px-6 py-3.5 text-right">
                     <button
                       type="button"
-                      onClick={() => openTransaction(tx.id)}
-                      className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-brand transition-colors hover:border-brand"
+                      ref={(node) => {
+                        menuButtonRefs.current[tx.id] = node
+                      }}
+                      onClick={() => toggleActionMenu(tx.id)}
+                      aria-label="Row actions"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink/80 transition-colors hover:border-brand hover:bg-brand hover:text-white"
                     >
-                      View
+                      <MoreVertical size={16} />
                     </button>
                   </td>
                 </tr>
               ))}
               {pageItems.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-6 py-8 text-center text-sm text-muted">
+                  <td colSpan={11} className="px-6 py-8 text-center text-sm text-muted">
                     No transactions match your filters.
                   </td>
                 </tr>
@@ -192,82 +337,248 @@ export default function Transactions() {
         </div>
       </div>
 
+      <AnimatePresence>
+        {actionMenu && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={closeActionMenu} />
+            <motion.div
+              key="action-menu"
+              initial={{ opacity: 0, scale: 0.95, y: -4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -4 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="fixed z-50 w-40 origin-top-right overflow-hidden rounded-xl bg-white py-1 shadow-xl ring-1 ring-line"
+              style={{ top: actionMenu.top, left: actionMenu.left }}
+            >
+              <button
+                type="button"
+                onClick={() => openTransaction(actionMenu.id)}
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium text-ink transition-colors hover:bg-brand hover:text-white"
+              >
+                <Eye size={14} /> View
+              </button>
+              <button
+                type="button"
+                onClick={() => requestDelete(actionMenu.id)}
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium text-red-600 transition-colors hover:bg-red-600 hover:text-white"
+              >
+                <Trash2 size={14} /> Delete
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       <Drawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         title="Transaction detail"
         footer={
-          <>
-            <button
-              type="button"
-              className="flex-1 rounded-full border border-line py-2.5 text-sm font-semibold text-ink"
-            >
-              Receipt
-            </button>
-            <button
-              type="button"
-              className="flex-1 rounded-full border border-red-200 bg-red-50 py-2.5 text-sm font-semibold text-red-700"
-            >
-              Reverse
-            </button>
-          </>
+          selected ? (
+            <>
+              <button
+                type="button"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-line py-2.5 text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand"
+              >
+                <Receipt size={16} /> Receipt
+              </button>
+              <button
+                type="button"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-red-200 bg-red-50 py-2.5 text-sm font-semibold text-red-700"
+              >
+                <RotateCcw size={16} /> Reverse
+              </button>
+            </>
+          ) : null
         }
       >
         {selected && (
           <div className="space-y-5">
-            <div>
-              <p className="font-mono text-xs text-muted">{selected.id}</p>
-              <p className="mt-1 text-3xl font-extrabold text-ink">{formatAmount(selected.amount)}</p>
-              <div className="mt-2">
-                <StatusBadge status={statusVariant[selected.status]} label={selected.status} />
+            <div className="flex items-start gap-3">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand ring-1 ring-brand/15">
+                <ArrowLeftRight size={20} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-mono text-base font-bold text-ink">{selected.id}</p>
               </div>
+              <StatusBadge status={statusVariant[selected.status]} label={selected.status} />
             </div>
 
-            <div className="space-y-3 border-t border-line pt-4 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted">Customer</span>
-                <span className="font-semibold text-ink">{selected.customer}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted">Phone</span>
-                <span className="font-semibold text-ink">{selected.phone}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted">Type</span>
-                <span className="font-semibold text-ink">{selected.type}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted">Channel</span>
-                <span className="font-semibold text-ink">{selected.channel}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted">Fee</span>
-                <span className="font-semibold text-ink">
-                  {selected.fee > 0 ? formatAmount(selected.fee) : '—'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted">Date</span>
-                <span className="font-semibold text-ink">{selected.date}</span>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Overview</p>
+              <div className="mt-3 divide-y divide-line rounded-xl ring-1 ring-line">
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <User size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Customer</p>
+                  </div>
+                  <p className="min-w-0 truncate text-sm font-semibold text-ink">{selected.customer}</p>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <CreditCard size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Account Number</p>
+                  </div>
+                  <p className="shrink-0 truncate font-mono text-sm font-semibold text-ink">
+                    {selected.phone}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <Wallet size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Amount</p>
+                  </div>
+                  <p className="shrink-0 text-sm font-semibold text-ink">{formatAmount(selected.amount)}</p>
+                </div>
+                {(selected.type === 'Wallet Transfer' ||
+                  selected.type === 'Bank Transfer' ||
+                  selected.type === 'Cashier Topup') &&
+                  selected.recipientName && (
+                    <div className="flex items-center justify-between gap-3 p-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                          {selected.type === 'Wallet Transfer' ? (
+                            <Send size={16} />
+                          ) : selected.type === 'Bank Transfer' ? (
+                            <Landmark size={16} />
+                          ) : (
+                            <UserCog size={16} />
+                          )}
+                        </span>
+                        <p className="text-xs text-muted">
+                          {selected.type === 'Wallet Transfer'
+                            ? 'Recipient wallet'
+                            : selected.type === 'Bank Transfer'
+                              ? 'Recipient bank'
+                              : 'Topped up by (cashier)'}
+                        </p>
+                      </div>
+                      <div className="min-w-0 shrink-0 text-right">
+                        <p className="truncate text-sm font-semibold text-ink">{selected.recipientName}</p>
+                        <p className="truncate font-mono text-xs text-muted">{selected.recipientAccount}</p>
+                      </div>
+                    </div>
+                  )}
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <Tag size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Type</p>
+                  </div>
+                  <TypeBadge tone={typeTone[selected.type]} label={selected.type} />
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <Globe size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Channel</p>
+                  </div>
+                  <p className="shrink-0 text-sm font-semibold text-ink">{selected.channel}</p>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <Percent size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Fee</p>
+                  </div>
+                  <p className="shrink-0 text-sm font-semibold text-ink">
+                    {selected.fee > 0 ? formatAmount(selected.fee) : 'N/A'}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <CalendarDays size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Date</p>
+                  </div>
+                  <p className="shrink-0 text-sm font-semibold text-ink">{selected.date}</p>
+                </div>
               </div>
             </div>
 
             <div className="border-t border-line pt-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted">Ledger entries</p>
-              <div className="mt-3 space-y-2 rounded-xl bg-surface p-4 font-mono text-xs text-ink/80">
-                <div className="flex justify-between">
-                  <span>Debit · {selected.customer} wallet</span>
-                  <span>-{formatAmount(selected.amount)}</span>
+              <div className="mt-3 divide-y divide-line rounded-xl ring-1 ring-line">
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-700">
+                      <ArrowUpRight size={16} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-ink">Debit</p>
+                      <p className="truncate text-xs text-muted">{selected.customer} wallet</p>
+                    </div>
+                  </div>
+                  <p className="shrink-0 font-mono text-sm font-semibold text-red-600">
+                    -{formatAmount(selected.amount)}
+                  </p>
                 </div>
-                <div className="flex justify-between">
-                  <span>Credit · Fee income account</span>
-                  <span>+{selected.fee > 0 ? formatAmount(selected.fee) : '$0.00'}</span>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-700">
+                      <ArrowDownRight size={16} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-ink">Credit</p>
+                      <p className="truncate text-xs text-muted">Fee income account</p>
+                    </div>
+                  </div>
+                  <p className="shrink-0 font-mono text-sm font-semibold text-green-700">
+                    +{selected.fee > 0 ? formatAmount(selected.fee) : 'TSh 0.00'}
+                  </p>
                 </div>
               </div>
             </div>
           </div>
         )}
       </Drawer>
+
+      <Modal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title={
+          <>
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
+              <Trash2 size={16} />
+            </span>
+            Delete transaction
+          </>
+        }
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setDeleteTarget(null)}
+              className="flex-1 rounded-full border border-line py-2.5 text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirmDelete}
+              className="flex-1 rounded-full bg-red-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+            >
+              Delete
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink/80">
+          Are you sure you want to delete transaction{' '}
+          <span className="font-mono font-semibold text-ink">{deleteTarget?.id}</span>? This action cannot be
+          undone.
+        </p>
+      </Modal>
     </div>
   )
 }

@@ -48,7 +48,7 @@ const errorClass = 'mt-2 text-xs font-medium text-red-600'
 const RequiredMark = () => <span className="text-red-500">*</span>
 
 // Navigation Timing only reports the page's real document load, so this must
-// only be checked once per actual browser load — not on every client-side
+// only be checked once per actual browser load, not on every client-side
 // route change into /register (e.g. clicking "Register" from the Login page).
 let hasCheckedReload = false
 

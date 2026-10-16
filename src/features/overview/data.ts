@@ -19,7 +19,7 @@ export const overviewStats = {
   todaysTransactionsDelta: -2.1,
 }
 
-// "Today" — hourly buckets
+// "Today": hourly buckets
 export const volumeToday: VolumePoint[] = [
   { label: '00:00', date: '2026-10-08', volume: 18 },
   { label: '02:00', date: '2026-10-08', volume: 9 },
@@ -35,7 +35,7 @@ export const volumeToday: VolumePoint[] = [
   { label: '22:00', date: '2026-10-08', volume: 46 },
 ]
 
-// "Week" — last 7 days
+// "Week": last 7 days
 export const volumeWeek: VolumePoint[] = [
   { label: 'Mon', date: '2026-10-02', volume: 980 },
   { label: 'Tue', date: '2026-10-03', volume: 1120 },
@@ -46,7 +46,7 @@ export const volumeWeek: VolumePoint[] = [
   { label: 'Sun', date: '2026-10-08', volume: 1284 },
 ]
 
-// "30-day" — one point per day, Sep 9 – Oct 8 2026
+// "30-day": one point per day, Sep 9 to Oct 8 2026
 export const volume30Day: VolumePoint[] = [
   { label: 'Sep 9', date: '2026-09-09', volume: 820 },
   { label: 'Sep 10', date: '2026-09-10', volume: 865 },
@@ -92,13 +92,13 @@ export interface TransactionTypeShare {
   color: string
 }
 
-// Fixed categorical order — validated adjacency (incl. circular pie wrap), never reassign hues.
+// Fixed categorical order, validated adjacency (incl. circular pie wrap). Never reassign hues.
 export const transactionByType: TransactionTypeShare[] = [
   { type: 'Wallet-to-Wallet', value: 34, color: 'var(--color-chart-blue)' },
   { type: 'Withdraw', value: 22, color: 'var(--color-chart-orange)' },
   { type: 'Cashier Topup', value: 18, color: 'var(--color-chart-aqua)' },
   { type: 'Loan Disbursement', value: 12, color: 'var(--color-chart-amber)' },
-  { type: 'Charges', value: 8, color: 'var(--color-chart-magenta)' },
+  { type: 'Fees', value: 8, color: 'var(--color-chart-magenta)' },
   { type: 'Loan Repayment', value: 6, color: 'var(--color-chart-green)' },
 ]
 
@@ -122,31 +122,3 @@ export const loanOverview = {
   disbursedDelta: 11.5,
 }
 
-export type OverviewTxStatus = 'Successful' | 'Pending' | 'Failed' | 'Reversed'
-export type OverviewTxType =
-  | 'Wallet-to-Wallet'
-  | 'Cashier Topup'
-  | 'Withdraw'
-  | 'Loan Disbursement'
-  | 'Loan Repayment'
-  | 'Charges'
-
-export interface OverviewTransaction {
-  id: string
-  customer: string
-  type: OverviewTxType
-  account: string
-  amount: number
-  status: OverviewTxStatus
-}
-
-export const recentOverviewTransactions: OverviewTransaction[] = [
-  { id: 'TXN-98221', customer: 'Asha Juma', type: 'Wallet-to-Wallet', account: '+255 617 812 845', amount: 120.0, status: 'Successful' },
-  { id: 'TXN-98220', customer: 'John Foxton', type: 'Cashier Topup', account: '+255 712 003 221', amount: 500.0, status: 'Successful' },
-  { id: 'TXN-98219', customer: 'Grace Mwangi', type: 'Withdraw', account: '+255 755 442 118', amount: 85.5, status: 'Pending' },
-  { id: 'TXN-98218', customer: 'Peter Mushi', type: 'Loan Disbursement', account: '+255 688 990 004', amount: 1500.0, status: 'Successful' },
-  { id: 'TXN-98217', customer: 'Fatma Said', type: 'Loan Repayment', account: '+255 677 102 865', amount: 230.75, status: 'Failed' },
-  { id: 'TXN-98216', customer: 'Daniel Kessy', type: 'Charges', account: '+255 713 558 902', amount: 2.5, status: 'Successful' },
-  { id: 'TXN-98215', customer: 'Neema Lyimo', type: 'Wallet-to-Wallet', account: '+255 789 221 034', amount: 1250.0, status: 'Reversed' },
-  { id: 'TXN-98214', customer: 'Asha Juma', type: 'Withdraw', account: '+255 617 812 845', amount: 60.0, status: 'Successful' },
-]

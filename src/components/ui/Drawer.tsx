@@ -2,15 +2,23 @@ import type { ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { X } from 'lucide-react'
 
+type DrawerSize = 'md' | 'lg'
+
+const sizeStyles: Record<DrawerSize, string> = {
+  md: 'max-w-md',
+  lg: 'max-w-xl',
+}
+
 interface DrawerProps {
   open: boolean
   onClose: () => void
   title: string
   children: ReactNode
   footer?: ReactNode
+  size?: DrawerSize
 }
 
-export default function Drawer({ open, onClose, title, children, footer }: DrawerProps) {
+export default function Drawer({ open, onClose, title, children, footer, size = 'md' }: DrawerProps) {
   return (
     <AnimatePresence>
       {open && (
@@ -26,7 +34,7 @@ export default function Drawer({ open, onClose, title, children, footer }: Drawe
           />
           <motion.aside
             key="drawer-panel"
-            className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-white shadow-2xl shadow-ink/20"
+            className={`fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-white shadow-2xl shadow-ink/20 ${sizeStyles[size]}`}
             initial={{ x: '100%' }}
             animate={{ x: '0%' }}
             exit={{ x: '100%' }}
