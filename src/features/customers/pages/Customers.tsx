@@ -21,8 +21,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Send,
-  Landmark,
-  UserCog,
+  HandCoins,
   Receipt,
   User,
   Tag,
@@ -30,7 +29,6 @@ import {
   Percent,
   RotateCcw,
   ArrowLeftRight,
-  Banknote,
 } from 'lucide-react'
 import StatCard from '../../../components/ui/StatCard'
 import TypeBadge from '../../../components/ui/TypeBadge'
@@ -60,27 +58,38 @@ const txStatusVariant = {
 } as const
 
 const txTypeIcon = {
-  'Wallet Transfer': Send,
-  'Bank Transfer': Landmark,
-  'Cashier Topup': UserCog,
-  Withdraw: Banknote,
+  W2W: Send,
+  'Cash In': ArrowDownRight,
+  'Cash Out': ArrowUpRight,
+  'Loan Disbursement': HandCoins,
+  'Loan Repayment': HandCoins,
 } as const
 
 const typeTone = {
-  'Wallet Transfer': 'blue',
-  'Bank Transfer': 'green',
-  'Cashier Topup': 'purple',
-  Withdraw: 'rose',
+  W2W: 'blue',
+  'Cash In': 'green',
+  'Cash Out': 'rose',
+  'Loan Disbursement': 'orange',
+  'Loan Repayment': 'amber',
+} as const
+
+const recipientLabel = {
+  W2W: 'Recipient wallet',
+  'Cash In': 'Served by (cashier)',
+  'Cash Out': 'Served by (cashier)',
+  'Loan Disbursement': 'Loan account',
+  'Loan Repayment': 'Loan account',
 } as const
 
 const statusOptions: Array<CustomerStatus | 'All'> = ['All', 'Active', 'Pending', 'Suspended']
 const txStatusOptions: Array<TxStatus | 'All'> = ['All', 'Successful', 'Pending', 'Failed']
 const txTypeOptions: Array<TxType | 'All'> = [
   'All',
-  'Wallet Transfer',
-  'Bank Transfer',
-  'Cashier Topup',
-  'Withdraw',
+  'W2W',
+  'Cash In',
+  'Cash Out',
+  'Loan Disbursement',
+  'Loan Repayment',
 ]
 
 const PAGE_SIZE = 10
@@ -511,39 +520,28 @@ export default function Customers() {
                       {formatAmount(selectedTxDetail.amount)}
                     </p>
                   </div>
-                  {(selectedTxDetail.type === 'Wallet Transfer' ||
-                    selectedTxDetail.type === 'Bank Transfer' ||
-                    selectedTxDetail.type === 'Cashier Topup') &&
-                    selectedTxDetail.recipientName && (
-                      <div className="flex items-center justify-between gap-3 p-3">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                            {selectedTxDetail.type === 'Wallet Transfer' ? (
-                              <Send size={16} />
-                            ) : selectedTxDetail.type === 'Bank Transfer' ? (
-                              <Landmark size={16} />
-                            ) : (
-                              <UserCog size={16} />
-                            )}
-                          </span>
-                          <p className="text-xs text-muted">
-                            {selectedTxDetail.type === 'Wallet Transfer'
-                              ? 'Recipient wallet'
-                              : selectedTxDetail.type === 'Bank Transfer'
-                                ? 'Recipient bank'
-                                : 'Topped up by (cashier)'}
-                          </p>
+                  {selectedTxDetail.recipientName &&
+                    (() => {
+                      const RecipientIcon = txTypeIcon[selectedTxDetail.type]
+                      return (
+                        <div className="flex items-center justify-between gap-3 p-3">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                              <RecipientIcon size={16} />
+                            </span>
+                            <p className="text-xs text-muted">{recipientLabel[selectedTxDetail.type]}</p>
+                          </div>
+                          <div className="min-w-0 shrink-0 text-right">
+                            <p className="truncate text-sm font-semibold text-ink">
+                              {selectedTxDetail.recipientName}
+                            </p>
+                            <p className="truncate font-mono text-xs text-muted">
+                              {selectedTxDetail.recipientAccount}
+                            </p>
+                          </div>
                         </div>
-                        <div className="min-w-0 shrink-0 text-right">
-                          <p className="truncate text-sm font-semibold text-ink">
-                            {selectedTxDetail.recipientName}
-                          </p>
-                          <p className="truncate font-mono text-xs text-muted">
-                            {selectedTxDetail.recipientAccount}
-                          </p>
-                        </div>
-                      </div>
-                    )}
+                      )
+                    })()}
                   <div className="flex items-center justify-between gap-3 p-3">
                     <div className="flex min-w-0 items-center gap-3">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">

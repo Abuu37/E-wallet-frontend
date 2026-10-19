@@ -21,7 +21,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Send,
-  Banknote,
+  HandCoins,
   UserPlus,
   Plus,
 } from 'lucide-react'
@@ -52,10 +52,11 @@ const txStatusVariant = {
 } as const
 
 const txTypeIcon = {
-  'Wallet Transfer': Send,
-  'Bank Transfer': Landmark,
-  'Cashier Topup': UserCog,
-  Withdraw: Banknote,
+  W2W: Send,
+  'Cash In': ArrowDownRight,
+  'Cash Out': ArrowUpRight,
+  'Loan Disbursement': HandCoins,
+  'Loan Repayment': HandCoins,
 } as const
 
 const statusOptions: Array<CashierStatus | 'All'> = ['All', 'Active', 'Inactive', 'Suspended']

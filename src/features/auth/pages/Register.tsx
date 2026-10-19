@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { KeyboardEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { Formik, Form, Field, ErrorMessage } from 'formik'
@@ -13,6 +14,9 @@ import {
   EyeOff,
   ShieldCheck,
   Sparkles,
+  ArrowLeft,
+  Smartphone,
+  RefreshCw,
 } from 'lucide-react'
 import Button from '../../../components/ui/Button'
 import ewalletImage from '../../../assets/imgs/ewallet.webp'
@@ -22,7 +26,7 @@ import appScreenImage from '../../../assets/imgs/image 2.avif'
 const slides = [paymentImage, appScreenImage, ewalletImage]
 const SLIDE_DURATION = 15000
 
-const registerSchema = Yup.object({
+const detailsSchema = Yup.object({
   firstName: Yup.string().trim().required('First name is required'),
   middleName: Yup.string().trim(),
   lastName: Yup.string().trim().required('Last name is required'),
@@ -30,12 +34,6 @@ const registerSchema = Yup.object({
   phone: Yup.string()
     .matches(/^\+?[0-9\s-]{7,15}$/, 'Enter a valid phone number')
     .required('Phone number is required'),
-  password: Yup.string()
-    .min(8, 'Password must be at least 8 characters')
-    .required('Password is required'),
-  confirmPassword: Yup.string()
-    .oneOf([Yup.ref('password')], 'Passwords do not match')
-    .required('Please confirm your password'),
 })
 
 const getFieldClass = (hasError: boolean) =>
@@ -47,6 +45,28 @@ const getFieldClass = (hasError: boolean) =>
 const errorClass = 'mt-2 text-xs font-medium text-red-600'
 const RequiredMark = () => <span className="text-red-500">*</span>
 
+const OTP_LENGTH = 6
+const PIN_LENGTH = 4
+const RESEND_SECONDS = 30
+
+type Step = 'details' | 'otp' | 'pin' | 'success'
+
+const stepOrder: Step[] = ['details', 'otp', 'pin']
+const stepLabel: Record<Step, string> = {
+  details: 'Your details',
+  otp: 'Verify phone',
+  pin: 'Set PIN',
+  success: 'Done',
+}
+
+interface DetailsValues {
+  firstName: string
+  middleName: string
+  lastName: string
+  email: string
+  phone: string
+}
+
 // Navigation Timing only reports the page's real document load, so this must
 // only be checked once per actual browser load, not on every client-side
 // route change into /register (e.g. clicking "Register" from the Login page).
@@ -54,10 +74,20 @@ let hasCheckedReload = false
 
 export default function Register() {
   const navigate = useNavigate()
-  const [submitted, setSubmitted] = useState(false)
+  const [step, setStep] = useState<Step>('details')
   const [activeSlide, setActiveSlide] = useState(0)
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [details, setDetails] = useState<DetailsValues | null>(null)
+
+  const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''))
+  const [otpError, setOtpError] = useState('')
+  const [resendCountdown, setResendCountdown] = useState(RESEND_SECONDS)
+  const otpRefs = useRef<Array<HTMLInputElement | null>>([])
+
+  const [pin, setPin] = useState('')
+  const [confirmPin, setConfirmPin] = useState('')
+  const [showPin, setShowPin] = useState(false)
+  const [showConfirmPin, setShowConfirmPin] = useState(false)
+  const [pinError, setPinError] = useState('')
 
   useEffect(() => {
     if (hasCheckedReload) return
@@ -75,6 +105,72 @@ export default function Register() {
     }, SLIDE_DURATION)
     return () => clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    if (step !== 'otp' || resendCountdown <= 0) return
+    const timer = setInterval(() => setResendCountdown((prev) => prev - 1), 1000)
+    return () => clearInterval(timer)
+  }, [step, resendCountdown])
+
+  const goToOtp = (values: DetailsValues) => {
+    setDetails(values)
+    setOtp(Array(OTP_LENGTH).fill(''))
+    setOtpError('')
+    setResendCountdown(RESEND_SECONDS)
+    setStep('otp')
+  }
+
+  const handleOtpChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return
+    setOtp((prev) => {
+      const next = [...prev]
+      next[index] = value.slice(-1)
+      return next
+    })
+    setOtpError('')
+    if (value && index < OTP_LENGTH - 1) {
+      otpRefs.current[index + 1]?.focus()
+    }
+  }
+
+  const handleOtpKeyDown = (index: number, event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Backspace' && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus()
+    }
+  }
+
+  const handleResend = () => {
+    setOtp(Array(OTP_LENGTH).fill(''))
+    setOtpError('')
+    setResendCountdown(RESEND_SECONDS)
+    otpRefs.current[0]?.focus()
+  }
+
+  const verifyOtp = () => {
+    if (otp.some((digit) => digit === '')) {
+      setOtpError('Enter the full 6-digit code')
+      return
+    }
+    setPin('')
+    setConfirmPin('')
+    setPinError('')
+    setStep('pin')
+  }
+
+  const handleCreateAccount = () => {
+    if (pin.length !== PIN_LENGTH) {
+      setPinError(`PIN must be ${PIN_LENGTH} digits`)
+      return
+    }
+    if (pin !== confirmPin) {
+      setPinError('PINs do not match')
+      return
+    }
+    setPinError('')
+    setStep('success')
+  }
+
+  const currentStepIndex = stepOrder.indexOf(step)
 
   return (
     <div>
@@ -194,207 +290,369 @@ export default function Register() {
                 </p>
               </div>
 
-              <div className="mt-8 rounded-3xl bg-white p-8 shadow-2xl shadow-ink/10">
-                {submitted ? (
-                  <div className="flex flex-col items-center py-4 text-center">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-positive/10 text-positive">
-                      <ShieldCheck size={24} />
-                    </span>
-                    <h3 className="mt-4 text-lg font-bold text-ink">You're registered</h3>
-                    <p className="mt-2 text-sm text-muted">
-                      We'll reach out with next steps to get your WalletPesa card.
-                    </p>
-                  </div>
-                ) : (
-                  <Formik
-                    initialValues={{
-                      firstName: '',
-                      middleName: '',
-                      lastName: '',
-                      email: '',
-                      phone: '',
-                      password: '',
-                      confirmPassword: '',
-                    }}
-                    validationSchema={registerSchema}
-                    onSubmit={(_values, { setSubmitting }) => {
-                      setSubmitted(true)
-                      setSubmitting(false)
-                    }}
-                  >
-                    {({ isSubmitting, errors, touched }) => (
-                      <Form className="space-y-5">
-                        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                          <div>
-                            <label htmlFor="firstName" className="text-sm font-medium text-ink">
-                              First name <RequiredMark />
-                            </label>
-                            <div className="relative mt-2">
-                              <User
-                                size={18}
-                                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-                              />
-                              <Field
-                                id="firstName"
-                                name="firstName"
-                                type="text"
-                                className={`${getFieldClass(Boolean(touched.firstName && errors.firstName))} pr-4`}
-                                placeholder="Asha"
-                              />
+              {step !== 'success' && (
+                <div className="mt-6 flex items-center gap-2">
+                  {stepOrder.map((item, index) => (
+                    <div key={item} className="flex flex-1 items-center gap-2">
+                      <span
+                        className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
+                          index <= currentStepIndex ? 'bg-brand' : 'bg-line'
+                        }`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              {step !== 'success' && (
+                <p className="mt-2 text-xs font-medium text-muted">
+                  Step {currentStepIndex + 1} of {stepOrder.length}: {stepLabel[step]}
+                </p>
+              )}
+
+              <div className="mt-6 rounded-3xl bg-white p-8 shadow-2xl shadow-ink/10">
+                <AnimatePresence mode="wait">
+                  {step === 'success' && (
+                    <motion.div
+                      key="success"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.25 }}
+                      className="flex flex-col items-center py-4 text-center"
+                    >
+                      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-positive/10 text-positive">
+                        <ShieldCheck size={24} />
+                      </span>
+                      <h3 className="mt-4 text-lg font-bold text-ink">You're registered</h3>
+                      <p className="mt-2 text-sm text-muted">
+                        We'll reach out with next steps to get your WalletPesa card.
+                      </p>
+                    </motion.div>
+                  )}
+
+                  {step === 'details' && (
+                    <motion.div
+                      key="details"
+                      initial={{ opacity: 0, x: 16 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -16 }}
+                      transition={{ duration: 0.25 }}
+                    >
+                      <Formik<DetailsValues>
+                        initialValues={
+                          details ?? {
+                            firstName: '',
+                            middleName: '',
+                            lastName: '',
+                            email: '',
+                            phone: '',
+                          }
+                        }
+                        validationSchema={detailsSchema}
+                        onSubmit={(values, { setSubmitting }) => {
+                          goToOtp(values)
+                          setSubmitting(false)
+                        }}
+                      >
+                        {({ isSubmitting, errors, touched }) => (
+                          <Form className="space-y-5">
+                            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                              <div>
+                                <label htmlFor="firstName" className="text-sm font-medium text-ink">
+                                  First name <RequiredMark />
+                                </label>
+                                <div className="relative mt-2">
+                                  <User
+                                    size={18}
+                                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                                  />
+                                  <Field
+                                    id="firstName"
+                                    name="firstName"
+                                    type="text"
+                                    className={`${getFieldClass(
+                                      Boolean(touched.firstName && errors.firstName),
+                                    )} pr-4`}
+                                    placeholder="Asha"
+                                  />
+                                </div>
+                                <ErrorMessage name="firstName" component="p" className={errorClass} />
+                              </div>
+
+                              <div>
+                                <label htmlFor="lastName" className="text-sm font-medium text-ink">
+                                  Last name <RequiredMark />
+                                </label>
+                                <div className="relative mt-2">
+                                  <User
+                                    size={18}
+                                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                                  />
+                                  <Field
+                                    id="lastName"
+                                    name="lastName"
+                                    type="text"
+                                    className={`${getFieldClass(
+                                      Boolean(touched.lastName && errors.lastName),
+                                    )} pr-4`}
+                                    placeholder="Juma"
+                                  />
+                                </div>
+                                <ErrorMessage name="lastName" component="p" className={errorClass} />
+                              </div>
                             </div>
-                            <ErrorMessage name="firstName" component="p" className={errorClass} />
-                          </div>
 
-                          <div>
-                            <label htmlFor="lastName" className="text-sm font-medium text-ink">
-                              Last name <RequiredMark />
-                            </label>
-                            <div className="relative mt-2">
-                              <User
-                                size={18}
-                                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-                              />
-                              <Field
-                                id="lastName"
-                                name="lastName"
-                                type="text"
-                                className={`${getFieldClass(Boolean(touched.lastName && errors.lastName))} pr-4`}
-                                placeholder="Juma"
-                              />
+                            <div>
+                              <label htmlFor="middleName" className="text-sm font-medium text-ink">
+                                Middle name
+                              </label>
+                              <div className="relative mt-2">
+                                <User
+                                  size={18}
+                                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                                />
+                                <Field
+                                  id="middleName"
+                                  name="middleName"
+                                  type="text"
+                                  className={`${getFieldClass(
+                                    Boolean(touched.middleName && errors.middleName),
+                                  )} pr-4`}
+                                  placeholder="Optional"
+                                />
+                              </div>
+                              <ErrorMessage name="middleName" component="p" className={errorClass} />
                             </div>
-                            <ErrorMessage name="lastName" component="p" className={errorClass} />
-                          </div>
-                        </div>
 
-                        <div>
-                          <label htmlFor="middleName" className="text-sm font-medium text-ink">
-                            Middle name
-                          </label>
-                          <div className="relative mt-2">
-                            <User
-                              size={18}
-                              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-                            />
-                            <Field
-                              id="middleName"
-                              name="middleName"
-                              type="text"
-                              className={`${getFieldClass(Boolean(touched.middleName && errors.middleName))} pr-4`}
-                              placeholder="Optional"
-                            />
-                          </div>
-                          <ErrorMessage name="middleName" component="p" className={errorClass} />
-                        </div>
+                            <div>
+                              <label htmlFor="email" className="text-sm font-medium text-ink">
+                                Email <RequiredMark />
+                              </label>
+                              <div className="relative mt-2">
+                                <Mail
+                                  size={18}
+                                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                                />
+                                <Field
+                                  id="email"
+                                  name="email"
+                                  type="email"
+                                  className={`${getFieldClass(Boolean(touched.email && errors.email))} pr-4`}
+                                  placeholder="you@example.com"
+                                />
+                              </div>
+                              <ErrorMessage name="email" component="p" className={errorClass} />
+                            </div>
 
-                        <div>
-                          <label htmlFor="email" className="text-sm font-medium text-ink">
-                            Email <RequiredMark />
-                          </label>
-                          <div className="relative mt-2">
-                            <Mail
-                              size={18}
-                              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-                            />
-                            <Field
-                              id="email"
-                              name="email"
-                              type="email"
-                              className={`${getFieldClass(Boolean(touched.email && errors.email))} pr-4`}
-                              placeholder="you@example.com"
-                            />
-                          </div>
-                          <ErrorMessage name="email" component="p" className={errorClass} />
-                        </div>
+                            <div>
+                              <label htmlFor="phone" className="text-sm font-medium text-ink">
+                                Phone number <RequiredMark />
+                              </label>
+                              <div className="relative mt-2">
+                                <Phone
+                                  size={18}
+                                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                                />
+                                <Field
+                                  id="phone"
+                                  name="phone"
+                                  type="tel"
+                                  className={`${getFieldClass(Boolean(touched.phone && errors.phone))} pr-4`}
+                                  placeholder="+255 7XX XXX XXX"
+                                />
+                              </div>
+                              <ErrorMessage name="phone" component="p" className={errorClass} />
+                            </div>
 
-                        <div>
-                          <label htmlFor="phone" className="text-sm font-medium text-ink">
-                            Phone number <RequiredMark />
-                          </label>
-                          <div className="relative mt-2">
-                            <Phone
-                              size={18}
-                              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-                            />
-                            <Field
-                              id="phone"
-                              name="phone"
-                              type="tel"
-                              className={`${getFieldClass(Boolean(touched.phone && errors.phone))} pr-4`}
-                              placeholder="+255 7XX XXX XXX"
-                            />
-                          </div>
-                          <ErrorMessage name="phone" component="p" className={errorClass} />
-                        </div>
+                            <Button type="submit" className="w-full" disabled={isSubmitting}>
+                              Continue
+                            </Button>
+                          </Form>
+                        )}
+                      </Formik>
+                    </motion.div>
+                  )}
 
-                        <div>
-                          <label htmlFor="password" className="text-sm font-medium text-ink">
-                            Password <RequiredMark />
-                          </label>
-                          <div className="relative mt-2">
-                            <Lock
-                              size={18}
-                              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-                            />
-                            <Field
-                              id="password"
-                              name="password"
-                              type={showPassword ? 'text' : 'password'}
-                              className={`${getFieldClass(Boolean(touched.password && errors.password))} pr-11`}
-                              placeholder="••••••••"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowPassword((prev) => !prev)}
-                              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-brand"
-                              aria-label={showPassword ? 'Hide password' : 'Show password'}
-                            >
-                              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                            </button>
-                          </div>
-                          <ErrorMessage name="password" component="p" className={errorClass} />
-                        </div>
+                  {step === 'otp' && (
+                    <motion.div
+                      key="otp"
+                      initial={{ opacity: 0, x: 16 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -16 }}
+                      transition={{ duration: 0.25 }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setStep('details')}
+                        className="group inline-flex items-center gap-1.5 text-sm font-semibold text-brand"
+                      >
+                        <ArrowLeft
+                          size={14}
+                          className="transition-transform duration-200 group-hover:-translate-x-1"
+                        />
+                        Back
+                      </button>
 
-                        <div>
-                          <label htmlFor="confirmPassword" className="text-sm font-medium text-ink">
-                            Confirm password <RequiredMark />
-                          </label>
-                          <div className="relative mt-2">
-                            <Lock
-                              size={18}
-                              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-                            />
-                            <Field
-                              id="confirmPassword"
-                              name="confirmPassword"
-                              type={showConfirmPassword ? 'text' : 'password'}
-                              className={`${getFieldClass(
-                                Boolean(touched.confirmPassword && errors.confirmPassword),
-                              )} pr-11`}
-                              placeholder="••••••••"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowConfirmPassword((prev) => !prev)}
-                              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-brand"
-                              aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                            >
-                              {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                            </button>
-                          </div>
-                          <ErrorMessage
-                            name="confirmPassword"
-                            component="p"
-                            className={errorClass}
+                      <div className="mt-4 flex flex-col items-center text-center">
+                        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand/10 text-brand">
+                          <Smartphone size={22} />
+                        </span>
+                        <h3 className="mt-4 text-lg font-bold text-ink">Verify your phone number</h3>
+                        <p className="mt-2 text-sm text-muted">
+                          Enter the 6-digit code we sent to{' '}
+                          <span className="font-semibold text-ink">{details?.phone}</span>
+                        </p>
+                      </div>
+
+                      <div className="mt-6 flex justify-center gap-2">
+                        {otp.map((digit, index) => (
+                          <input
+                            key={index}
+                            ref={(node) => {
+                              otpRefs.current[index] = node
+                            }}
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={1}
+                            value={digit}
+                            onChange={(event) => handleOtpChange(index, event.target.value)}
+                            onKeyDown={(event) => handleOtpKeyDown(index, event)}
+                            className={`h-12 w-11 rounded-xl border text-center text-lg font-bold text-ink outline-none transition-colors focus:bg-white ${
+                              otpError
+                                ? 'border-red-400 bg-surface focus:border-red-500'
+                                : 'border-transparent bg-surface focus:border-brand'
+                            }`}
                           />
+                        ))}
+                      </div>
+                      {otpError && <p className={`${errorClass} text-center`}>{otpError}</p>}
+
+                      <div className="mt-4 text-center text-sm text-muted">
+                        {resendCountdown > 0 ? (
+                          <span>Resend code in 00:{String(resendCountdown).padStart(2, '0')}</span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={handleResend}
+                            className="inline-flex items-center gap-1.5 font-semibold text-brand hover:underline"
+                          >
+                            <RefreshCw size={14} />
+                            Resend code
+                          </button>
+                        )}
+                      </div>
+
+                      <Button type="button" className="mt-6 w-full" onClick={verifyOtp}>
+                        Verify & Continue
+                      </Button>
+                    </motion.div>
+                  )}
+
+                  {step === 'pin' && (
+                    <motion.div
+                      key="pin"
+                      initial={{ opacity: 0, x: 16 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -16 }}
+                      transition={{ duration: 0.25 }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setStep('otp')}
+                        className="group inline-flex items-center gap-1.5 text-sm font-semibold text-brand"
+                      >
+                        <ArrowLeft
+                          size={14}
+                          className="transition-transform duration-200 group-hover:-translate-x-1"
+                        />
+                        Back
+                      </button>
+
+                      <div className="mt-4 flex flex-col items-center text-center">
+                        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand/10 text-brand">
+                          <Lock size={22} />
+                        </span>
+                        <h3 className="mt-4 text-lg font-bold text-ink">Set your PIN</h3>
+                        <p className="mt-2 text-sm text-muted">
+                          Create a {PIN_LENGTH}-digit PIN to secure your wallet.
+                        </p>
+                      </div>
+
+                      <div className="mt-6 space-y-5">
+                        <div>
+                          <label htmlFor="pin" className="text-sm font-medium text-ink">
+                            PIN <RequiredMark />
+                          </label>
+                          <div className="relative mt-2">
+                            <Lock
+                              size={18}
+                              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                            />
+                            <input
+                              id="pin"
+                              type={showPin ? 'text' : 'password'}
+                              inputMode="numeric"
+                              maxLength={PIN_LENGTH}
+                              value={pin}
+                              onChange={(event) => {
+                                if (/^\d*$/.test(event.target.value)) setPin(event.target.value)
+                                setPinError('')
+                              }}
+                              className={`${getFieldClass(Boolean(pinError))} pr-11 tracking-[0.5em]`}
+                              placeholder="••••"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPin((prev) => !prev)}
+                              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-brand"
+                              aria-label={showPin ? 'Hide PIN' : 'Show PIN'}
+                            >
+                              {showPin ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                          </div>
                         </div>
 
-                        <Button type="submit" className="w-full" disabled={isSubmitting}>
-                          Register
+                        <div>
+                          <label htmlFor="confirmPin" className="text-sm font-medium text-ink">
+                            Confirm PIN <RequiredMark />
+                          </label>
+                          <div className="relative mt-2">
+                            <Lock
+                              size={18}
+                              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                            />
+                            <input
+                              id="confirmPin"
+                              type={showConfirmPin ? 'text' : 'password'}
+                              inputMode="numeric"
+                              maxLength={PIN_LENGTH}
+                              value={confirmPin}
+                              onChange={(event) => {
+                                if (/^\d*$/.test(event.target.value)) setConfirmPin(event.target.value)
+                                setPinError('')
+                              }}
+                              className={`${getFieldClass(Boolean(pinError))} pr-11 tracking-[0.5em]`}
+                              placeholder="••••"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowConfirmPin((prev) => !prev)}
+                              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-brand"
+                              aria-label={showConfirmPin ? 'Hide PIN' : 'Show PIN'}
+                            >
+                              {showConfirmPin ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                          </div>
+                          {pinError && <p className={errorClass}>{pinError}</p>}
+                        </div>
+
+                        <Button type="button" className="w-full" onClick={handleCreateAccount}>
+                          Create Account
                         </Button>
-                      </Form>
-                    )}
-                  </Formik>
-                )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               <p className="mt-6 text-center text-sm text-muted">

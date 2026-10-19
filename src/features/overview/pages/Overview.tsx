@@ -5,14 +5,13 @@ import {
   Users,
   Wallet,
   ArrowLeftRight,
-  Clock,
+  Building2,
   Landmark,
   PiggyBank,
   UserPlus,
   HandCoins,
   BadgeCheck,
   AlertTriangle,
-  Banknote,
   Download,
   Eye,
   User,
@@ -24,6 +23,8 @@ import {
   Receipt,
   RotateCcw,
   CalendarDays,
+  ArrowDownRight,
+  ArrowUpRight,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -51,6 +52,7 @@ import {
   type VolumeRange,
 } from '../data'
 import { transactions } from '../../transactions/data'
+import { floatManagement } from '../../financial/data'
 import { maskAccount } from '../../../utils/mask'
 
 const txStatusVariant = {
@@ -88,10 +90,12 @@ function displayAccount(value: string) {
   return value.startsWith('+') ? maskAccount(value) : value
 }
 
-// Cashier Topup is filed under the receiving customer's own wallet, so the usual
-// customer→recipient direction is reversed: the cashier is the source, not the destination.
+// Types where the recorded counterparty is actually the source of funds (money flows
+// INTO the customer's wallet), so the usual customer→recipient direction is reversed.
+const incomingTypes = new Set(['Cash In', 'Loan Disbursement'])
+
 function getTxFlow(tx: (typeof transactions)[number]) {
-  if (tx.type === 'Cashier Topup') {
+  if (incomingTypes.has(tx.type)) {
     return {
       fromName: tx.recipientName ?? tx.customer,
       fromAccount: tx.recipientAccount ?? tx.phone,
@@ -106,10 +110,27 @@ function getTxFlow(tx: (typeof transactions)[number]) {
 }
 
 const typeTone = {
-  'Wallet Transfer': 'blue',
-  'Bank Transfer': 'green',
-  'Cashier Topup': 'purple',
-  Withdraw: 'rose',
+  W2W: 'blue',
+  'Cash In': 'green',
+  'Cash Out': 'rose',
+  'Loan Disbursement': 'orange',
+  'Loan Repayment': 'amber',
+} as const
+
+const txTypeIcon = {
+  W2W: Send,
+  'Cash In': ArrowDownRight,
+  'Cash Out': ArrowUpRight,
+  'Loan Disbursement': HandCoins,
+  'Loan Repayment': HandCoins,
+} as const
+
+const recipientLabel = {
+  W2W: 'Recipient wallet',
+  'Cash In': 'Served by (cashier)',
+  'Cash Out': 'Served by (cashier)',
+  'Loan Disbursement': 'Loan account',
+  'Loan Repayment': 'Loan account',
 } as const
 
 function exportTransactionsCsv(rows: typeof transactions) {
@@ -218,6 +239,8 @@ export default function Overview() {
     setTxDrawerOpen(true)
   }
 
+  const companyWallet = floatManagement.find((account) => account.label === 'Main Wallet')
+
   return (
     <div className="space-y-6">
       <div>
@@ -244,10 +267,11 @@ export default function Overview() {
         />
         <StatCard
           icon={Wallet}
-          tone="positive"
+          tone="brand"
           label="Total Wallet Balance"
           value={currency(overviewStats.totalWalletBalance)}
           delta={overviewStats.totalWalletBalanceDelta}
+          deltaLabel="Held on behalf of customers & cashiers"
         />
         <StatCard
           icon={ArrowLeftRight}
@@ -257,11 +281,12 @@ export default function Overview() {
           delta={overviewStats.totalTransactionsDelta}
         />
         <StatCard
-          icon={Clock}
-          tone="accent"
-          label="Today's Transactions"
-          value={number(overviewStats.todaysTransactions)}
-          delta={overviewStats.todaysTransactionsDelta}
+          icon={Building2}
+          tone="positive"
+          label="Company Wallet"
+          value={currency(companyWallet?.value ?? 0)}
+          delta={companyWallet?.delta ?? 0}
+          deltaLabel="Retained earnings from fees"
         />
       </div>
 
@@ -441,12 +466,6 @@ export default function Overview() {
               value={number(loanOverview.overdueLoans)}
               delta={loanOverview.overdueLoansDelta}
             />
-            <PanelRow
-              icon={Banknote}
-              label="Disbursement"
-              value={currency(loanOverview.disbursed)}
-              delta={loanOverview.disbursedDelta}
-            />
           </div>
         </div>
       </div>
@@ -610,39 +629,28 @@ export default function Overview() {
                   </div>
                   <p className="shrink-0 text-sm font-semibold text-ink">{currency(selectedTx.amount)}</p>
                 </div>
-                {(selectedTx.type === 'Wallet Transfer' ||
-                  selectedTx.type === 'Bank Transfer' ||
-                  selectedTx.type === 'Cashier Topup') &&
-                  selectedTx.recipientName && (
-                    <div className="flex items-center justify-between gap-3 p-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                          {selectedTx.type === 'Wallet Transfer' ? (
-                            <Send size={16} />
-                          ) : selectedTx.type === 'Bank Transfer' ? (
-                            <Landmark size={16} />
-                          ) : (
-                            <UserCog size={16} />
-                          )}
-                        </span>
-                        <p className="text-xs text-muted">
-                          {selectedTx.type === 'Wallet Transfer'
-                            ? 'Recipient wallet'
-                            : selectedTx.type === 'Bank Transfer'
-                              ? 'Recipient bank'
-                              : 'Topped up by (cashier)'}
-                        </p>
+                {selectedTx.recipientName &&
+                  (() => {
+                    const RecipientIcon = txTypeIcon[selectedTx.type]
+                    return (
+                      <div className="flex items-center justify-between gap-3 p-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                            <RecipientIcon size={16} />
+                          </span>
+                          <p className="text-xs text-muted">{recipientLabel[selectedTx.type]}</p>
+                        </div>
+                        <div className="min-w-0 shrink-0 text-right">
+                          <p className="truncate text-sm font-semibold text-ink">
+                            {selectedTx.recipientName}
+                          </p>
+                          <p className="truncate font-mono text-xs text-muted">
+                            {selectedTx.recipientAccount}
+                          </p>
+                        </div>
                       </div>
-                      <div className="min-w-0 shrink-0 text-right">
-                        <p className="truncate text-sm font-semibold text-ink">
-                          {selectedTx.recipientName}
-                        </p>
-                        <p className="truncate font-mono text-xs text-muted">
-                          {selectedTx.recipientAccount}
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                    )
+                  })()}
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">

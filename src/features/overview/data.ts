@@ -94,11 +94,11 @@ export interface TransactionTypeShare {
 
 // Fixed categorical order, validated adjacency (incl. circular pie wrap). Never reassign hues.
 export const transactionByType: TransactionTypeShare[] = [
-  { type: 'Wallet-to-Wallet', value: 34, color: 'var(--color-chart-blue)' },
-  { type: 'Withdraw', value: 22, color: 'var(--color-chart-orange)' },
-  { type: 'Cashier Topup', value: 18, color: 'var(--color-chart-aqua)' },
+  { type: 'W2W', value: 34, color: 'var(--color-chart-blue)' },
+  { type: 'Cash Out', value: 22, color: 'var(--color-chart-orange)' },
+  { type: 'Cash In', value: 18, color: 'var(--color-chart-aqua)' },
   { type: 'Loan Disbursement', value: 12, color: 'var(--color-chart-amber)' },
-  { type: 'Fees', value: 8, color: 'var(--color-chart-magenta)' },
+  { type: 'Fee', value: 8, color: 'var(--color-chart-magenta)' },
   { type: 'Loan Repayment', value: 6, color: 'var(--color-chart-green)' },
 ]
 

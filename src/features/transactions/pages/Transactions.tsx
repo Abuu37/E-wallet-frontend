@@ -19,8 +19,7 @@ import {
   RotateCcw,
   Wallet,
   Send,
-  Landmark,
-  UserCog,
+  HandCoins,
   ArrowUpRight,
   ArrowDownRight,
 } from 'lucide-react'
@@ -39,24 +38,54 @@ const statusVariant = {
 } as const
 
 const typeTone = {
-  'Wallet Transfer': 'blue',
-  'Bank Transfer': 'green',
-  'Cashier Topup': 'purple',
-  Withdraw: 'rose',
+  W2W: 'blue',
+  'Cash In': 'green',
+  'Cash Out': 'rose',
+  'Loan Disbursement': 'orange',
+  'Loan Repayment': 'amber',
+} as const
+
+const txTypeIcon = {
+  W2W: Send,
+  'Cash In': ArrowDownRight,
+  'Cash Out': ArrowUpRight,
+  'Loan Disbursement': HandCoins,
+  'Loan Repayment': HandCoins,
+} as const
+
+const recipientLabel = {
+  W2W: 'Recipient wallet',
+  'Cash In': 'Served by (cashier)',
+  'Cash Out': 'Served by (cashier)',
+  'Loan Disbursement': 'Loan account',
+  'Loan Repayment': 'Loan account',
 } as const
 
 const statusOptions: Array<TxStatus | 'All'> = ['All', 'Successful', 'Pending', 'Failed']
 const typeOptions: Array<TxType | 'All'> = [
   'All',
-  'Wallet Transfer',
-  'Bank Transfer',
-  'Cashier Topup',
-  'Withdraw',
+  'W2W',
+  'Cash In',
+  'Cash Out',
+  'Loan Disbursement',
+  'Loan Repayment',
 ]
 
 const PAGE_SIZE = 10
+// Commission is paid to the cashier/agent who handled the transaction, funded by the
+// operator — independent of the customer fee (e.g. Cash In has no fee but still pays commission).
+const COMMISSION_RATES: Partial<Record<TxType, number>> = { 'Cash In': 0.01, 'Cash Out': 0.01 }
 
 const formatAmount = (value: number) => `TSh ${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+
+function getCommission(tx: Transaction) {
+  const rate = COMMISSION_RATES[tx.type]
+  return rate ? tx.amount * rate : 0
+}
+
+function getNetRevenue(tx: Transaction) {
+  return tx.fee - getCommission(tx)
+}
 
 interface ActionMenuState {
   id: string
@@ -252,12 +281,12 @@ export default function Transactions() {
               <tr>
                 <th className="px-6 py-3 font-semibold">ID</th>
                 <th className="px-6 py-3 font-semibold">Transaction ID</th>
-                <th className="px-6 py-3 font-semibold">Customer</th>
                 <th className="px-6 py-3 font-semibold">Account Number</th>
                 <th className="px-6 py-3 font-semibold">Type</th>
-                <th className="px-6 py-3 font-semibold">Channel</th>
                 <th className="px-6 py-3 text-right font-semibold">Amount</th>
                 <th className="px-6 py-3 text-right font-semibold">Fee</th>
+                <th className="px-6 py-3 text-right font-semibold">Commission</th>
+                <th className="px-6 py-3 text-right font-semibold">Net Revenue</th>
                 <th className="px-6 py-3 font-semibold">Status</th>
                 <th className="px-6 py-3 font-semibold">Date</th>
                 <th className="px-6 py-3 text-right font-semibold">Action</th>
@@ -270,17 +299,23 @@ export default function Transactions() {
                     {(page - 1) * PAGE_SIZE + index + 1}
                   </td>
                   <td className="px-6 py-3.5 font-mono text-xs text-muted">{tx.id}</td>
-                  <td className="px-6 py-3.5 font-medium text-ink">{tx.customer}</td>
                   <td className="px-6 py-3.5 font-mono text-ink/70">{maskAccount(tx.phone)}</td>
                   <td className="px-6 py-3.5">
                     <TypeBadge tone={typeTone[tx.type]} label={tx.type} />
                   </td>
-                  <td className="px-6 py-3.5 text-ink/70">{tx.channel}</td>
                   <td className="px-6 py-3.5 text-right font-semibold text-ink">
                     {formatAmount(tx.amount)}
                   </td>
+                  <td className="px-6 py-3.5 text-right text-ink/70">{formatAmount(tx.fee)}</td>
                   <td className="px-6 py-3.5 text-right text-ink/70">
-                    {tx.fee > 0 ? formatAmount(tx.fee) : 'N/A'}
+                    {formatAmount(getCommission(tx))}
+                  </td>
+                  <td
+                    className={`px-6 py-3.5 text-right font-semibold ${
+                      getNetRevenue(tx) < 0 ? 'text-red-600' : 'text-ink'
+                    }`}
+                  >
+                    {formatAmount(getNetRevenue(tx))}
                   </td>
                   <td className="px-6 py-3.5">
                     <StatusBadge status={statusVariant[tx.status]} label={tx.status} />
@@ -436,35 +471,24 @@ export default function Transactions() {
                   </div>
                   <p className="shrink-0 text-sm font-semibold text-ink">{formatAmount(selected.amount)}</p>
                 </div>
-                {(selected.type === 'Wallet Transfer' ||
-                  selected.type === 'Bank Transfer' ||
-                  selected.type === 'Cashier Topup') &&
-                  selected.recipientName && (
-                    <div className="flex items-center justify-between gap-3 p-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                          {selected.type === 'Wallet Transfer' ? (
-                            <Send size={16} />
-                          ) : selected.type === 'Bank Transfer' ? (
-                            <Landmark size={16} />
-                          ) : (
-                            <UserCog size={16} />
-                          )}
-                        </span>
-                        <p className="text-xs text-muted">
-                          {selected.type === 'Wallet Transfer'
-                            ? 'Recipient wallet'
-                            : selected.type === 'Bank Transfer'
-                              ? 'Recipient bank'
-                              : 'Topped up by (cashier)'}
-                        </p>
+                {selected.recipientName &&
+                  (() => {
+                    const RecipientIcon = txTypeIcon[selected.type]
+                    return (
+                      <div className="flex items-center justify-between gap-3 p-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                            <RecipientIcon size={16} />
+                          </span>
+                          <p className="text-xs text-muted">{recipientLabel[selected.type]}</p>
+                        </div>
+                        <div className="min-w-0 shrink-0 text-right">
+                          <p className="truncate text-sm font-semibold text-ink">{selected.recipientName}</p>
+                          <p className="truncate font-mono text-xs text-muted">{selected.recipientAccount}</p>
+                        </div>
                       </div>
-                      <div className="min-w-0 shrink-0 text-right">
-                        <p className="truncate text-sm font-semibold text-ink">{selected.recipientName}</p>
-                        <p className="truncate font-mono text-xs text-muted">{selected.recipientAccount}</p>
-                      </div>
-                    </div>
-                  )}
+                    )
+                  })()}
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
@@ -490,8 +514,32 @@ export default function Transactions() {
                     </span>
                     <p className="text-xs text-muted">Fee</p>
                   </div>
+                  <p className="shrink-0 text-sm font-semibold text-ink">{formatAmount(selected.fee)}</p>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <HandCoins size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Commission</p>
+                  </div>
                   <p className="shrink-0 text-sm font-semibold text-ink">
-                    {selected.fee > 0 ? formatAmount(selected.fee) : 'N/A'}
+                    {formatAmount(getCommission(selected))}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <Receipt size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Net Revenue</p>
+                  </div>
+                  <p
+                    className={`shrink-0 text-sm font-semibold ${
+                      getNetRevenue(selected) < 0 ? 'text-red-600' : 'text-ink'
+                    }`}
+                  >
+                    {formatAmount(getNetRevenue(selected))}
                   </p>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">

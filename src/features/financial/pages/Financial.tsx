@@ -19,7 +19,6 @@ import {
   Globe,
   Percent,
   Send,
-  Landmark,
   UserCog,
   Receipt,
   RotateCcw,
@@ -53,11 +52,32 @@ const txStatusVariant = {
 } as const
 
 const typeTone = {
-  'Wallet Transfer': 'blue',
-  'Bank Transfer': 'green',
-  'Cashier Topup': 'purple',
-  Withdraw: 'rose',
+  W2W: 'blue',
+  'Cash In': 'green',
+  'Cash Out': 'rose',
+  'Loan Disbursement': 'orange',
+  'Loan Repayment': 'amber',
 } as const
+
+const txTypeIcon = {
+  W2W: Send,
+  'Cash In': ArrowDownRight,
+  'Cash Out': ArrowUpRight,
+  'Loan Disbursement': HandCoins,
+  'Loan Repayment': HandCoins,
+} as const
+
+const recipientLabel = {
+  W2W: 'Recipient wallet',
+  'Cash In': 'Served by (cashier)',
+  'Cash Out': 'Served by (cashier)',
+  'Loan Disbursement': 'Loan account',
+  'Loan Repayment': 'Loan account',
+} as const
+
+// Types where the recorded counterparty is actually the source of funds (money flows
+// INTO the customer's wallet), so the usual customer→recipient direction is reversed.
+const incomingTypes = new Set(['Cash In', 'Loan Disbursement'])
 
 const quickActions = [
   { label: 'Transfer Funds', icon: ArrowLeftRight, tone: 'bg-purple-100 text-purple-600' },
@@ -115,10 +135,8 @@ function displayAccount(value: string) {
   return value.startsWith('+') ? maskAccount(value) : value
 }
 
-// Cashier Topup is filed under the receiving customer's own wallet, so the usual
-// customer→recipient direction is reversed: the cashier is the source, not the destination.
 function getTxFlow(tx: (typeof transactions)[number]) {
-  if (tx.type === 'Cashier Topup') {
+  if (incomingTypes.has(tx.type)) {
     return {
       fromName: tx.recipientName ?? tx.customer,
       fromAccount: tx.recipientAccount ?? tx.phone,
@@ -420,7 +438,7 @@ export default function Financial() {
           <h2 className="text-base font-bold text-ink">Float Management</h2>
           <div className="mt-1 divide-y divide-line">
             {floatManagement.map((account) => {
-              const Icon = floatIcon[account.label]
+              const Icon = floatIcon[account.label as keyof typeof floatIcon]
               return (
                 <div key={account.label} className="flex items-center gap-3 py-3">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand">
@@ -646,39 +664,28 @@ export default function Financial() {
                   </div>
                   <p className="shrink-0 text-sm font-semibold text-ink">{currency(selectedTx.amount)}</p>
                 </div>
-                {(selectedTx.type === 'Wallet Transfer' ||
-                  selectedTx.type === 'Bank Transfer' ||
-                  selectedTx.type === 'Cashier Topup') &&
-                  selectedTx.recipientName && (
-                    <div className="flex items-center justify-between gap-3 p-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                          {selectedTx.type === 'Wallet Transfer' ? (
-                            <Send size={16} />
-                          ) : selectedTx.type === 'Bank Transfer' ? (
-                            <Landmark size={16} />
-                          ) : (
-                            <UserCog size={16} />
-                          )}
-                        </span>
-                        <p className="text-xs text-muted">
-                          {selectedTx.type === 'Wallet Transfer'
-                            ? 'Recipient wallet'
-                            : selectedTx.type === 'Bank Transfer'
-                              ? 'Recipient bank'
-                              : 'Topped up by (cashier)'}
-                        </p>
+                {selectedTx.recipientName &&
+                  (() => {
+                    const RecipientIcon = txTypeIcon[selectedTx.type]
+                    return (
+                      <div className="flex items-center justify-between gap-3 p-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                            <RecipientIcon size={16} />
+                          </span>
+                          <p className="text-xs text-muted">{recipientLabel[selectedTx.type]}</p>
+                        </div>
+                        <div className="min-w-0 shrink-0 text-right">
+                          <p className="truncate text-sm font-semibold text-ink">
+                            {selectedTx.recipientName}
+                          </p>
+                          <p className="truncate font-mono text-xs text-muted">
+                            {selectedTx.recipientAccount}
+                          </p>
+                        </div>
                       </div>
-                      <div className="min-w-0 shrink-0 text-right">
-                        <p className="truncate text-sm font-semibold text-ink">
-                          {selectedTx.recipientName}
-                        </p>
-                        <p className="truncate font-mono text-xs text-muted">
-                          {selectedTx.recipientAccount}
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                    )
+                  })()}
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">

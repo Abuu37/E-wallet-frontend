@@ -21,7 +21,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Send,
-  UserCog,
+  HandCoins,
 } from 'lucide-react'
 import StatCard from '../../../components/ui/StatCard'
 import StatusBadge from '../../../components/ui/StatusBadge'
@@ -50,10 +50,11 @@ const txStatusVariant = {
 } as const
 
 const txTypeIcon = {
-  'Wallet Transfer': Send,
-  'Bank Transfer': Landmark,
-  'Cashier Topup': UserCog,
-  Withdraw: Banknote,
+  W2W: Send,
+  'Cash In': ArrowDownRight,
+  'Cash Out': ArrowUpRight,
+  'Loan Disbursement': HandCoins,
+  'Loan Repayment': HandCoins,
 } as const
 
 const statusOptions: Array<WalletStatus | 'All'> = ['All', 'Active', 'Frozen', 'Blocked']
@@ -712,7 +713,7 @@ export default function Wallets() {
                       <Send size={16} />
                     </span>
                     <div className="min-w-0">
-                      <p className="font-semibold text-ink">Wallet Transfer</p>
+                      <p className="font-semibold text-ink">W2W</p>
                       <p className="text-xs text-muted">Today · 10:42 AM</p>
                     </div>
                   </div>
@@ -733,10 +734,10 @@ export default function Wallets() {
                 <div className="flex items-center justify-between gap-3 p-3 text-sm">
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-700">
-                      <Banknote size={16} />
+                      <ArrowUpRight size={16} />
                     </span>
                     <div className="min-w-0">
-                      <p className="font-semibold text-ink">Withdraw</p>
+                      <p className="font-semibold text-ink">Cash Out</p>
                       <p className="text-xs text-muted">Yesterday · 9:03 AM</p>
                     </div>
                   </div>

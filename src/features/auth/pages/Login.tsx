@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { CreditCard, Mail, Lock, Eye, EyeOff, Sparkles } from 'lucide-react'
+import { CreditCard, Phone, Lock, Eye, EyeOff, Sparkles } from 'lucide-react'
 import Button from '../../../components/ui/Button'
 import ewalletImage from '../../../assets/imgs/ewallet.webp'
 import paymentImage from '../../../assets/imgs/payment-img1.jpg'
@@ -13,9 +13,12 @@ const SLIDE_DURATION = 15000
 const fieldClass =
   'w-full rounded-full border border-transparent bg-surface py-2.5 pl-11 pr-4 text-sm outline-none transition-colors focus:border-brand focus:bg-white'
 
+const PIN_LENGTH = 4
+
 export default function Login() {
   const navigate = useNavigate()
-  const [showPassword, setShowPassword] = useState(false)
+  const [showPin, setShowPin] = useState(false)
+  const [pin, setPin] = useState('')
   const [activeSlide, setActiveSlide] = useState(0)
 
   useEffect(() => {
@@ -151,27 +154,27 @@ export default function Login() {
               }}
             >
               <div>
-                <label htmlFor="email" className="text-sm font-medium text-ink">
-                  Email
+                <label htmlFor="phone" className="text-sm font-medium text-ink">
+                  Phone number
                 </label>
                 <div className="relative mt-2">
-                  <Mail
+                  <Phone
                     size={18}
                     className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
                   />
                   <input
-                    id="email"
-                    name="email"
-                    type="email"
+                    id="phone"
+                    name="phone"
+                    type="tel"
                     className={fieldClass}
-                    placeholder="you@example.com"
+                    placeholder="+255 7XX XXX XXX"
                   />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="password" className="text-sm font-medium text-ink">
-                  Password
+                <label htmlFor="pin" className="text-sm font-medium text-ink">
+                  PIN
                 </label>
                 <div className="relative mt-2">
                   <Lock
@@ -179,19 +182,25 @@ export default function Login() {
                     className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
                   />
                   <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    className={`${fieldClass} pr-11`}
-                    placeholder="••••••••"
+                    id="pin"
+                    name="pin"
+                    type={showPin ? 'text' : 'password'}
+                    inputMode="numeric"
+                    maxLength={PIN_LENGTH}
+                    value={pin}
+                    onChange={(event) => {
+                      if (/^\d*$/.test(event.target.value)) setPin(event.target.value)
+                    }}
+                    className={`${fieldClass} pr-11 tracking-[0.5em]`}
+                    placeholder="••••"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
+                    onClick={() => setShowPin((prev) => !prev)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-brand"
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showPin ? 'Hide PIN' : 'Show PIN'}
                   >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    {showPin ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
                 <div className="mt-3 flex items-center justify-between">
@@ -205,7 +214,7 @@ export default function Login() {
                     Remember me
                   </label>
                   <Link to="/contact" className="text-xs font-medium text-brand hover:underline">
-                    Forgot password?
+                    Forgot PIN?
                   </Link>
                 </div>
               </div>

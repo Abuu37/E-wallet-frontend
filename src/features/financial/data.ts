@@ -152,10 +152,11 @@ export interface FloatAccount {
   label: string
   value: number
   status: FloatAccountStatus
+  delta?: number
 }
 
 export const floatManagement: FloatAccount[] = [
-  { label: 'Main Wallet', value: 120450.5, status: 'Available' },
+  { label: 'Main Wallet', value: 120450.5, status: 'Available', delta: 4.6 },
   { label: 'Cashier Floats', value: 28750.0, status: 'Available' },
   { label: 'Pending Settlements', value: 5200.0, status: 'Processing' },
   { label: 'Blocked Funds', value: 2000.0, status: 'Blocked' },

@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   ArrowLeftRight,
   WalletCards,
+  Landmark,
   Users,
   UserCog,
   UserCheck,
@@ -32,7 +33,8 @@ const navGroups: Array<{ label: string | null; items: NavItem[] }> = [
     label: 'Operations',
     items: [
       { to: '/dashboard/transactions', label: 'Transactions', icon: ArrowLeftRight },
-      { to: '/dashboard/wallets', label: 'Wallets', icon: WalletCards },
+      { to: '/dashboard/main-wallet', label: 'Main Wallet', icon: Landmark },
+      { to: '/dashboard/wallets', label: 'Customer Wallets', icon: WalletCards },
     ],
   },
   {
