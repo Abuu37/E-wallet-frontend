@@ -9,7 +9,6 @@ import {
   Landmark,
   Users,
   UserCog,
-  UserCheck,
   Banknote,
   HandCoins,
   Percent,
@@ -42,7 +41,6 @@ const navGroups: Array<{ label: string | null; items: NavItem[] }> = [
     items: [
       { to: '/dashboard/customers', label: 'Customers', icon: Users },
       { to: '/dashboard/cashiers', label: 'Cashiers', icon: UserCog },
-      { to: '/dashboard/financial-officers', label: 'Financial Officers', icon: UserCheck },
     ],
   },
   {

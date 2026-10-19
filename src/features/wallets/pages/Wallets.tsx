@@ -29,6 +29,7 @@ import Drawer from '../../../components/ui/Drawer'
 import { wallets as initialWallets, type Wallet, type WalletStatus } from '../data'
 import { transactions } from '../../transactions/data'
 import { customers } from '../../customers/data'
+import { getCustomerStatus } from '../../customers/status'
 import { maskAccount } from '../../../utils/mask'
 
 const statusVariant = {
@@ -676,12 +677,12 @@ export default function Wallets() {
                       <div className="flex min-w-0 items-center gap-3">
                         <span
                           className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                            ownerCustomer.status === 'Active'
+                            getCustomerStatus(ownerCustomer) === 'Active'
                               ? 'bg-green-50 text-green-700'
                               : 'bg-red-50 text-red-700'
                           }`}
                         >
-                          {ownerCustomer.status === 'Active' ? (
+                          {getCustomerStatus(ownerCustomer) === 'Active' ? (
                             <CircleCheck size={16} />
                           ) : (
                             <Ban size={16} />
@@ -690,8 +691,8 @@ export default function Wallets() {
                         <p className="text-xs text-muted">Customer status</p>
                       </div>
                       <StatusBadge
-                        status={ownerCustomer.status === 'Active' ? 'positive' : 'negative'}
-                        label={ownerCustomer.status}
+                        status={getCustomerStatus(ownerCustomer) === 'Active' ? 'positive' : 'negative'}
+                        label={getCustomerStatus(ownerCustomer)}
                       />
                     </div>
                   </>

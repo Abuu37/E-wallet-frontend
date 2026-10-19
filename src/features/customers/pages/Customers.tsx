@@ -3,14 +3,14 @@ import { AnimatePresence, motion } from 'motion/react'
 import {
   Search,
   Users,
-  UserCheck,
+  Landmark,
+  CircleCheck,
   Clock,
   UserX,
   MoreVertical,
   Eye,
   Pencil,
   Ban,
-  ShieldCheck,
   ArrowLeft,
   Wallet,
   CreditCard,
@@ -36,19 +36,20 @@ import StatusBadge from '../../../components/ui/StatusBadge'
 import Drawer from '../../../components/ui/Drawer'
 import Modal from '../../../components/ui/Modal'
 import { customers as initialCustomers, type Customer, type CustomerStatus } from '../data'
+import { daysSince, getCustomerStatus, getLastActiveDate } from '../status'
 import { transactions, type TxStatus, type TxType } from '../../transactions/data'
 import { maskAccount } from '../../../utils/mask'
 
 const statusVariant = {
   Active: 'positive',
-  Pending: 'warning',
-  Suspended: 'negative',
+  Dormant: 'warning',
+  Inactive: 'negative',
 } as const
 
 const statusIconTone = {
   Active: 'bg-green-50 text-green-700',
-  Pending: 'bg-amber-50 text-amber-700',
-  Suspended: 'bg-red-50 text-red-700',
+  Dormant: 'bg-amber-50 text-amber-700',
+  Inactive: 'bg-red-50 text-red-700',
 } as const
 
 const txStatusVariant = {
@@ -81,7 +82,7 @@ const recipientLabel = {
   'Loan Repayment': 'Loan account',
 } as const
 
-const statusOptions: Array<CustomerStatus | 'All'> = ['All', 'Active', 'Pending', 'Suspended']
+const statusOptions: Array<CustomerStatus | 'All'> = ['All', 'Active', 'Dormant', 'Inactive']
 const txStatusOptions: Array<TxStatus | 'All'> = ['All', 'Successful', 'Pending', 'Failed']
 const txTypeOptions: Array<TxType | 'All'> = [
   'All',
@@ -96,6 +97,18 @@ const PAGE_SIZE = 10
 const TX_PAGE_SIZE = 10
 
 const formatAmount = (value: number) => `TSh ${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+
+const formatDate = (value: string) =>
+  new Date(`${value}T00:00:00`).toLocaleDateString('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  })
+
+const formatLastActive = (customer: Customer) => {
+  const days = daysSince(getLastActiveDate(customer))
+  return `${days} day${days === 1 ? '' : 's'} ago`
+}
 
 const initials = (name: string) =>
   name
@@ -123,9 +136,6 @@ export default function Customers() {
   const [editBalance, setEditBalance] = useState('')
   const [actionMenu, setActionMenu] = useState<ActionMenuState | null>(null)
   const menuButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
-  const [confirmSuspend, setConfirmSuspend] = useState<{ id: string; name: string; suspend: boolean } | null>(
-    null,
-  )
 
   const [view, setView] = useState<'list' | 'history'>('list')
   const [txQuery, setTxQuery] = useState('')
@@ -141,7 +151,7 @@ export default function Customers() {
         customer.name.toLowerCase().includes(query.toLowerCase()) ||
         customer.id.toLowerCase().includes(query.toLowerCase()) ||
         customer.phone.replace(/\D/g, '').includes(query.replace(/\D/g, ''))
-      const matchesStatus = status === 'All' || customer.status === status
+      const matchesStatus = status === 'All' || getCustomerStatus(customer) === status
       return matchesQuery && matchesStatus
     })
   }, [customers, query, status])
@@ -150,10 +160,19 @@ export default function Customers() {
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const selected: Customer | null = customers.find((customer) => customer.id === selectedId) ?? null
+  const selectedStatus: CustomerStatus | null = selected ? getCustomerStatus(selected) : null
 
   const selectedTransactions = useMemo(
     () => (selected ? transactions.filter((tx) => tx.customer === selected.name) : []),
     [selected],
+  )
+
+  const lastTransactionDate = useMemo(
+    () =>
+      selectedTransactions.length === 0
+        ? null
+        : selectedTransactions.reduce((latest, tx) => (tx.date > latest ? tx.date : latest), selectedTransactions[0].date),
+    [selectedTransactions],
   )
 
   const selectedTxDetail = useMemo(
@@ -190,9 +209,10 @@ export default function Customers() {
   const txPageItems = filteredTx.slice((txPage - 1) * TX_PAGE_SIZE, txPage * TX_PAGE_SIZE)
 
   const totalCustomers = customers.length
-  const activeCount = customers.filter((customer) => customer.status === 'Active').length
-  const pendingCount = customers.filter((customer) => customer.status === 'Pending').length
-  const suspendedCount = customers.filter((customer) => customer.status === 'Suspended').length
+  const totalBalance = customers.reduce((sum, customer) => sum + customer.balance, 0)
+  const activeCount = customers.filter((customer) => getCustomerStatus(customer) === 'Active').length
+  const inactiveCount = customers.filter((customer) => getCustomerStatus(customer) === 'Inactive').length
+  const dormantCount = customers.filter((customer) => getCustomerStatus(customer) === 'Dormant').length
 
   const resetToFirstPage = () => setPage(1)
 
@@ -240,32 +260,6 @@ export default function Customers() {
 
   const backToList = () => setView('list')
 
-  const requestSuspendToggle = (id: string) => {
-    const customer = customers.find((item) => item.id === id)
-    if (!customer) return
-    setConfirmSuspend({ id, name: customer.name, suspend: customer.status !== 'Suspended' })
-    closeActionMenu()
-  }
-
-  const confirmSuspendToggle = () => {
-    if (!confirmSuspend) return
-    setCustomers((prev) =>
-      prev.map((customer) =>
-        customer.id === confirmSuspend.id
-          ? { ...customer, status: confirmSuspend.suspend ? 'Suspended' : 'Active' }
-          : customer,
-      ),
-    )
-    setConfirmSuspend(null)
-  }
-
-  const setSelectedStatus = (nextStatus: CustomerStatus) => {
-    if (!selected) return
-    setCustomers((prev) =>
-      prev.map((customer) => (customer.id === selected.id ? { ...customer, status: nextStatus } : customer)),
-    )
-  }
-
   const saveEdit = () => {
     if (!selected) return
     setCustomers((prev) =>
@@ -305,7 +299,10 @@ export default function Customers() {
                 </p>
               </div>
             </div>
-            <StatusBadge status={statusVariant[selected.status]} label={selected.status} />
+            <StatusBadge
+              status={statusVariant[getCustomerStatus(selected)]}
+              label={getCustomerStatus(selected)}
+            />
           </div>
 
           <div className="grid grid-cols-2 divide-x divide-y divide-line border-b border-line sm:grid-cols-4 sm:divide-y-0">
@@ -632,7 +629,7 @@ export default function Customers() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard
           icon={Users}
           tone="brand"
@@ -641,24 +638,31 @@ export default function Customers() {
           delta={6.4}
         />
         <StatCard
-          icon={UserCheck}
+          icon={Landmark}
+          tone="accent"
+          label="Total Wallet Balance"
+          value={formatAmount(totalBalance)}
+          delta={9.3}
+        />
+        <StatCard
+          icon={CircleCheck}
           tone="positive"
-          label="Active Customer"
+          label="Active Wallet"
           value={String(activeCount)}
           delta={3.8}
         />
         <StatCard
           icon={Clock}
           tone="warning"
-          label="Pending Customer"
-          value={String(pendingCount)}
+          label="Dormant Wallet"
+          value={String(dormantCount)}
           delta={1.2}
         />
         <StatCard
           icon={UserX}
           tone="negative"
-          label="Suspended Customer"
-          value={String(suspendedCount)}
+          label="Inactive Wallet"
+          value={String(inactiveCount)}
           delta={-2.5}
         />
       </div>
@@ -702,26 +706,29 @@ export default function Customers() {
           <table className="w-full text-left text-sm">
             <thead className="border-y border-line bg-surface text-xs uppercase tracking-wide text-muted">
               <tr>
-                <th className="px-6 py-3 font-semibold">ID</th>
-                <th className="px-6 py-3 font-semibold">Customer ID</th>
-                <th className="px-6 py-3 font-semibold">Customer Name</th>
-                <th className="px-6 py-3 font-semibold">Account No</th>
-                <th className="px-6 py-3 text-right font-semibold">Wallet Balance</th>
+                <th className="px-6 py-3 font-semibold">#</th>
+                <th className="px-6 py-3 font-semibold">Name</th>
+                <th className="px-6 py-3 font-semibold">Account Number</th>
+                <th className="px-6 py-3 text-right font-semibold">Balance</th>
                 <th className="px-6 py-3 text-right font-semibold">Transactions</th>
                 <th className="px-6 py-3 font-semibold">Status</th>
-                <th className="px-6 py-3 font-semibold">Join Date</th>
+                <th className="px-6 py-3 font-semibold">Last Active</th>
                 <th className="px-6 py-3 text-right font-semibold">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {pageItems.map((customer, index) => {
                 const txCount = transactions.filter((tx) => tx.customer === customer.name).length
+                const customerStatus = getCustomerStatus(customer)
                 return (
-                  <tr key={customer.id}>
+                  <tr
+                    key={customer.id}
+                    onClick={() => openCustomer(customer.id)}
+                    className="cursor-pointer transition-colors hover:bg-surface"
+                  >
                     <td className="px-6 py-3.5 text-xs text-muted">
                       {(page - 1) * PAGE_SIZE + index + 1}
                     </td>
-                    <td className="px-6 py-3.5 font-mono text-xs text-muted">{customer.id}</td>
                     <td className="px-6 py-3.5 font-medium text-ink">{customer.name}</td>
                     <td className="px-6 py-3.5 font-mono text-ink/70">{maskAccount(customer.phone)}</td>
                     <td className="px-6 py-3.5 text-right font-semibold text-ink">
@@ -730,23 +737,41 @@ export default function Customers() {
                     <td className="px-6 py-3.5 text-right">
                       <button
                         type="button"
-                        onClick={() => openTransactions(customer.id)}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          openTransactions(customer.id)
+                        }}
                         className="block w-full text-right font-semibold text-brand underline-offset-2 hover:underline"
                       >
                         {txCount} transaction{txCount === 1 ? '' : 's'}
                       </button>
                     </td>
                     <td className="px-6 py-3.5">
-                      <StatusBadge status={statusVariant[customer.status]} label={customer.status} />
+                      <StatusBadge status={statusVariant[customerStatus]} label={customerStatus} />
                     </td>
-                    <td className="px-6 py-3.5 text-ink/70">{customer.joined}</td>
+                    <td className="px-6 py-3.5">
+                      <span
+                        className={
+                          customerStatus === 'Active'
+                            ? 'text-ink/70'
+                            : customerStatus === 'Dormant'
+                              ? 'font-medium text-amber-700'
+                              : 'font-medium text-red-700'
+                        }
+                      >
+                        {formatLastActive(customer)}
+                      </span>
+                    </td>
                     <td className="px-6 py-3.5 text-right">
                       <button
                         type="button"
                         ref={(node) => {
                           menuButtonRefs.current[customer.id] = node
                         }}
-                        onClick={() => toggleActionMenu(customer.id)}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          toggleActionMenu(customer.id)
+                        }}
                         aria-label="Row actions"
                         className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink/80 transition-colors hover:border-brand hover:bg-brand hover:text-white"
                       >
@@ -758,7 +783,7 @@ export default function Customers() {
               })}
               {pageItems.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-6 py-8 text-center text-sm text-muted">
+                  <td colSpan={8} className="px-6 py-8 text-center text-sm text-muted">
                     No customers match your filters.
                   </td>
                 </tr>
@@ -812,28 +837,6 @@ export default function Customers() {
               >
                 <Eye size={14} /> View
               </button>
-              <button
-                type="button"
-                onClick={() => openEdit(actionMenu.id)}
-                className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium text-ink transition-colors hover:bg-brand hover:text-white"
-              >
-                <Pencil size={14} /> Edit
-              </button>
-              <button
-                type="button"
-                onClick={() => requestSuspendToggle(actionMenu.id)}
-                className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium text-red-600 transition-colors hover:bg-red-600 hover:text-white"
-              >
-                {customers.find((customer) => customer.id === actionMenu.id)?.status === 'Suspended' ? (
-                  <>
-                    <ShieldCheck size={14} /> Reactivate
-                  </>
-                ) : (
-                  <>
-                    <Ban size={14} /> Suspend
-                  </>
-                )}
-              </button>
             </motion.div>
           </>
         )}
@@ -845,31 +848,13 @@ export default function Customers() {
         title="Customer detail"
         footer={
           selected ? (
-            selected.status === 'Pending' ? (
-              <button
-                type="button"
-                onClick={() => setSelectedStatus('Active')}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-green-200 bg-green-50 py-2.5 text-sm font-semibold text-green-700"
-              >
-                <CheckCircle2 size={16} /> Approve customer
-              </button>
-            ) : selected.status === 'Active' ? (
-              <button
-                type="button"
-                onClick={() => setSelectedStatus('Suspended')}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-red-200 bg-red-50 py-2.5 text-sm font-semibold text-red-700"
-              >
-                <Ban size={16} /> Suspend customer
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setSelectedStatus('Active')}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-green-200 bg-green-50 py-2.5 text-sm font-semibold text-green-700"
-              >
-                <ShieldCheck size={16} /> Reactivate customer
-              </button>
-            )
+            <button
+              type="button"
+              onClick={() => openEdit(selected.id)}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-line py-2.5 text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand"
+            >
+              <Pencil size={16} /> Edit customer
+            </button>
           ) : null
         }
       >
@@ -881,9 +866,7 @@ export default function Customers() {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-base font-bold text-ink">{selected.name}</p>
-                <p className="truncate font-mono text-xs text-muted">{selected.id}</p>
               </div>
-              <StatusBadge status={statusVariant[selected.status]} label={selected.status} />
             </div>
 
             <div className="rounded-xl bg-surface p-4 ring-1 ring-line">
@@ -921,41 +904,57 @@ export default function Customers() {
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
                       <CalendarDays size={16} />
                     </span>
-                    <p className="text-xs text-muted">Join date</p>
+                    <p className="text-xs text-muted">Join Date</p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold text-ink">{selected.joined}</p>
+                  <p className="shrink-0 text-sm font-semibold text-ink">{formatDate(selected.joined)}</p>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <Clock size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Last Transaction</p>
+                  </div>
+                  <p className="shrink-0 text-sm font-semibold text-ink">
+                    {lastTransactionDate ? formatDate(lastTransactionDate) : 'No transactions yet'}
+                  </p>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <span
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                        statusIconTone[selected.status]
+                        statusIconTone[selectedStatus!]
                       }`}
                     >
-                      {selected.status === 'Active' ? (
+                      {selectedStatus === 'Active' ? (
                         <CheckCircle2 size={16} />
-                      ) : selected.status === 'Suspended' ? (
-                        <Ban size={16} />
-                      ) : (
+                      ) : selectedStatus === 'Dormant' ? (
                         <Clock size={16} />
+                      ) : (
+                        <Ban size={16} />
                       )}
                     </span>
                     <p className="text-xs text-muted">Account status</p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold text-ink">{selected.status}</p>
+                  <StatusBadge status={statusVariant[selectedStatus!]} label={selectedStatus!} />
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <Receipt size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Total Transaction Count</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openTransactions(selected.id)}
+                    className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
+                  >
+                    {selectedTransactions.length} transaction{selectedTransactions.length === 1 ? '' : 's'}
+                    <ArrowUpRight size={14} />
+                  </button>
                 </div>
               </div>
-            </div>
-
-            <div className="border-t border-line pt-4">
-              <button
-                type="button"
-                onClick={() => openTransactions(selected.id)}
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
-              >
-                View full transaction history ({selectedTransactions.length})
-                <ArrowUpRight size={14} />
-              </button>
             </div>
           </div>
         )}
@@ -1031,58 +1030,6 @@ export default function Customers() {
             />
           </div>
         </div>
-      </Modal>
-
-      <Modal
-        open={!!confirmSuspend}
-        onClose={() => setConfirmSuspend(null)}
-        title={
-          <>
-            <span
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                confirmSuspend?.suspend ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'
-              }`}
-            >
-              {confirmSuspend?.suspend ? <Ban size={16} /> : <ShieldCheck size={16} />}
-            </span>
-            {confirmSuspend?.suspend ? 'Suspend customer' : 'Reactivate customer'}
-          </>
-        }
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setConfirmSuspend(null)}
-              className="flex-1 rounded-full border border-line py-2.5 text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={confirmSuspendToggle}
-              className={`flex-1 rounded-full py-2.5 text-sm font-semibold text-white transition-colors ${
-                confirmSuspend?.suspend ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
-              }`}
-            >
-              {confirmSuspend?.suspend ? 'Suspend' : 'Reactivate'}
-            </button>
-          </>
-        }
-      >
-        <p className="text-sm text-ink/80">
-          {confirmSuspend?.suspend ? (
-            <>
-              Are you sure you want to suspend <span className="font-semibold text-ink">{confirmSuspend?.name}</span>?
-              They will lose access to their wallet until reactivated.
-            </>
-          ) : (
-            <>
-              Are you sure you want to reactivate{' '}
-              <span className="font-semibold text-ink">{confirmSuspend?.name}</span>? Their wallet access will be
-              restored immediately.
-            </>
-          )}
-        </p>
       </Modal>
     </div>
   )
