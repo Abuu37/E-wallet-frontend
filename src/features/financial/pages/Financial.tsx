@@ -37,7 +37,9 @@ import {
   getNetAdjustment,
   getTotalWalletBalance,
 } from '../../transactions/data'
-import { chartOfAccounts, getAccountBalance } from '../../ledger/data'
+import { chartOfAccounts, getAccountBalance, getCustomerBalance, getCashierFloatBalance } from '../../ledger/data'
+import { customers } from '../../customers/data'
+import { cashiers } from '../../cashiers/data'
 import { maskAccount } from '../../../utils/mask'
 
 const txStatusVariant = {
@@ -210,8 +212,8 @@ export default function Financial() {
     return account ? getAccountBalance(account) : 0
   }
   const companyWalletBalance = balanceOf('4000') - balanceOf('5000')
-  const customerWalletBalance = balanceOf('2000')
-  const cashierFloatBalance = balanceOf('2005')
+  const customerWalletBalance = customers.reduce((sum, c) => sum + getCustomerBalance(c), 0)
+  const cashierFloatBalance = cashiers.reduce((sum, c) => sum + getCashierFloatBalance(c), 0)
 
   const floatRows = [
     { label: 'Company Wallet' as const, value: companyWalletBalance },
