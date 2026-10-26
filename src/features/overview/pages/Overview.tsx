@@ -43,7 +43,6 @@ import StatCard from '../../../components/ui/StatCard'
 import StatusBadge from '../../../components/ui/StatusBadge'
 import Drawer from '../../../components/ui/Drawer'
 import {
-  overviewStats,
   volumeByRange,
   volume30Day,
   transactionByType,
@@ -267,13 +266,13 @@ export default function Overview() {
           icon={UserCog}
           tone="brand"
           label="Total Cashiers"
-          value={String(overviewStats.totalCashiers)}
+          value={String(cashiers.length)}
         />
         <StatCard
           icon={Users}
           tone="accent"
           label="Total Customers"
-          value={number(overviewStats.totalCustomers)}
+          value={number(customers.length)}
         />
         <StatCard
           icon={Wallet}
