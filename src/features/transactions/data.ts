@@ -17,7 +17,7 @@ export interface Transaction {
   time: string
   recipientName?: string
   recipientAccount?: string
-  customerId?: string
+  customerId: string
   recipientCustomerId?: string
 }
 
