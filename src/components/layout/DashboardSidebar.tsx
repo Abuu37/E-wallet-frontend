@@ -5,11 +5,11 @@ import {
   CreditCard,
   LayoutDashboard,
   ArrowLeftRight,
-  WalletCards,
   Landmark,
   Users,
   UserCog,
   Banknote,
+  Scale,
   HandCoins,
   Percent,
   Settings,
@@ -32,8 +32,7 @@ const navGroups: Array<{ label: string | null; items: NavItem[] }> = [
     label: 'Operations',
     items: [
       { to: '/dashboard/transactions', label: 'Transactions', icon: ArrowLeftRight },
-      { to: '/dashboard/main-wallet', label: 'Main Wallet', icon: Landmark },
-      { to: '/dashboard/wallets', label: 'Customer Wallets', icon: WalletCards },
+      { to: '/dashboard/company-wallet', label: 'Company Wallet', icon: Landmark },
     ],
   },
   {
@@ -47,6 +46,7 @@ const navGroups: Array<{ label: string | null; items: NavItem[] }> = [
     label: 'Management',
     items: [
       { to: '/dashboard/financial', label: 'Financial', icon: Banknote },
+      { to: '/dashboard/ledger', label: 'Ledger', icon: Scale },
       { to: '/dashboard/loans', label: 'Loans', icon: HandCoins },
       { to: '/dashboard/fees', label: 'Fees', icon: Percent },
     ],

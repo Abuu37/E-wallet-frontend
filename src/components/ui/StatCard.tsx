@@ -16,7 +16,7 @@ interface StatCardProps {
   icon: LucideIcon
   label: string
   value: string
-  delta: number
+  delta?: number
   deltaLabel?: string
   tone?: StatCardTone
 }
@@ -29,7 +29,7 @@ export default function StatCard({
   deltaLabel,
   tone = 'brand',
 }: StatCardProps) {
-  const isUp = delta >= 0
+  const isUp = (delta ?? 0) >= 0
 
   return (
     <div className="rounded-2xl bg-white p-6 ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
@@ -42,14 +42,16 @@ export default function StatCard({
       <p className="mt-4 text-2xl font-extrabold tracking-tight text-ink">
         <AnimatedNumber value={value} />
       </p>
-      <span
-        className={`mt-3 inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${
-          isUp ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-        }`}
-      >
-        {isUp ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-        {Math.abs(delta)}%
-      </span>
+      {delta !== undefined && (
+        <span
+          className={`mt-3 inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${
+            isUp ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+          }`}
+        >
+          {isUp ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+          {Math.abs(delta)}%
+        </span>
+      )}
       {deltaLabel && <p className="mt-2 text-xs text-muted">{deltaLabel}</p>}
     </div>
   )

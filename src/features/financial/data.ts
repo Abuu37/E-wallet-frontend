@@ -156,35 +156,9 @@ export interface FloatAccount {
 }
 
 export const floatManagement: FloatAccount[] = [
-  { label: 'Main Wallet', value: 120450.5, status: 'Available', delta: 4.6 },
+  { label: 'Company Wallet', value: 120450.5, status: 'Available', delta: 4.6 },
   { label: 'Cashier Floats', value: 28750.0, status: 'Available' },
   { label: 'Pending Settlements', value: 5200.0, status: 'Processing' },
   { label: 'Blocked Funds', value: 2000.0, status: 'Blocked' },
 ]
 
-export type SettlementStatus = 'Settled' | 'Pending' | 'Failed'
-export type SettlementDirection = 'Credit' | 'Debit'
-
-export interface Settlement {
-  id: string
-  date: string
-  description: string
-  direction: SettlementDirection
-  amount: number
-  balance: number
-  status: SettlementStatus
-  officer?: string
-}
-
-export const settlements: Settlement[] = [
-  { id: 'SET-5012', date: '2026-10-03', description: 'Daily fee settlement: Web App', direction: 'Credit', amount: 1410.0, balance: 86420.5, status: 'Settled', officer: 'Grace Mahundi' },
-  { id: 'SET-5011', date: '2026-10-03', description: 'Loan disbursement batch #118', direction: 'Debit', amount: 18500.0, balance: 85010.5, status: 'Settled', officer: 'Victor Lema' },
-  { id: 'SET-5010', date: '2026-10-02', description: 'Daily fee settlement: Agent network', direction: 'Credit', amount: 960.0, balance: 103510.5, status: 'Settled', officer: 'Hassan Bakari' },
-  { id: 'SET-5009', date: '2026-10-02', description: 'Cashier float replenishment: Kariakoo', direction: 'Debit', amount: 5000.0, balance: 102550.5, status: 'Settled', officer: 'Joseph Mkude' },
-  { id: 'SET-5008', date: '2026-10-01', description: 'Loan repayment collection batch', direction: 'Credit', amount: 6420.0, balance: 107550.5, status: 'Settled', officer: 'Neema Chuwa' },
-  { id: 'SET-5007', date: '2026-10-01', description: 'Operational expense: core banking fees', direction: 'Debit', amount: 1120.0, balance: 101130.5, status: 'Settled', officer: 'Grace Mahundi' },
-  { id: 'SET-5006', date: '2026-09-30', description: 'Daily fee settlement: Web App', direction: 'Credit', amount: 1350.0, balance: 102250.5, status: 'Settled', officer: 'Hassan Bakari' },
-  { id: 'SET-5005', date: '2026-09-30', description: 'Loan disbursement batch #117', direction: 'Debit', amount: 22400.0, balance: 100900.5, status: 'Pending', officer: 'Victor Lema' },
-  { id: 'SET-5004', date: '2026-09-29', description: 'Daily fee settlement: USSD', direction: 'Credit', amount: 1300.0, balance: 123300.5, status: 'Settled', officer: 'Neema Chuwa' },
-  { id: 'SET-5003', date: '2026-09-29', description: 'Cashier float replenishment: Mwanza', direction: 'Debit', amount: 4200.0, balance: 122000.5, status: 'Failed', officer: 'Joseph Mkude' },
-]

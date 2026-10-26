@@ -1,16 +1,16 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft,
   HandCoins,
   User,
   Phone,
   Mail,
-  Briefcase,
   MapPin,
   Wallet,
   Clock,
   CalendarRange,
   CalendarClock,
+  CalendarDays,
   Percent,
   Check,
   Info,
@@ -19,6 +19,12 @@ import {
   Upload,
   FileCheck2,
   X,
+  ShieldAlert,
+  Users,
+  Smartphone,
+  Landmark,
+  Hash,
+  UserCheck,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import Modal from '../../../components/ui/Modal'
@@ -63,21 +69,117 @@ const loanTiers: LoanTier[] = [
   },
 ]
 
-const formatAmount = (value: number) => `TSh ${value.toLocaleString()}`
+const formatAmount = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
 
 const lifespanLabel = (months: number) => (months === 12 ? '1 year' : months === 1 ? '1 month' : `${months} months`)
 
 const inputClass =
   'w-full rounded-xl border border-transparent bg-surface py-2.5 pl-10 pr-3.5 text-sm outline-none ring-1 ring-line focus:border-brand'
 
+const selectClass =
+  'w-full rounded-xl border border-transparent bg-surface py-2.5 pl-3.5 pr-3.5 text-sm outline-none ring-1 ring-line focus:border-brand'
+
+const mobileProviders = ['Tigo Pesa', 'M-Pesa', 'Airtel Money'] as const
+
+type MobileProvider = (typeof mobileProviders)[number]
+type DisbursementMethod = 'mobile' | 'bank'
+
+function calculateAge(dateOfBirth: string): number | null {
+  if (!dateOfBirth) return null
+  const birthDate = new Date(dateOfBirth)
+  if (Number.isNaN(birthDate.getTime())) return null
+  const today = new Date()
+  let age = today.getFullYear() - birthDate.getFullYear()
+  const hasHadBirthdayThisYear =
+    today.getMonth() > birthDate.getMonth() ||
+    (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate())
+  if (!hasHadBirthdayThisYear) age -= 1
+  return age
+}
+
+const maxDateOfBirth = (() => {
+  const date = new Date()
+  date.setFullYear(date.getFullYear() - 18)
+  return date.toISOString().slice(0, 10)
+})()
+
+function FileUploadField({
+  label,
+  required,
+  file,
+  onChange,
+  placeholder,
+  caption,
+}: {
+  label: string
+  required?: boolean
+  file: File | null
+  onChange: (file: File | null) => void
+  placeholder: string
+  caption: string
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  return (
+    <div>
+      <label className="text-xs font-medium text-muted">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <div className="mt-1 flex items-center gap-2">
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*,.pdf"
+          onChange={(event) => onChange(event.target.files?.[0] ?? null)}
+          className="hidden"
+        />
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className={`flex w-full items-center gap-2 rounded-xl border border-dashed px-3.5 py-2.5 text-left text-sm transition-colors ${
+            file ? 'border-brand/40 bg-brand/5 text-ink' : 'border-line bg-surface text-muted hover:border-brand/40'
+          }`}
+        >
+          {file ? (
+            <FileCheck2 size={16} className="shrink-0 text-brand" />
+          ) : (
+            <Upload size={16} className="shrink-0" />
+          )}
+          <span className="min-w-0 flex-1 truncate">{file ? file.name : placeholder}</span>
+        </button>
+        {file && (
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            aria-label="Remove file"
+            className="shrink-0 text-muted transition-colors hover:text-red-600"
+          >
+            <X size={16} />
+          </button>
+        )}
+      </div>
+      <p className="mt-1 text-[11px] text-muted">{caption}</p>
+    </div>
+  )
+}
+
 export interface LoanApplicationResult {
   fullName: string
   phone: string
   email: string
-  job: string
+  dateOfBirth: string
   jobIdDocument: File | null
+  localGovernmentLetter: File | null
+  guarantorLetter: File | null
   live: string
   incomeSource: string
+  emergencyContact: {
+    name: string
+    relationship: string
+    phone: string
+  }
+  disbursement:
+    | { method: 'mobile'; provider: MobileProvider; number: string }
+    | { method: 'bank'; bankName: string; accountNumber: string; accountHolder: string }
   tier: LoanTier
 }
 
@@ -90,22 +192,54 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
-  const [job, setJob] = useState('')
+  const [dateOfBirth, setDateOfBirth] = useState('')
   const [jobIdDocument, setJobIdDocument] = useState<File | null>(null)
-  const jobIdInputRef = useRef<HTMLInputElement>(null)
+  const [localGovernmentLetter, setLocalGovernmentLetter] = useState<File | null>(null)
+  const [guarantorLetter, setGuarantorLetter] = useState<File | null>(null)
   const [live, setLive] = useState('')
   const [incomeSource, setIncomeSource] = useState('')
+  const [emergencyName, setEmergencyName] = useState('')
+  const [emergencyRelationship, setEmergencyRelationship] = useState('')
+  const [emergencyPhone, setEmergencyPhone] = useState('')
   const [tierKey, setTierKey] = useState<LoanTier['key']>('short')
+  const [disbursementMethod, setDisbursementMethod] = useState<DisbursementMethod>('mobile')
+  const [mobileProvider, setMobileProvider] = useState<MobileProvider>(mobileProviders[0])
+  const [mobileNumber, setMobileNumber] = useState('')
+  const [mobileNumberTouched, setMobileNumberTouched] = useState(false)
+  const [bankName, setBankName] = useState('')
+  const [bankAccountNumber, setBankAccountNumber] = useState('')
+  const [bankAccountHolder, setBankAccountHolder] = useState('')
   const [termsOpen, setTermsOpen] = useState(false)
   const [termsAccepted, setTermsAccepted] = useState(false)
 
+  useEffect(() => {
+    if (!mobileNumberTouched) {
+      setMobileNumber(phone)
+    }
+  }, [phone, mobileNumberTouched])
+
   const selectedTier = loanTiers.find((tier) => tier.key === tierKey) ?? loanTiers[0]
+  const applicantAge = calculateAge(dateOfBirth)
+  const isUnderage = applicantAge !== null && applicantAge < 18
+
+  const disbursementValid =
+    disbursementMethod === 'mobile'
+      ? mobileNumber.trim() !== ''
+      : bankName.trim() !== '' && bankAccountNumber.trim() !== '' && bankAccountHolder.trim() !== ''
+
   const canSubmit =
     fullName.trim() !== '' &&
     phone.trim() !== '' &&
-    job.trim() !== '' &&
+    dateOfBirth.trim() !== '' &&
+    !isUnderage &&
     jobIdDocument !== null &&
+    localGovernmentLetter !== null &&
+    guarantorLetter !== null &&
     incomeSource.trim() !== '' &&
+    emergencyName.trim() !== '' &&
+    emergencyRelationship.trim() !== '' &&
+    emergencyPhone.trim() !== '' &&
+    disbursementValid &&
     termsAccepted
 
   const handleSubmit = () => {
@@ -114,10 +248,26 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
       fullName: fullName.trim(),
       phone: phone.trim(),
       email: email.trim(),
-      job: job.trim(),
+      dateOfBirth,
       jobIdDocument,
+      localGovernmentLetter,
+      guarantorLetter,
       live: live.trim(),
       incomeSource: incomeSource.trim(),
+      emergencyContact: {
+        name: emergencyName.trim(),
+        relationship: emergencyRelationship.trim(),
+        phone: emergencyPhone.trim(),
+      },
+      disbursement:
+        disbursementMethod === 'mobile'
+          ? { method: 'mobile', provider: mobileProvider, number: mobileNumber.trim() }
+          : {
+              method: 'bank',
+              bankName: bankName.trim(),
+              accountNumber: bankAccountNumber.trim(),
+              accountHolder: bankAccountHolder.trim(),
+            },
       tier: selectedTier,
     })
   }
@@ -191,6 +341,29 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
             </div>
           </div>
           <div>
+            <label className="text-xs font-medium text-muted">
+              Date of Birth <span className="text-red-500">*</span>
+            </label>
+            <div className="relative mt-1">
+              <CalendarDays
+                size={16}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+              />
+              <input
+                type="date"
+                value={dateOfBirth}
+                max={maxDateOfBirth}
+                onChange={(event) => setDateOfBirth(event.target.value)}
+                className={inputClass}
+              />
+            </div>
+            {isUnderage && (
+              <p className="mt-1 text-[11px] text-red-600">
+                Applicant must be at least 18 years old to apply for a loan.
+              </p>
+            )}
+          </div>
+          <div>
             <label className="text-xs font-medium text-muted">Email Address</label>
             <div className="relative mt-1">
               <Mail size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
@@ -203,67 +376,14 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
               />
             </div>
           </div>
-          <div>
-            <label className="text-xs font-medium text-muted">
-              Job / Occupation <span className="text-red-500">*</span>
-            </label>
-            <div className="relative mt-1">
-              <Briefcase
-                size={16}
-                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
-              />
-              <input
-                type="text"
-                value={job}
-                onChange={(event) => setJob(event.target.value)}
-                placeholder="e.g. Shop Owner"
-                className={inputClass}
-              />
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted">
-              Job Identity Card / TIN Certificate <span className="text-red-500">*</span>
-            </label>
-            <div className="mt-1 flex items-center gap-2">
-              <input
-                ref={jobIdInputRef}
-                type="file"
-                accept="image/*,.pdf"
-                onChange={(event) => setJobIdDocument(event.target.files?.[0] ?? null)}
-                className="hidden"
-              />
-              <button
-                type="button"
-                onClick={() => jobIdInputRef.current?.click()}
-                className={`flex w-full items-center gap-2 rounded-xl border border-dashed px-3.5 py-2.5 text-left text-sm transition-colors ${
-                  jobIdDocument
-                    ? 'border-brand/40 bg-brand/5 text-ink'
-                    : 'border-line bg-surface text-muted hover:border-brand/40'
-                }`}
-              >
-                {jobIdDocument ? (
-                  <FileCheck2 size={16} className="shrink-0 text-brand" />
-                ) : (
-                  <Upload size={16} className="shrink-0" />
-                )}
-                <span className="min-w-0 flex-1 truncate">
-                  {jobIdDocument ? jobIdDocument.name : 'Upload job ID card or TIN certificate'}
-                </span>
-              </button>
-              {jobIdDocument && (
-                <button
-                  type="button"
-                  onClick={() => setJobIdDocument(null)}
-                  aria-label="Remove file"
-                  className="shrink-0 text-muted transition-colors hover:text-red-600"
-                >
-                  <X size={16} />
-                </button>
-              )}
-            </div>
-            <p className="mt-1 text-[11px] text-muted">Accepted formats: JPG, PNG, or PDF.</p>
-          </div>
+          <FileUploadField
+            label="Job Identity Card / TIN Certificate"
+            required
+            file={jobIdDocument}
+            onChange={setJobIdDocument}
+            placeholder="Upload job ID card or TIN certificate"
+            caption="Accepted formats: JPG, PNG, or PDF."
+          />
           <div>
             <label className="text-xs font-medium text-muted">Place of Residence</label>
             <div className="relative mt-1">
@@ -277,7 +397,7 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
               />
             </div>
           </div>
-          <div className="sm:col-span-3">
+          <div>
             <label className="text-xs font-medium text-muted">
               Source of Income <span className="text-red-500">*</span>
             </label>
@@ -292,6 +412,84 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
               />
             </div>
           </div>
+          <FileUploadField
+            label="Local Government Letter"
+            required
+            file={localGovernmentLetter}
+            onChange={setLocalGovernmentLetter}
+            placeholder="Upload local government introduction letter"
+            caption="Accepted formats: JPG, PNG, or PDF."
+          />
+        </div>
+      </div>
+
+      <div className="bg-white p-6 ring-1 ring-line">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+            <ShieldAlert size={18} />
+          </span>
+          <div>
+            <h2 className="text-sm font-bold text-ink">Emergency Contact</h2>
+            <p className="text-xs text-muted">
+              Provide someone who can be reached if the applicant is unavailable.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div>
+            <label className="text-xs font-medium text-muted">
+              Name <span className="text-red-500">*</span>
+            </label>
+            <div className="relative mt-1">
+              <User size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+              <input
+                type="text"
+                value={emergencyName}
+                onChange={(event) => setEmergencyName(event.target.value)}
+                placeholder="e.g. Fatma Juma"
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted">
+              Relationship <span className="text-red-500">*</span>
+            </label>
+            <div className="relative mt-1">
+              <Users size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+              <input
+                type="text"
+                value={emergencyRelationship}
+                onChange={(event) => setEmergencyRelationship(event.target.value)}
+                placeholder="e.g. Mother, Spouse, Sibling"
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted">
+              Phone Number <span className="text-red-500">*</span>
+            </label>
+            <div className="relative mt-1">
+              <Phone size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+              <input
+                type="text"
+                value={emergencyPhone}
+                onChange={(event) => setEmergencyPhone(event.target.value)}
+                placeholder="e.g. +255 713 220 904"
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <FileUploadField
+            label="Guarantor Letter"
+            required
+            file={guarantorLetter}
+            onChange={setGuarantorLetter}
+            placeholder="Upload guarantor letter"
+            caption="Accepted formats: JPG, PNG, or PDF."
+          />
         </div>
       </div>
 
@@ -361,6 +559,148 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
             {selectedTier.interestRate}% interest, due in {lifespanLabel(selectedTier.lifespanMonths)}.
           </p>
         </div>
+      </div>
+
+      <div className="bg-white p-6 ring-1 ring-line">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+            <Landmark size={18} />
+          </span>
+          <div>
+            <h2 className="text-sm font-bold text-ink">Disbursement Details</h2>
+            <p className="text-xs text-muted">Choose where the loan funds should be sent.</p>
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {(
+            [
+              { key: 'mobile' as const, label: 'Mobile Money', icon: Smartphone },
+              { key: 'bank' as const, label: 'Bank Account', icon: Landmark },
+            ]
+          ).map((method) => {
+            const checked = method.key === disbursementMethod
+            return (
+              <button
+                key={method.key}
+                type="button"
+                onClick={() => setDisbursementMethod(method.key)}
+                className={`relative flex items-center gap-3 rounded-xl p-4 text-left transition-colors ring-1 ${
+                  checked ? 'bg-brand/5 ring-brand/30' : 'ring-line hover:bg-surface'
+                }`}
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand">
+                  <method.icon size={18} />
+                </span>
+                <p className="text-sm font-bold text-ink">{method.label}</p>
+                <span
+                  className={`absolute right-4 top-4 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+                    checked ? 'bg-brand text-white' : 'bg-white ring-1 ring-line'
+                  }`}
+                >
+                  {checked && <Check size={12} />}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+
+        {disbursementMethod === 'mobile' ? (
+          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="text-xs font-medium text-muted">
+                Mobile Money Provider <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={mobileProvider}
+                onChange={(event) => setMobileProvider(event.target.value as MobileProvider)}
+                className={`mt-1 ${selectClass}`}
+              >
+                {mobileProviders.map((provider) => (
+                  <option key={provider} value={provider}>
+                    {provider}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted">
+                Mobile Money Number <span className="text-red-500">*</span>
+              </label>
+              <div className="relative mt-1">
+                <Smartphone
+                  size={16}
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+                />
+                <input
+                  type="text"
+                  value={mobileNumber}
+                  onChange={(event) => {
+                    setMobileNumberTouched(true)
+                    setMobileNumber(event.target.value)
+                  }}
+                  placeholder="e.g. +255 712 345 678"
+                  className={inputClass}
+                />
+              </div>
+              <p className="mt-1 text-[11px] text-muted">Defaults to the applicant&apos;s phone number.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label className="text-xs font-medium text-muted">
+                Bank Name <span className="text-red-500">*</span>
+              </label>
+              <div className="relative mt-1">
+                <Landmark
+                  size={16}
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+                />
+                <input
+                  type="text"
+                  value={bankName}
+                  onChange={(event) => setBankName(event.target.value)}
+                  placeholder="e.g. CRDB Bank"
+                  className={inputClass}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted">
+                Account Number <span className="text-red-500">*</span>
+              </label>
+              <div className="relative mt-1">
+                <Hash size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  type="text"
+                  value={bankAccountNumber}
+                  onChange={(event) => setBankAccountNumber(event.target.value)}
+                  placeholder="e.g. 0150123456789"
+                  className={inputClass}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted">
+                Account Holder Name <span className="text-red-500">*</span>
+              </label>
+              <div className="relative mt-1">
+                <UserCheck
+                  size={16}
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+                />
+                <input
+                  type="text"
+                  value={bankAccountHolder}
+                  onChange={(event) => setBankAccountHolder(event.target.value)}
+                  placeholder="e.g. Asha Juma"
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

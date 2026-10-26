@@ -1,7 +1,8 @@
-﻿import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+﻿import { useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   Search,
+  Users,
   UserCog,
   UserCheck,
   UserX,
@@ -15,59 +16,72 @@ import {
   Hash,
   Phone,
   MapPin,
-  Tag,
   CalendarDays,
   Clock,
-  ArrowDownRight,
-  ArrowUpRight,
-  Send,
+  PauseCircle,
+  Moon,
+  AlertTriangle,
+  Receipt,
   HandCoins,
-  UserPlus,
   Plus,
 } from 'lucide-react'
 import StatCard from '../../../components/ui/StatCard'
 import StatusBadge from '../../../components/ui/StatusBadge'
 import Drawer from '../../../components/ui/Drawer'
 import Modal from '../../../components/ui/Modal'
+import TransactionHistoryView from '../../../components/ui/TransactionHistoryView'
+import SortIcon, { type SortDirection } from '../../../components/ui/SortIcon'
 import CashierRegisterForm from './CashierRegisterForm'
 import { cashiers as initialCashiers, type Cashier, type CashierStatus } from '../data'
+import { daysSince, getCashierStatus, getLastActiveDate } from '../status'
 import { transactions } from '../../transactions/data'
 
 const statusVariant = {
   Active: 'positive',
-  Inactive: 'neutral',
-  Suspended: 'negative',
+  Pending: 'warning',
+  Idle: 'neutral',
+  Dormant: 'info',
+  Blocked: 'negative',
 } as const
 
 const statusIconTone = {
   Active: 'bg-green-50 text-green-700',
-  Inactive: 'bg-slate-100 text-slate-600',
-  Suspended: 'bg-red-50 text-red-700',
+  Pending: 'bg-amber-50 text-amber-700',
+  Idle: 'bg-slate-100 text-slate-600',
+  Dormant: 'bg-purple-50 text-purple-700',
+  Blocked: 'bg-red-100 text-red-800',
 } as const
 
-const txStatusVariant = {
-  Successful: 'positive',
-  Pending: 'warning',
-  Failed: 'negative',
+const statusIcon = {
+  Active: UserCheck,
+  Pending: Clock,
+  Idle: PauseCircle,
+  Dormant: Moon,
+  Blocked: Ban,
 } as const
 
-const txTypeIcon = {
-  W2W: Send,
-  'Cash In': ArrowDownRight,
-  'Cash Out': ArrowUpRight,
-  'Loan Disbursement': HandCoins,
-  'Loan Repayment': HandCoins,
-} as const
+const statusOptions: Array<CashierStatus | 'All'> = ['All', 'Active', 'Idle', 'Dormant', 'Pending', 'Blocked']
+type FloatHealthLabel = 'Healthy' | 'Low' | 'Critical'
+const floatHealthOptions: Array<FloatHealthLabel | 'All'> = ['All', 'Healthy', 'Low', 'Critical']
 
-const statusOptions: Array<CashierStatus | 'All'> = ['All', 'Active', 'Inactive', 'Suspended']
-
-const cashierTabs = ['Overview', 'Transactions', 'Activity'] as const
-type CashierTab = (typeof cashierTabs)[number]
+const LOW_FLOAT_THRESHOLD = 50000
 
 const PAGE_SIZE = 10
-const TX_PAGE_SIZE = 10
 
-const formatAmount = (value: number) => `TSh ${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+const formatAmount = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
+
+const getFloatHealth = (floatBalance: number) => {
+  if (floatBalance <= 0) return { label: 'Critical', variant: 'negative' } as const
+  if (floatBalance < LOW_FLOAT_THRESHOLD) return { label: 'Low', variant: 'warning' } as const
+  return { label: 'Healthy', variant: 'positive' } as const
+}
+
+const formatLastActive = (dateValue: string) => {
+  const days = daysSince(dateValue)
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  return `${days} days ago`
+}
 
 interface ActionMenuState {
   id: string
@@ -75,73 +89,116 @@ interface ActionMenuState {
   left: number
 }
 
+type CashierSortKey =
+  | 'id'
+  | 'name'
+  | 'floatBalance'
+  | 'floatHealth'
+  | 'commissionBalance'
+  | 'transactions'
+  | 'lastActive'
+  | 'status'
+
 export default function Cashiers() {
   const [cashiers, setCashiers] = useState<Cashier[]>(initialCashiers)
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<CashierStatus | 'All'>('All')
+  const [floatHealthFilter, setFloatHealthFilter] = useState<FloatHealthLabel | 'All'>('All')
+  const [sortKey, setSortKey] = useState<CashierSortKey | null>(null)
+  const [sortDir, setSortDir] = useState<SortDirection>(null)
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<CashierTab>('Overview')
-  const [txPage, setTxPage] = useState(1)
-  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({})
-  const [indicator, setIndicator] = useState({ left: 0, width: 0 })
 
-  const [view, setView] = useState<'list' | 'form'>('list')
+  const [view, setView] = useState<'list' | 'form' | 'history'>('list')
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
 
   const [actionMenu, setActionMenu] = useState<ActionMenuState | null>(null)
   const menuButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
-  const [confirmSuspend, setConfirmSuspend] = useState<{ id: string; name: string; suspend: boolean } | null>(
+  const [confirmReport, setConfirmReport] = useState<{ id: string; name: string; report: boolean } | null>(
     null,
   )
   const [deleteTarget, setDeleteTarget] = useState<Cashier | null>(null)
 
   const filtered = useMemo(() => {
+    const digitsQuery = query.replace(/\D/g, '')
     return cashiers.filter((cashier) => {
       const matchesQuery =
         cashier.name.toLowerCase().includes(query.toLowerCase()) ||
         cashier.id.toLowerCase().includes(query.toLowerCase()) ||
-        cashier.phone.replace(/\D/g, '').includes(query.replace(/\D/g, ''))
-      const matchesStatus = status === 'All' || cashier.status === status
-      return matchesQuery && matchesStatus
+        (digitsQuery.length > 0 && cashier.phone.replace(/\D/g, '').includes(digitsQuery))
+      const matchesStatus = status === 'All' || getCashierStatus(cashier) === status
+      const matchesFloatHealth =
+        floatHealthFilter === 'All' || getFloatHealth(cashier.floatBalance).label === floatHealthFilter
+      return matchesQuery && matchesStatus && matchesFloatHealth
     })
-  }, [cashiers, query, status])
+  }, [cashiers, query, status, floatHealthFilter])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const sorted = useMemo(() => {
+    if (!sortKey || !sortDir) return filtered
+    const direction = sortDir === 'asc' ? 1 : -1
+    const txCountOf = (cashier: Cashier) =>
+      transactions.filter((tx) => tx.recipientName === cashier.name).length
+    return [...filtered].sort((a, b) => {
+      switch (sortKey) {
+        case 'id':
+          return a.id.localeCompare(b.id) * direction
+        case 'name':
+          return a.name.localeCompare(b.name) * direction
+        case 'floatBalance':
+          return (a.floatBalance - b.floatBalance) * direction
+        case 'floatHealth':
+          return (
+            getFloatHealth(a.floatBalance).label.localeCompare(getFloatHealth(b.floatBalance).label) *
+            direction
+          )
+        case 'commissionBalance':
+          return (a.commissionPayable - b.commissionPayable) * direction
+        case 'transactions':
+          return (txCountOf(a) - txCountOf(b)) * direction
+        case 'lastActive':
+          return getLastActiveDate(a).localeCompare(getLastActiveDate(b)) * direction
+        case 'status':
+          return getCashierStatus(a).localeCompare(getCashierStatus(b)) * direction
+        default:
+          return 0
+      }
+    })
+  }, [filtered, sortKey, sortDir])
+
+  const toggleSort = (key: CashierSortKey) => {
+    if (sortKey !== key) {
+      setSortKey(key)
+      setSortDir('asc')
+    } else if (sortDir === 'asc') {
+      setSortDir('desc')
+    } else {
+      setSortKey(null)
+      setSortDir(null)
+    }
+    setPage(1)
+  }
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
+  const pageItems = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const selected: Cashier | null = cashiers.find((cashier) => cashier.id === selectedId) ?? null
+  const selectedStatus: CashierStatus | null = selected ? getCashierStatus(selected) : null
 
-  const cashierTransactions = useMemo(
+  const selectedTransactions = useMemo(
     () => (selected ? transactions.filter((tx) => tx.recipientName === selected.name) : []),
     [selected],
   )
 
-  const cashierTxTotalPages = Math.max(1, Math.ceil(cashierTransactions.length / TX_PAGE_SIZE))
-  const cashierTxPageItems = cashierTransactions.slice(
-    (txPage - 1) * TX_PAGE_SIZE,
-    txPage * TX_PAGE_SIZE,
-  )
-
-  useLayoutEffect(() => {
-    const node = tabRefs.current[activeTab]
-    if (node) setIndicator({ left: node.offsetLeft, width: node.offsetWidth })
-  }, [activeTab, drawerOpen, selectedId])
-
-  useEffect(() => {
-    const handleResize = () => {
-      const node = tabRefs.current[activeTab]
-      if (node) setIndicator({ left: node.offsetLeft, width: node.offsetWidth })
-    }
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [activeTab])
-
   const totalCashiers = cashiers.length
-  const activeCount = cashiers.filter((cashier) => cashier.status === 'Active').length
+  const activeCount = cashiers.filter((cashier) => getCashierStatus(cashier) === 'Active').length
+  const pendingCount = cashiers.filter((cashier) => getCashierStatus(cashier) === 'Pending').length
+  const idleCount = cashiers.filter((cashier) => getCashierStatus(cashier) === 'Idle').length
+  const dormantCount = cashiers.filter((cashier) => getCashierStatus(cashier) === 'Dormant').length
+  const blockedCount = cashiers.filter((cashier) => getCashierStatus(cashier) === 'Blocked').length
+  const lowFloatCount = cashiers.filter((cashier) => cashier.floatBalance < LOW_FLOAT_THRESHOLD).length
   const totalFloat = cashiers.reduce((sum, cashier) => sum + cashier.floatBalance, 0)
-  const todayVolume = cashiers.reduce((sum, cashier) => sum + cashier.todayCashIn + cashier.todayCashOut, 0)
+  const totalCommission = cashiers.reduce((sum, cashier) => sum + cashier.commissionPayable, 0)
 
   const resetToFirstPage = () => setPage(1)
 
@@ -160,8 +217,6 @@ export default function Cashiers() {
 
   const openCashier = (id: string) => {
     setSelectedId(id)
-    setActiveTab('Overview')
-    setTxPage(1)
     setDrawerOpen(true)
     closeActionMenu()
   }
@@ -191,9 +246,9 @@ export default function Cashiers() {
 
   const openTransactions = (id: string) => {
     setSelectedId(id)
-    setActiveTab('Transactions')
-    setTxPage(1)
-    setDrawerOpen(true)
+    setView('history')
+    setDrawerOpen(false)
+    closeActionMenu()
   }
 
   const handleFormSubmit = (cashier: Cashier) => {
@@ -205,23 +260,23 @@ export default function Cashiers() {
     setView('list')
   }
 
-  const requestSuspendToggle = (id: string) => {
+  const requestReportToggle = (id: string) => {
     const cashier = cashiers.find((item) => item.id === id)
     if (!cashier) return
-    setConfirmSuspend({ id, name: cashier.name, suspend: cashier.status !== 'Suspended' })
+    setConfirmReport({ id, name: cashier.name, report: !cashier.unauthorizedReported })
     closeActionMenu()
   }
 
-  const confirmSuspendToggle = () => {
-    if (!confirmSuspend) return
+  const confirmReportToggle = () => {
+    if (!confirmReport) return
     setCashiers((prev) =>
       prev.map((cashier) =>
-        cashier.id === confirmSuspend.id
-          ? { ...cashier, status: confirmSuspend.suspend ? 'Suspended' : 'Active' }
+        cashier.id === confirmReport.id
+          ? { ...cashier, unauthorizedReported: confirmReport.report }
           : cashier,
       ),
     )
-    setConfirmSuspend(null)
+    setConfirmReport(null)
   }
 
   const requestDelete = (id: string) => {
@@ -240,10 +295,17 @@ export default function Cashiers() {
     setDeleteTarget(null)
   }
 
-  const setSelectedStatus = (nextStatus: CashierStatus) => {
-    if (!selected) return
-    setCashiers((prev) =>
-      prev.map((cashier) => (cashier.id === selected.id ? { ...cashier, status: nextStatus } : cashier)),
+  if (view === 'history' && selected) {
+    return (
+      <TransactionHistoryView
+        subjectName={selected.name}
+        subjectPhone={selected.phone}
+        statusBadge={selectedStatus ? { variant: statusVariant[selectedStatus], label: selectedStatus } : null}
+        onBack={backToList}
+        backAriaLabel="Back to cashiers"
+        transactions={selectedTransactions}
+        emptyMessage="No transactions processed by this cashier yet."
+      />
     )
   }
 
@@ -268,13 +330,13 @@ export default function Cashiers() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          icon={UserCog}
+          icon={Users}
           tone="brand"
           label="Total Cashiers"
           value={String(totalCashiers)}
-          delta={4.0}
+          delta={0}
         />
         <StatCard
           icon={UserCheck}
@@ -284,18 +346,48 @@ export default function Cashiers() {
           delta={2.5}
         />
         <StatCard
-          icon={Landmark}
-          tone="accent"
-          label="Total Float"
-          value={formatAmount(totalFloat)}
-          delta={2.8}
+          icon={Clock}
+          tone="warning"
+          label="Pending Cashiers"
+          value={String(pendingCount)}
+          delta={0}
+        />
+        <StatCard
+          icon={PauseCircle}
+          tone="warning"
+          label="Idle Cashiers"
+          value={String(idleCount)}
+          delta={-1.5}
+          deltaLabel={`${dormantCount} dormant`}
         />
         <StatCard
           icon={UserX}
           tone="negative"
-          label="Today's Cash Volume"
-          value={formatAmount(todayVolume)}
-          delta={-1.4}
+          label="Blocked Cashiers"
+          value={String(blockedCount)}
+          delta={0}
+        />
+        <StatCard
+          icon={Landmark}
+          tone="accent"
+          label="Total Float Balance"
+          value={formatAmount(totalFloat)}
+          delta={2.8}
+        />
+        <StatCard
+          icon={AlertTriangle}
+          tone="negative"
+          label="Low-Float Cashiers"
+          value={String(lowFloatCount)}
+          delta={-1.2}
+          deltaLabel={`Below ${formatAmount(LOW_FLOAT_THRESHOLD)} float`}
+        />
+        <StatCard
+          icon={HandCoins}
+          tone="positive"
+          label="Total Commission"
+          value={formatAmount(totalCommission)}
+          delta={1.4}
         />
       </div>
 
@@ -333,6 +425,21 @@ export default function Cashiers() {
             ))}
           </select>
 
+          <select
+            value={floatHealthFilter}
+            onChange={(event) => {
+              setFloatHealthFilter(event.target.value as FloatHealthLabel | 'All')
+              resetToFirstPage()
+            }}
+            className="rounded-full border border-transparent bg-white px-4 py-2.5 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
+          >
+            {floatHealthOptions.map((option) => (
+              <option key={option} value={option}>
+                {option === 'All' ? 'All float health' : option}
+              </option>
+            ))}
+          </select>
+
           <button
             type="button"
             onClick={openCreate}
@@ -349,53 +456,151 @@ export default function Cashiers() {
           <table className="w-full text-left text-sm">
             <thead className="border-y border-line bg-surface text-xs uppercase tracking-wide text-muted">
               <tr>
-                <th className="px-6 py-3 font-semibold">ID</th>
-                <th className="px-6 py-3 font-semibold">Cashier ID</th>
-                <th className="px-6 py-3 font-semibold">Name</th>
-                <th className="px-6 py-3 font-semibold">Phone</th>
-                <th className="px-6 py-3 font-semibold">Branch</th>
-                <th className="px-6 py-3 font-semibold">Float Account</th>
-                <th className="px-6 py-3 text-right font-semibold">Assigned Float</th>
-                <th className="px-6 py-3 text-right font-semibold">Transaction</th>
-                <th className="px-6 py-3 font-semibold">Status</th>
-                <th className="px-6 py-3 text-right font-semibold">Actions</th>
+                <th className="whitespace-nowrap px-4 py-3 font-semibold">#</th>
+                <th className="whitespace-nowrap px-4 py-3 font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('id')}
+                    className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-ink"
+                  >
+                    Cashier ID
+                    <SortIcon direction={sortKey === 'id' ? sortDir : null} />
+                  </button>
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('name')}
+                    className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-ink"
+                  >
+                    Name
+                    <SortIcon direction={sortKey === 'name' ? sortDir : null} />
+                  </button>
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 font-semibold">Phone</th>
+                <th className="whitespace-nowrap px-4 py-3 text-right font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('floatBalance')}
+                    className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-ink"
+                  >
+                    Float Balance
+                    <SortIcon direction={sortKey === 'floatBalance' ? sortDir : null} />
+                  </button>
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('floatHealth')}
+                    className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-ink"
+                  >
+                    Float Health
+                    <SortIcon direction={sortKey === 'floatHealth' ? sortDir : null} />
+                  </button>
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-right font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('commissionBalance')}
+                    className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-ink"
+                  >
+                    Commission Balance
+                    <SortIcon direction={sortKey === 'commissionBalance' ? sortDir : null} />
+                  </button>
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-right font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('transactions')}
+                    className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-ink"
+                  >
+                    Transactions
+                    <SortIcon direction={sortKey === 'transactions' ? sortDir : null} />
+                  </button>
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('lastActive')}
+                    className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-ink"
+                  >
+                    Last Active
+                    <SortIcon direction={sortKey === 'lastActive' ? sortDir : null} />
+                  </button>
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('status')}
+                    className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-ink"
+                  >
+                    Status
+                    <SortIcon direction={sortKey === 'status' ? sortDir : null} />
+                  </button>
+                </th>
+                <th className="whitespace-nowrap px-4 py-3 text-right font-semibold">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {pageItems.map((cashier, index) => {
+                const floatHealth = getFloatHealth(cashier.floatBalance)
                 const txCount = transactions.filter((tx) => tx.recipientName === cashier.name).length
+                const cashierStatus = getCashierStatus(cashier)
+                const lastActiveDate = getLastActiveDate(cashier)
                 return (
-                  <tr key={cashier.id}>
-                    <td className="px-6 py-3.5 text-xs text-muted">
+                  <tr
+                    key={cashier.id}
+                    onClick={() => openCashier(cashier.id)}
+                    className="cursor-pointer transition-colors hover:bg-surface"
+                  >
+                    <td className="whitespace-nowrap px-4 py-3.5 text-xs text-muted">
                       {(page - 1) * PAGE_SIZE + index + 1}
                     </td>
-                    <td className="px-6 py-3.5 font-mono text-xs text-muted">{cashier.id}</td>
-                    <td className="px-6 py-3.5 font-medium text-ink">{cashier.name}</td>
-                    <td className="px-6 py-3.5 font-mono text-ink/70">{cashier.phone}</td>
-                    <td className="px-6 py-3.5 text-ink/70">{cashier.branch}</td>
-                    <td className="px-6 py-3.5 font-mono text-ink/70">{cashier.floatAccount}</td>
-                    <td className="px-6 py-3.5 text-right font-semibold text-ink">
+                    <td className="whitespace-nowrap px-4 py-3.5 font-mono text-xs text-muted">
+                      {cashier.id}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5 font-medium text-ink">{cashier.name}</td>
+                    <td className="whitespace-nowrap px-4 py-3.5 font-mono text-ink/70">{cashier.phone}</td>
+                    <td className="whitespace-nowrap px-4 py-3.5 text-right font-semibold text-ink">
                       {formatAmount(cashier.floatBalance)}
                     </td>
-                    <td className="px-6 py-3.5 text-right">
+                    <td className="whitespace-nowrap px-4 py-3.5">
+                      <StatusBadge status={floatHealth.variant} label={floatHealth.label} />
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5 text-right font-semibold text-ink">
+                      {formatAmount(cashier.commissionPayable)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5 text-right">
                       <button
                         type="button"
-                        onClick={() => openTransactions(cashier.id)}
-                        className="block w-full text-right font-semibold text-brand underline-offset-2 hover:underline"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          openTransactions(cashier.id)
+                        }}
+                        className="font-semibold text-brand underline-offset-2 hover:underline"
                       >
-                        {txCount}
+                        {txCount} transaction{txCount === 1 ? '' : 's'}
                       </button>
                     </td>
-                    <td className="px-6 py-3.5">
-                      <StatusBadge status={statusVariant[cashier.status]} label={cashier.status} />
+                    <td className="whitespace-nowrap px-4 py-3.5">
+                      <StatusBadge
+                        status={statusVariant[cashierStatus]}
+                        label={formatLastActive(lastActiveDate)}
+                      />
                     </td>
-                    <td className="px-6 py-3.5 text-right">
+                    <td className="whitespace-nowrap px-4 py-3.5">
+                      <StatusBadge status={statusVariant[cashierStatus]} label={cashierStatus} />
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5 text-right">
                       <button
                         type="button"
                         ref={(node) => {
                           menuButtonRefs.current[cashier.id] = node
                         }}
-                        onClick={() => toggleActionMenu(cashier.id)}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          toggleActionMenu(cashier.id)
+                        }}
                         aria-label="Row actions"
                         className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink/80 transition-colors hover:border-brand hover:bg-brand hover:text-white"
                       >
@@ -407,7 +612,7 @@ export default function Cashiers() {
               })}
               {pageItems.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-6 py-8 text-center text-sm text-muted">
+                  <td colSpan={11} className="px-6 py-8 text-center text-sm text-muted">
                     No cashiers match your filters.
                   </td>
                 </tr>
@@ -484,32 +689,23 @@ export default function Cashiers() {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         title="Cashier detail"
-        size="lg"
         footer={
           selected ? (
-            selected.status === 'Inactive' ? (
+            selected.unauthorizedReported ? (
               <button
                 type="button"
-                onClick={() => setSelectedStatus('Active')}
+                onClick={() => requestReportToggle(selected.id)}
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-green-200 bg-green-50 py-2.5 text-sm font-semibold text-green-700"
               >
-                <ShieldCheck size={16} /> Activate cashier
-              </button>
-            ) : selected.status === 'Active' ? (
-              <button
-                type="button"
-                onClick={() => requestSuspendToggle(selected.id)}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-red-200 bg-red-50 py-2.5 text-sm font-semibold text-red-700"
-              >
-                <Ban size={16} /> Suspend cashier
+                <ShieldCheck size={16} /> Unblock
               </button>
             ) : (
               <button
                 type="button"
-                onClick={() => requestSuspendToggle(selected.id)}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-green-200 bg-green-50 py-2.5 text-sm font-semibold text-green-700"
+                onClick={() => requestReportToggle(selected.id)}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-red-200 bg-red-50 py-2.5 text-sm font-semibold text-red-700"
               >
-                <ShieldCheck size={16} /> Reactivate cashier
+                <Ban size={16} /> Block
               </button>
             )
           ) : null
@@ -525,7 +721,7 @@ export default function Cashiers() {
                 <p className="truncate text-base font-bold text-ink">{selected.name}</p>
                 <p className="truncate font-mono text-xs text-muted">{selected.id}</p>
               </div>
-              <StatusBadge status={statusVariant[selected.status]} label={selected.status} />
+              {selectedStatus && <StatusBadge status={statusVariant[selectedStatus]} label={selectedStatus} />}
             </div>
 
             <div className="rounded-xl bg-surface p-4 ring-1 ring-line">
@@ -535,59 +731,11 @@ export default function Cashiers() {
               <p className="mt-1 text-3xl font-extrabold text-ink">{formatAmount(selected.floatBalance)}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-3 rounded-xl p-3 ring-1 ring-line">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-700">
-                  <ArrowDownRight size={16} />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-xs text-muted">Today's cash in</p>
-                  <p className="mt-0.5 truncate text-sm font-bold text-ink">
-                    {formatAmount(selected.todayCashIn)}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 rounded-xl p-3 ring-1 ring-line">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-700">
-                  <ArrowUpRight size={16} />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-xs text-muted">Today's cash out</p>
-                  <p className="mt-0.5 truncate text-sm font-bold text-ink">
-                    {formatAmount(selected.todayCashOut)}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="relative flex flex-wrap items-center gap-1 rounded-full bg-surface p-1 ring-1 ring-line">
-              <span
-                className="absolute inset-y-1 rounded-full bg-brand shadow-sm transition-all duration-300 ease-out"
-                style={{ left: indicator.left, width: indicator.width }}
-              />
-              {cashierTabs.map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  ref={(node) => {
-                    tabRefs.current[tab] = node
-                  }}
-                  onClick={() => setActiveTab(tab)}
-                  className={`relative z-10 flex-1 rounded-full px-3 py-1.5 text-center text-xs font-semibold transition-colors duration-300 ${
-                    activeTab === tab ? 'text-white' : 'text-muted hover:text-ink'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-
-            {activeTab === 'Overview' && (
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                  Cashier Information
-                </p>
-                <div className="mt-3 divide-y divide-line rounded-xl ring-1 ring-line">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                Cashier Information
+              </p>
+              <div className="mt-3 divide-y divide-line rounded-xl ring-1 ring-line">
                   <div className="flex items-center justify-between gap-3 p-3">
                     <div className="flex min-w-0 items-center gap-3">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
@@ -622,11 +770,13 @@ export default function Cashiers() {
                   <div className="flex items-center justify-between gap-3 p-3">
                     <div className="flex min-w-0 items-center gap-3">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                        <Tag size={16} />
+                        <HandCoins size={16} />
                       </span>
-                      <p className="text-xs text-muted">Terminal</p>
+                      <p className="text-xs text-muted">Commission Account</p>
                     </div>
-                    <p className="shrink-0 font-mono text-sm font-semibold text-ink">{selected.terminal}</p>
+                    <p className="shrink-0 font-mono text-sm font-semibold text-ink">
+                      {selected.commissionAccount}
+                    </p>
                   </div>
                   <div className="flex items-center justify-between gap-3 p-3">
                     <div className="flex min-w-0 items-center gap-3">
@@ -655,187 +805,95 @@ export default function Cashiers() {
                       </span>
                       <p className="text-xs text-muted">Last activity</p>
                     </div>
-                    <p className="shrink-0 text-sm font-semibold text-ink">{selected.lastActivity}</p>
+                    <p className="shrink-0 text-sm font-semibold text-ink">
+                      {formatLastActive(getLastActiveDate(selected))}
+                    </p>
                   </div>
                   <div className="flex items-center justify-between gap-3 p-3">
                     <div className="flex min-w-0 items-center gap-3">
                       <span
                         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                          statusIconTone[selected.status]
+                          selectedStatus ? statusIconTone[selectedStatus] : ''
                         }`}
                       >
-                        {selected.status === 'Active' ? (
-                          <UserCheck size={16} />
-                        ) : selected.status === 'Suspended' ? (
-                          <Ban size={16} />
-                        ) : (
-                          <UserX size={16} />
-                        )}
+                        {selectedStatus &&
+                          (() => {
+                            const Icon = statusIcon[selectedStatus]
+                            return <Icon size={16} />
+                          })()}
                       </span>
                       <p className="text-xs text-muted">Status</p>
                     </div>
-                    <p className="shrink-0 text-sm font-semibold text-ink">{selected.status}</p>
+                    <p className="shrink-0 text-sm font-semibold text-ink">{selectedStatus}</p>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 p-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                        <Receipt size={16} />
+                      </span>
+                      <p className="text-xs text-muted">Total Transactions</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openTransactions(selected.id)}
+                      className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
+                    >
+                      {selectedTransactions.length} transaction{selectedTransactions.length === 1 ? '' : 's'}
+                    </button>
                   </div>
                 </div>
               </div>
-            )}
-
-            {activeTab === 'Transactions' && (
-              <div>
-                <div className="divide-y divide-line rounded-xl ring-1 ring-line">
-                  {cashierTxPageItems.length === 0 ? (
-                    <p className="p-3 text-sm text-muted">No topups processed by this cashier yet.</p>
-                  ) : (
-                    cashierTxPageItems.map((tx) => {
-                      const TypeIcon = txTypeIcon[tx.type]
-                      return (
-                        <div key={tx.id} className="flex items-center justify-between gap-3 p-3 text-sm">
-                          <div className="flex min-w-0 items-center gap-3">
-                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                              <TypeIcon size={16} />
-                            </span>
-                            <div className="min-w-0">
-                              <p className="truncate font-semibold text-ink">{tx.customer}</p>
-                              <p className="truncate font-mono text-xs text-muted">
-                                {tx.id} · {tx.date}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="shrink-0 text-right">
-                            <p className="font-semibold text-ink">{formatAmount(tx.amount)}</p>
-                            <div className="mt-1">
-                              <StatusBadge status={txStatusVariant[tx.status]} label={tx.status} />
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-
-                {cashierTransactions.length > 0 && (
-                  <div className="mt-3 flex items-center justify-between text-sm text-muted">
-                    <span>
-                      Page {txPage} of {cashierTxTotalPages}
-                    </span>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        disabled={txPage === 1}
-                        onClick={() => setTxPage((prev) => Math.max(1, prev - 1))}
-                        className="rounded-full border border-line px-3 py-1.5 text-xs font-medium text-ink/80 transition-colors hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:text-ink/80"
-                      >
-                        Previous
-                      </button>
-                      <button
-                        type="button"
-                        disabled={txPage === cashierTxTotalPages}
-                        onClick={() => setTxPage((prev) => Math.min(cashierTxTotalPages, prev + 1))}
-                        className="rounded-full border border-line px-3 py-1.5 text-xs font-medium text-ink/80 transition-colors hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:text-ink/80"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'Activity' && (
-              <div className="divide-y divide-line rounded-xl ring-1 ring-line">
-                <div className="flex items-center justify-between gap-3 p-3 text-sm">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-700">
-                      <UserPlus size={16} />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-ink">Cash-in processed today</p>
-                      <p className="text-xs text-muted">{selected.branch}</p>
-                    </div>
-                  </div>
-                  <p className="shrink-0 font-semibold text-green-700">
-                    +{formatAmount(selected.todayCashIn)}
-                  </p>
-                </div>
-                <div className="flex items-center justify-between gap-3 p-3 text-sm">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-700">
-                      <ArrowUpRight size={16} />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-ink">Cash-out processed today</p>
-                      <p className="text-xs text-muted">{selected.branch}</p>
-                    </div>
-                  </div>
-                  <p className="shrink-0 font-semibold text-red-600">
-                    -{formatAmount(selected.todayCashOut)}
-                  </p>
-                </div>
-                <div className="flex items-center justify-between gap-3 p-3 text-sm">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                      <Clock size={16} />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-ink">Last seen active</p>
-                      <p className="text-xs text-muted">Terminal {selected.terminal}</p>
-                    </div>
-                  </div>
-                  <p className="shrink-0 font-semibold text-ink">{selected.lastActivity}</p>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </Drawer>
 
       <Modal
-        open={!!confirmSuspend}
-        onClose={() => setConfirmSuspend(null)}
+        open={!!confirmReport}
+        onClose={() => setConfirmReport(null)}
         title={
           <>
             <span
               className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                confirmSuspend?.suspend ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'
+                confirmReport?.report ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'
               }`}
             >
-              {confirmSuspend?.suspend ? <Ban size={16} /> : <ShieldCheck size={16} />}
+              {confirmReport?.report ? <Ban size={16} /> : <ShieldCheck size={16} />}
             </span>
-            {confirmSuspend?.suspend ? 'Suspend cashier' : 'Reactivate cashier'}
+            {confirmReport?.report ? 'Block cashier' : 'Unblock cashier'}
           </>
         }
         footer={
           <>
             <button
               type="button"
-              onClick={() => setConfirmSuspend(null)}
+              onClick={() => setConfirmReport(null)}
               className="flex-1 rounded-full border border-line py-2.5 text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand"
             >
               Cancel
             </button>
             <button
               type="button"
-              onClick={confirmSuspendToggle}
+              onClick={confirmReportToggle}
               className={`flex-1 rounded-full py-2.5 text-sm font-semibold text-white transition-colors ${
-                confirmSuspend?.suspend ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
+                confirmReport?.report ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
               }`}
             >
-              {confirmSuspend?.suspend ? 'Suspend' : 'Reactivate'}
+              {confirmReport?.report ? 'Block' : 'Unblock'}
             </button>
           </>
         }
       >
         <p className="text-sm text-ink/80">
-          {confirmSuspend?.suspend ? (
+          {confirmReport?.report ? (
             <>
-              Are you sure you want to suspend{' '}
-              <span className="font-semibold text-ink">{confirmSuspend?.name}</span>? Their terminal
-              access will be revoked until reactivated.
+              Are you sure you want to block{' '}
+              <span className="font-semibold text-ink">{confirmReport?.name}</span>? Their terminal
+              access will be blocked immediately.
             </>
           ) : (
             <>
-              Are you sure you want to reactivate{' '}
-              <span className="font-semibold text-ink">{confirmSuspend?.name}</span>? They will regain
+              Are you sure you want to unblock{' '}
+              <span className="font-semibold text-ink">{confirmReport?.name}</span>? They will regain
               terminal access immediately.
             </>
           )}

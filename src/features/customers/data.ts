@@ -20,4 +20,9 @@ export const customers: Customer[] = [
   { id: 'CUS-1008', name: 'Imani Mbwana', email: 'imani.mbwana@example.com', phone: '+255 689 213 540', balance: 0.0, joined: '2026-07-15' },
   { id: 'CUS-1009', name: 'Salma Rajab', email: 'salma.rajab@example.com', phone: '+255 754 880 102', balance: 5420.3, joined: '2026-08-02' },
   { id: 'CUS-1010', name: 'Hassan Kitwana', email: 'hassan.kitwana@example.com', phone: '+255 713 902 448', balance: 215.0, joined: '2026-09-10' },
+  { id: 'CUS-1011', name: 'Juma Ally', email: 'juma.ally@example.com', phone: '+255 715 220 884', balance: 1850.0, joined: '2026-03-12' },
+  { id: 'CUS-1012', name: 'Rose Mbise', email: 'rose.mbise@example.com', phone: '+255 786 441 027', balance: 940.5, joined: '2026-02-18' },
+  { id: 'CUS-1013', name: 'Kelvin Massawe', email: 'kelvin.massawe@example.com', phone: '+255 767 553 910', balance: 0.0, joined: '2026-10-18' },
+  { id: 'CUS-1014', name: 'Aziza Juma', email: 'aziza.juma@example.com', phone: '+255 712 884 221', balance: 0.0, joined: '2026-10-19' },
+  { id: 'CUS-1015', name: 'Baraka Mnyonyo', email: 'baraka.mnyonyo@example.com', phone: '+255 653 229 047', balance: 0.0, joined: '2026-10-10' },
 ]

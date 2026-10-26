@@ -9,7 +9,6 @@ import {
   MoreVertical,
   Eye,
   CheckCircle2,
-  Ban,
   Hash,
   Phone,
   Percent,
@@ -28,15 +27,14 @@ import { loans as initialLoans, type Loan, type LoanStatus } from '../data'
 const statusVariant = {
   Active: 'positive',
   Overdue: 'warning',
-  Repaid: 'neutral',
-  Defaulted: 'negative',
+  Paid: 'neutral',
 } as const
 
-const statusOptions: Array<LoanStatus | 'All'> = ['All', 'Active', 'Overdue', 'Repaid', 'Defaulted']
+const statusOptions: Array<LoanStatus | 'All'> = ['All', 'Active', 'Overdue', 'Paid']
 
 const PAGE_SIZE = 10
 
-const formatAmount = (value: number) => `TSh ${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+const formatAmount = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
 
 function addMonths(dateStr: string, months: number) {
   const date = new Date(dateStr)
@@ -53,7 +51,6 @@ interface ActionMenuState {
 interface ConfirmAction {
   id: string
   name: string
-  kind: 'repay' | 'default'
 }
 
 export default function Loans() {
@@ -71,11 +68,12 @@ export default function Loans() {
   const [view, setView] = useState<'list' | 'form'>('list')
 
   const filtered = useMemo(() => {
+    const digitsQuery = query.replace(/\D/g, '')
     return loans.filter((loan) => {
       const matchesQuery =
         loan.customer.toLowerCase().includes(query.toLowerCase()) ||
         loan.id.toLowerCase().includes(query.toLowerCase()) ||
-        loan.phone.replace(/\D/g, '').includes(query.replace(/\D/g, ''))
+        (digitsQuery.length > 0 && loan.phone.replace(/\D/g, '').includes(digitsQuery))
       const matchesStatus = status === 'All' || loan.status === status
       const matchesDate =
         (!dueDateFrom || loan.dueDate >= dueDateFrom) && (!dueDateTo || loan.dueDate <= dueDateTo)
@@ -117,14 +115,7 @@ export default function Loans() {
   const requestMarkRepaid = (id: string) => {
     const loan = loans.find((item) => item.id === id)
     if (!loan) return
-    setConfirmAction({ id, name: loan.customer, kind: 'repay' })
-    closeActionMenu()
-  }
-
-  const requestMarkDefaulted = (id: string) => {
-    const loan = loans.find((item) => item.id === id)
-    if (!loan) return
-    setConfirmAction({ id, name: loan.customer, kind: 'default' })
+    setConfirmAction({ id, name: loan.customer })
     closeActionMenu()
   }
 
@@ -132,13 +123,7 @@ export default function Loans() {
     if (!confirmAction) return
     setLoans((prev) =>
       prev.map((loan) =>
-        loan.id === confirmAction.id
-          ? {
-              ...loan,
-              status: confirmAction.kind === 'repay' ? 'Repaid' : 'Defaulted',
-              outstanding: confirmAction.kind === 'repay' ? 0 : loan.outstanding,
-            }
-          : loan,
+        loan.id === confirmAction.id ? { ...loan, status: 'Paid', outstanding: 0 } : loan,
       ),
     )
     setConfirmAction(null)
@@ -199,28 +184,24 @@ export default function Loans() {
           tone="brand"
           label="Total Disbursed"
           value={formatAmount(totalDisbursed)}
-          delta={9.2}
         />
         <StatCard
           icon={Wallet}
           tone="accent"
-          label="Outstanding Principal"
+          label="Outstanding"
           value={formatAmount(totalOutstanding)}
-          delta={-4.1}
         />
         <StatCard
           icon={CircleCheck}
           tone="positive"
           label="Active Loans"
           value={String(activeCount)}
-          delta={5.3}
         />
         <StatCard
           icon={AlertTriangle}
           tone="negative"
           label="Overdue Loans"
           value={String(overdueCount)}
-          delta={1.6}
         />
       </div>
 
@@ -294,9 +275,8 @@ export default function Loans() {
                 <th className="px-6 py-3 font-semibold">Customer</th>
                 <th className="px-6 py-3 text-right font-semibold">Principal</th>
                 <th className="px-6 py-3 text-right font-semibold">Outstanding</th>
-                <th className="px-6 py-3 text-right font-semibold">Rate</th>
                 <th className="px-6 py-3 font-semibold">Status</th>
-                <th className="px-6 py-3 font-semibold">Due Date</th>
+                <th className="px-6 py-3 font-semibold">Due date</th>
                 <th className="px-6 py-3 text-right font-semibold">Action</th>
               </tr>
             </thead>
@@ -312,7 +292,6 @@ export default function Loans() {
                     {formatAmount(loan.principal)}
                   </td>
                   <td className="px-6 py-3.5 text-right text-ink/70">{formatAmount(loan.outstanding)}</td>
-                  <td className="px-6 py-3.5 text-right text-ink/70">{loan.interestRate}%</td>
                   <td className="px-6 py-3.5">
                     <StatusBadge status={statusVariant[loan.status]} label={loan.status} />
                   </td>
@@ -334,7 +313,7 @@ export default function Loans() {
               ))}
               {pageItems.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-6 py-8 text-center text-sm text-muted">
+                  <td colSpan={8} className="px-6 py-8 text-center text-sm text-muted">
                     No loans match your filters.
                   </td>
                 </tr>
@@ -392,26 +371,15 @@ export default function Loans() {
                 const loan = loans.find((item) => item.id === actionMenu.id)
                 if (!loan) return null
                 return (
-                  <>
-                    {(loan.status === 'Active' || loan.status === 'Overdue') && (
-                      <button
-                        type="button"
-                        onClick={() => requestMarkRepaid(actionMenu.id)}
-                        className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium text-green-700 transition-colors hover:bg-green-600 hover:text-white"
-                      >
-                        <CheckCircle2 size={14} /> Mark as repaid
-                      </button>
-                    )}
-                    {loan.status === 'Overdue' && (
-                      <button
-                        type="button"
-                        onClick={() => requestMarkDefaulted(actionMenu.id)}
-                        className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium text-red-600 transition-colors hover:bg-red-600 hover:text-white"
-                      >
-                        <Ban size={14} /> Mark as defaulted
-                      </button>
-                    )}
-                  </>
+                  (loan.status === 'Active' || loan.status === 'Overdue') && (
+                    <button
+                      type="button"
+                      onClick={() => requestMarkRepaid(actionMenu.id)}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium text-green-700 transition-colors hover:bg-green-600 hover:text-white"
+                    >
+                      <CheckCircle2 size={14} /> Mark as paid
+                    </button>
+                  )
                 )
               })()}
             </motion.div>
@@ -425,24 +393,13 @@ export default function Loans() {
         title="Loan detail"
         footer={
           selected && (selected.status === 'Active' || selected.status === 'Overdue') ? (
-            <>
-              <button
-                type="button"
-                onClick={() => requestMarkRepaid(selected.id)}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-green-200 bg-green-50 py-2.5 text-sm font-semibold text-green-700"
-              >
-                <CheckCircle2 size={16} /> Mark as repaid
-              </button>
-              {selected.status === 'Overdue' && (
-                <button
-                  type="button"
-                  onClick={() => requestMarkDefaulted(selected.id)}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-red-200 bg-red-50 py-2.5 text-sm font-semibold text-red-700"
-                >
-                  <Ban size={16} /> Mark as defaulted
-                </button>
-              )}
-            </>
+            <button
+              type="button"
+              onClick={() => requestMarkRepaid(selected.id)}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-green-200 bg-green-50 py-2.5 text-sm font-semibold text-green-700"
+            >
+              <CheckCircle2 size={16} /> Mark as paid
+            </button>
           ) : null
         }
       >
@@ -475,7 +432,7 @@ export default function Loans() {
                 />
               </div>
               <p className="mt-2 text-xs text-muted">
-                {formatAmount(selected.principal - selected.outstanding)} repaid of{' '}
+                {formatAmount(selected.principal - selected.outstanding)} paid of{' '}
                 {formatAmount(selected.principal)}
               </p>
             </div>
@@ -546,7 +503,7 @@ export default function Loans() {
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
                       <CalendarDays size={16} />
                     </span>
-                    <p className="text-xs text-muted">Due Date</p>
+                    <p className="text-xs text-muted">Due date</p>
                   </div>
                   <p className="shrink-0 text-sm font-semibold text-ink">{selected.dueDate}</p>
                 </div>
@@ -570,14 +527,10 @@ export default function Loans() {
         onClose={() => setConfirmAction(null)}
         title={
           <>
-            <span
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                confirmAction?.kind === 'repay' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
-              }`}
-            >
-              {confirmAction?.kind === 'repay' ? <CheckCircle2 size={16} /> : <Ban size={16} />}
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-700">
+              <CheckCircle2 size={16} />
             </span>
-            {confirmAction?.kind === 'repay' ? 'Mark loan as repaid' : 'Mark loan as defaulted'}
+            Mark loan as paid
           </>
         }
         footer={
@@ -592,31 +545,17 @@ export default function Loans() {
             <button
               type="button"
               onClick={confirmActionHandler}
-              className={`flex-1 rounded-full py-2.5 text-sm font-semibold text-white transition-colors ${
-                confirmAction?.kind === 'repay'
-                  ? 'bg-green-600 hover:bg-green-700'
-                  : 'bg-red-600 hover:bg-red-700'
-              }`}
+              className="flex-1 rounded-full bg-green-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700"
             >
-              {confirmAction?.kind === 'repay' ? 'Mark as repaid' : 'Mark as defaulted'}
+              Mark as paid
             </button>
           </>
         }
       >
         <p className="text-sm text-ink/80">
-          {confirmAction?.kind === 'repay' ? (
-            <>
-              Are you sure you want to mark{' '}
-              <span className="font-semibold text-ink">{confirmAction?.name}</span>&apos;s loan as fully
-              repaid? The outstanding balance will be cleared to zero.
-            </>
-          ) : (
-            <>
-              Are you sure you want to mark{' '}
-              <span className="font-semibold text-ink">{confirmAction?.name}</span>&apos;s loan as
-              defaulted? This flags the account for collections follow-up.
-            </>
-          )}
+          Are you sure you want to mark{' '}
+          <span className="font-semibold text-ink">{confirmAction?.name}</span>&apos;s loan as fully
+          paid? The outstanding balance will be cleared to zero.
         </p>
       </Modal>
     </div>

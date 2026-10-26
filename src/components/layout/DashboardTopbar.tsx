@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { Menu, Search, ChevronDown, Settings, LogOut, Bell, AlertTriangle, Info, Clock } from 'lucide-react'
+import { Menu, ChevronDown, Settings, LogOut, Bell, AlertTriangle, Info, Clock } from 'lucide-react'
 
 interface DashboardTopbarProps {
   onMenuClick: () => void
@@ -62,20 +62,6 @@ export default function DashboardTopbar({ onMenuClick }: DashboardTopbarProps) {
         <p className="text-sm font-medium text-ink">
           {getGreeting()}, <span className="text-base font-bold">{currentUser.name.split(' ')[0]}</span>
         </p>
-      </div>
-
-      <div className="hidden flex-1 justify-center sm:flex">
-        <div className="relative w-full max-w-sm">
-          <Search
-            size={16}
-            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-          />
-          <input
-            type="search"
-            placeholder="Search..."
-            className="w-full rounded-full border border-transparent bg-surface py-2 pl-10 pr-4 text-sm outline-none transition-colors focus:border-brand focus:bg-white"
-          />
-        </div>
       </div>
 
       <div className="flex items-center gap-3">

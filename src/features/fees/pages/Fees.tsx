@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react'
 import {
   Pencil,
-  Info,
   Search,
   Plus,
   Wallet,
   TrendingUp,
   HandCoins,
-  Users,
+  Hash,
   Settings,
   CheckCircle2,
 } from 'lucide-react'
@@ -64,12 +63,11 @@ const transactionTypeTone = {
   Transfer: 'purple',
 } as const
 
-const typeOptions: FeeApplyType[] = ['Flat', 'Percentage']
 const transactionTypeOptions: TransactionType[] = ['Cash In', 'Cash Out', 'Transfer']
 const transactionTypeFilterOptions: Array<TransactionType | 'All'> = ['All', ...transactionTypeOptions]
 
-const formatAmount = (value: number) => `TSh ${value.toLocaleString()}`
-const formatRange = (min: number, max: number) => `${min.toLocaleString()} - ${max.toLocaleString()}`
+const formatAmount = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
+const formatRange = (min: number, max: number) => `${formatAmount(min)} – ${formatAmount(max)}`
 
 const SHARE_RATE = 0.5
 const PAGE_SIZE = 10
@@ -105,9 +103,9 @@ export default function Fees() {
 
   const resetToFirstPage = () => setPage(1)
 
-  const netProfitMargin = Math.round(
-    (feeOverviewStats.netCompanyIncome / feeOverviewStats.totalFeeRevenue) * 100,
-  )
+  const averageFeePerTransaction = feeTiers.length
+    ? Math.round(feeTiers.reduce((sum, tier) => sum + tier.customerFee, 0) / feeTiers.length)
+    : 0
 
   const nextTierId = () => {
     const nextNumber = Math.max(0, ...feeTiers.map((tier) => Number(tier.id.replace('TIER-', '')) || 0)) + 1
@@ -189,35 +187,27 @@ export default function Fees() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         <StatTile
           icon={Wallet}
           tone="brand"
-          label="Total Fee Revenue"
+          label="Total Revenue Generated"
           value={formatAmount(feeOverviewStats.totalFeeRevenue)}
           statusIcon={TrendingUp}
           statusText={`+${feeOverviewStats.totalFeeRevenueDelta}% vs last month`}
         />
         <StatTile
-          icon={TrendingUp}
-          tone="positive"
-          label="Net Company Income"
-          value={formatAmount(feeOverviewStats.netCompanyIncome)}
-          statusIcon={TrendingUp}
-          statusText={`${netProfitMargin}% Net Profit Margin`}
-        />
-        <StatTile
           icon={HandCoins}
           tone="accent"
-          label="Total Commissions"
-          value={formatAmount(feeOverviewStats.totalCommissions)}
-          statusIcon={Users}
-          statusText={`${feeOverviewStats.activeCashiers} Active Cashiers`}
+          label="Average Fee per Transaction"
+          value={formatAmount(averageFeePerTransaction)}
+          statusIcon={Hash}
+          statusText={`Across ${feeTiers.length} fee rules`}
         />
         <StatTile
           icon={Settings}
           tone="warning"
-          label="Active Fee Rules"
+          label="Active Rules"
           value={`${feeTiers.length} Rules Configured`}
           statusIcon={CheckCircle2}
           statusText="All Systems Normal"
@@ -267,44 +257,49 @@ export default function Fees() {
                 <th className="px-6 py-3 font-semibold">Transaction Type</th>
                 <th className="px-6 py-3 font-semibold">Range</th>
                 <th className="px-6 py-3 text-right font-semibold">Customer Fee</th>
-                <th className="px-6 py-3 text-right font-semibold">Agent Gain (50%)</th>
-                <th className="px-6 py-3 text-right font-semibold">Share (50%)</th>
+                <th className="px-6 py-3 text-right font-semibold">Agent Share</th>
+                <th className="px-6 py-3 text-right font-semibold">Company Share</th>
                 <th className="px-6 py-3 text-right font-semibold">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {pageItems.map((tier, index) => (
-                <tr key={tier.id}>
-                  <td className="px-6 py-3.5 text-xs text-muted">
-                    {(page - 1) * PAGE_SIZE + index + 1}
-                  </td>
-                  <td className="px-6 py-3.5">
-                    <TypeBadge tone={transactionTypeTone[tier.transactionType]} label={tier.transactionType} />
-                  </td>
-                  <td className="px-6 py-3.5 font-mono text-ink/70">
-                    {formatRange(tier.rangeMin, tier.rangeMax)}
-                  </td>
-                  <td className="px-6 py-3.5 text-right font-semibold text-ink">
-                    {formatAmount(tier.customerFee)}
-                  </td>
-                  <td className="px-6 py-3.5 text-right text-ink/70">
-                    {formatAmount(tier.customerFee * SHARE_RATE)}
-                  </td>
-                  <td className="px-6 py-3.5 text-right text-ink/70">
-                    {formatAmount(tier.customerFee * SHARE_RATE)}
-                  </td>
-                  <td className="px-6 py-3.5 text-right">
-                    <button
-                      type="button"
-                      onClick={() => openEdit(tier)}
-                      aria-label="Edit fee tier"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink/80 transition-colors hover:border-brand hover:bg-brand hover:text-white"
+              {pageItems.map((tier, index) => {
+                const isCashIn = tier.transactionType === 'Cash In'
+                return (
+                  <tr key={tier.id}>
+                    <td className="px-6 py-3.5 text-xs text-muted">
+                      {(page - 1) * PAGE_SIZE + index + 1}
+                    </td>
+                    <td className="px-6 py-3.5">
+                      <TypeBadge tone={transactionTypeTone[tier.transactionType]} label={tier.transactionType} />
+                    </td>
+                    <td className="px-6 py-3.5 font-mono text-ink/70">
+                      {formatRange(tier.rangeMin, tier.rangeMax)}
+                    </td>
+                    <td className="px-6 py-3.5 text-right font-semibold text-ink">
+                      {isCashIn ? formatAmount(0) : formatAmount(tier.customerFee)}
+                    </td>
+                    <td className="px-6 py-3.5 text-right text-ink/70">
+                      {isCashIn ? formatAmount(tier.customerFee) : formatAmount(tier.customerFee * SHARE_RATE)}
+                    </td>
+                    <td
+                      className={`px-6 py-3.5 text-right ${isCashIn ? 'font-semibold text-red-600' : 'text-ink/70'}`}
                     >
-                      <Pencil size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                      {isCashIn ? `-${formatAmount(tier.customerFee)}` : formatAmount(tier.customerFee * SHARE_RATE)}
+                    </td>
+                    <td className="px-6 py-3.5 text-right">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(tier)}
+                        aria-label="Edit fee tier"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink/80 transition-colors hover:border-brand hover:bg-brand hover:text-white"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
               {pageItems.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center text-sm text-muted">
@@ -372,35 +367,19 @@ export default function Fees() {
         }
       >
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-medium text-muted">Fee Type</label>
-              <select
-                value={editType}
-                onChange={(event) => setEditType(event.target.value as FeeApplyType)}
-                className="mt-1 w-full rounded-xl border border-transparent bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 ring-line focus:border-brand"
-              >
-                {typeOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted">Transaction Type</label>
-              <select
-                value={editTransactionType}
-                onChange={(event) => setEditTransactionType(event.target.value as TransactionType)}
-                className="mt-1 w-full rounded-xl border border-transparent bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 ring-line focus:border-brand"
-              >
-                {transactionTypeOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div>
+            <label className="text-xs font-medium text-muted">Transaction Type</label>
+            <select
+              value={editTransactionType}
+              onChange={(event) => setEditTransactionType(event.target.value as TransactionType)}
+              className="mt-1 w-full rounded-xl border border-transparent bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 ring-line focus:border-brand"
+            >
+              {transactionTypeOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -423,20 +402,15 @@ export default function Fees() {
             </div>
           </div>
           <div>
-            <label className="text-xs font-medium text-muted">Customer Fee</label>
+            <label className="text-xs font-medium text-muted">
+              {editTransactionType === 'Cash In' ? 'Agent Commission' : 'Customer Fee'}
+            </label>
             <input
               type="number"
               value={editCustomerFee}
               onChange={(event) => setEditCustomerFee(event.target.value)}
               className="mt-1 w-full rounded-xl border border-transparent bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 ring-line focus:border-brand"
             />
-          </div>
-          <div className="flex items-start gap-2 rounded-xl bg-blue-50 p-3 text-xs text-blue-800">
-            <Info size={14} className="mt-0.5 shrink-0" />
-            <p>
-              The agent share is automatically calculated as {SHARE_RATE * 100}% of the customer fee and
-              updates once saved.
-            </p>
           </div>
         </div>
       </Modal>

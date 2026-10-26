@@ -11,103 +11,48 @@ import {
   Eye,
   Pencil,
   Ban,
-  ArrowLeft,
   Wallet,
   CreditCard,
   Mail,
   CalendarDays,
   ArrowUpRight,
-  ArrowDownRight,
   CheckCircle2,
-  ChevronRight,
-  Send,
-  HandCoins,
   Receipt,
-  User,
-  Tag,
-  Globe,
-  Percent,
-  RotateCcw,
-  ArrowLeftRight,
 } from 'lucide-react'
 import StatCard from '../../../components/ui/StatCard'
-import TypeBadge from '../../../components/ui/TypeBadge'
 import StatusBadge from '../../../components/ui/StatusBadge'
 import Drawer from '../../../components/ui/Drawer'
 import Modal from '../../../components/ui/Modal'
+import TransactionHistoryView from '../../../components/ui/TransactionHistoryView'
+import SortIcon, { type SortDirection } from '../../../components/ui/SortIcon'
 import { customers as initialCustomers, type Customer, type CustomerStatus } from '../data'
 import { daysSince, getCustomerStatus, getLastActiveDate } from '../status'
-import { transactions, type TxStatus, type TxType } from '../../transactions/data'
+import { transactions, formatTxDateTime } from '../../transactions/data'
 import { maskAccount } from '../../../utils/mask'
 
 const statusVariant = {
   Active: 'positive',
-  Dormant: 'warning',
-  Inactive: 'negative',
+  Dormant: 'info',
+  Inactive: 'warning',
 } as const
 
 const statusIconTone = {
   Active: 'bg-green-50 text-green-700',
-  Dormant: 'bg-amber-50 text-amber-700',
-  Inactive: 'bg-red-50 text-red-700',
-} as const
-
-const txStatusVariant = {
-  Successful: 'positive',
-  Pending: 'warning',
-  Failed: 'negative',
-} as const
-
-const txTypeIcon = {
-  W2W: Send,
-  'Cash In': ArrowDownRight,
-  'Cash Out': ArrowUpRight,
-  'Loan Disbursement': HandCoins,
-  'Loan Repayment': HandCoins,
-} as const
-
-const typeTone = {
-  W2W: 'blue',
-  'Cash In': 'green',
-  'Cash Out': 'rose',
-  'Loan Disbursement': 'orange',
-  'Loan Repayment': 'amber',
-} as const
-
-const recipientLabel = {
-  W2W: 'Recipient wallet',
-  'Cash In': 'Served by (cashier)',
-  'Cash Out': 'Served by (cashier)',
-  'Loan Disbursement': 'Loan account',
-  'Loan Repayment': 'Loan account',
+  Dormant: 'bg-purple-50 text-purple-700',
+  Inactive: 'bg-amber-50 text-amber-700',
 } as const
 
 const statusOptions: Array<CustomerStatus | 'All'> = ['All', 'Active', 'Dormant', 'Inactive']
-const txStatusOptions: Array<TxStatus | 'All'> = ['All', 'Successful', 'Pending', 'Failed']
-const txTypeOptions: Array<TxType | 'All'> = [
-  'All',
-  'W2W',
-  'Cash In',
-  'Cash Out',
-  'Loan Disbursement',
-  'Loan Repayment',
-]
 
 const PAGE_SIZE = 10
-const TX_PAGE_SIZE = 10
 
-const formatAmount = (value: number) => `TSh ${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
-
-const formatDate = (value: string) =>
-  new Date(`${value}T00:00:00`).toLocaleDateString('en-US', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-  })
+const formatAmount = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
 
 const formatLastActive = (customer: Customer) => {
   const days = daysSince(getLastActiveDate(customer))
-  return `${days} day${days === 1 ? '' : 's'} ago`
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  return `${days} days ago`
 }
 
 const initials = (name: string) =>
@@ -122,10 +67,14 @@ interface ActionMenuState {
   left: number
 }
 
+type CustomerSortKey = 'name' | 'balance' | 'transactions' | 'lastActive' | 'status'
+
 export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers)
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<CustomerStatus | 'All'>('All')
+  const [sortKey, setSortKey] = useState<CustomerSortKey | null>(null)
+  const [sortDir, setSortDir] = useState<SortDirection>(null)
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -138,26 +87,57 @@ export default function Customers() {
   const menuButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
 
   const [view, setView] = useState<'list' | 'history'>('list')
-  const [txQuery, setTxQuery] = useState('')
-  const [txStatus, setTxStatus] = useState<TxStatus | 'All'>('All')
-  const [txType, setTxType] = useState<TxType | 'All'>('All')
-  const [txPage, setTxPage] = useState(1)
-  const [txDetailId, setTxDetailId] = useState<string | null>(null)
-  const [txDetailOpen, setTxDetailOpen] = useState(false)
 
   const filtered = useMemo(() => {
+    const digitsQuery = query.replace(/\D/g, '')
     return customers.filter((customer) => {
       const matchesQuery =
         customer.name.toLowerCase().includes(query.toLowerCase()) ||
         customer.id.toLowerCase().includes(query.toLowerCase()) ||
-        customer.phone.replace(/\D/g, '').includes(query.replace(/\D/g, ''))
+        (digitsQuery.length > 0 && customer.phone.replace(/\D/g, '').includes(digitsQuery))
       const matchesStatus = status === 'All' || getCustomerStatus(customer) === status
       return matchesQuery && matchesStatus
     })
   }, [customers, query, status])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const sorted = useMemo(() => {
+    if (!sortKey || !sortDir) return filtered
+    const direction = sortDir === 'asc' ? 1 : -1
+    const txCountOf = (customer: Customer) =>
+      transactions.filter((tx) => tx.customer === customer.name).length
+    return [...filtered].sort((a, b) => {
+      switch (sortKey) {
+        case 'name':
+          return a.name.localeCompare(b.name) * direction
+        case 'balance':
+          return (a.balance - b.balance) * direction
+        case 'transactions':
+          return (txCountOf(a) - txCountOf(b)) * direction
+        case 'lastActive':
+          return getLastActiveDate(a).localeCompare(getLastActiveDate(b)) * direction
+        case 'status':
+          return getCustomerStatus(a).localeCompare(getCustomerStatus(b)) * direction
+        default:
+          return 0
+      }
+    })
+  }, [filtered, sortKey, sortDir])
+
+  const toggleSort = (key: CustomerSortKey) => {
+    if (sortKey !== key) {
+      setSortKey(key)
+      setSortDir('asc')
+    } else if (sortDir === 'asc') {
+      setSortDir('desc')
+    } else {
+      setSortKey(null)
+      setSortDir(null)
+    }
+    setPage(1)
+  }
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
+  const pageItems = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const selected: Customer | null = customers.find((customer) => customer.id === selectedId) ?? null
   const selectedStatus: CustomerStatus | null = selected ? getCustomerStatus(selected) : null
@@ -167,46 +147,15 @@ export default function Customers() {
     [selected],
   )
 
-  const lastTransactionDate = useMemo(
+  const lastTransaction = useMemo(
     () =>
       selectedTransactions.length === 0
         ? null
-        : selectedTransactions.reduce((latest, tx) => (tx.date > latest ? tx.date : latest), selectedTransactions[0].date),
+        : selectedTransactions.reduce((latest, tx) =>
+            `${tx.date} ${tx.time}` > `${latest.date} ${latest.time}` ? tx : latest,
+          ),
     [selectedTransactions],
   )
-
-  const selectedTxDetail = useMemo(
-    () => (txDetailId ? transactions.find((tx) => tx.id === txDetailId) ?? null : null),
-    [txDetailId],
-  )
-
-  const openTxDetail = (id: string) => {
-    setTxDetailId(id)
-    setTxDetailOpen(true)
-  }
-
-  const txSummary = useMemo(
-    () => ({
-      total: selectedTransactions.length,
-      successful: selectedTransactions.filter((tx) => tx.status === 'Successful').length,
-      pending: selectedTransactions.filter((tx) => tx.status === 'Pending').length,
-      failed: selectedTransactions.filter((tx) => tx.status === 'Failed').length,
-    }),
-    [selectedTransactions],
-  )
-
-  const filteredTx = useMemo(() => {
-    const q = txQuery.toLowerCase()
-    return selectedTransactions.filter((tx) => {
-      const matchesQuery = tx.id.toLowerCase().includes(q) || tx.type.toLowerCase().includes(q)
-      const matchesStatus = txStatus === 'All' || tx.status === txStatus
-      const matchesType = txType === 'All' || tx.type === txType
-      return matchesQuery && matchesStatus && matchesType
-    })
-  }, [selectedTransactions, txQuery, txStatus, txType])
-
-  const txTotalPages = Math.max(1, Math.ceil(filteredTx.length / TX_PAGE_SIZE))
-  const txPageItems = filteredTx.slice((txPage - 1) * TX_PAGE_SIZE, txPage * TX_PAGE_SIZE)
 
   const totalCustomers = customers.length
   const totalBalance = customers.reduce((sum, customer) => sum + customer.balance, 0)
@@ -249,10 +198,6 @@ export default function Customers() {
 
   const openTransactions = (id: string) => {
     setSelectedId(id)
-    setTxQuery('')
-    setTxStatus('All')
-    setTxType('All')
-    setTxPage(1)
     setView('history')
     setDrawerOpen(false)
     closeActionMenu()
@@ -280,343 +225,16 @@ export default function Customers() {
 
   if (view === 'history' && selected) {
     return (
-      <div className="space-y-5">
-        <div className="overflow-hidden bg-white ring-1 ring-line">
-          <div className="flex items-center justify-between gap-3 border-b border-line px-6 py-5">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={backToList}
-                aria-label="Back to customers"
-                className="group flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand text-white transition-colors hover:bg-brand/90"
-              >
-                <ArrowLeft size={18} className="transition-transform duration-200 group-hover:-translate-x-0.5" />
-              </button>
-              <div>
-                <h2 className="text-base font-bold text-ink">Transaction History</h2>
-                <p className="mt-0.5 text-xs text-muted">
-                  {selected.name} · {selected.phone}
-                </p>
-              </div>
-            </div>
-            <StatusBadge
-              status={statusVariant[getCustomerStatus(selected)]}
-              label={getCustomerStatus(selected)}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 divide-x divide-y divide-line border-b border-line sm:grid-cols-4 sm:divide-y-0">
-            <div className="px-6 py-5">
-              <p className="text-xs text-muted">Total Transactions</p>
-              <p className="mt-1 text-2xl font-extrabold text-ink">{txSummary.total}</p>
-            </div>
-            <div className="px-6 py-5">
-              <p className="text-xs text-muted">Successful</p>
-              <p className="mt-1 text-2xl font-extrabold text-green-700">{txSummary.successful}</p>
-            </div>
-            <div className="px-6 py-5">
-              <p className="text-xs text-muted">Pending</p>
-              <p className="mt-1 text-2xl font-extrabold text-amber-600">{txSummary.pending}</p>
-            </div>
-            <div className="px-6 py-5">
-              <p className="text-xs text-muted">Failed</p>
-              <p className="mt-1 text-2xl font-extrabold text-red-600">{txSummary.failed}</p>
-            </div>
-          </div>
-
-          <div className="px-6 pt-5">
-            <p className="text-sm font-semibold text-ink">Transaction Records</p>
-            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-              <div className="relative w-full sm:max-w-xs">
-                <Search
-                  size={16}
-                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-                />
-                <input
-                  type="search"
-                  value={txQuery}
-                  onChange={(event) => {
-                    setTxQuery(event.target.value)
-                    setTxPage(1)
-                  }}
-                  placeholder="Search transaction ID or type..."
-                  className="w-full rounded-full border border-transparent bg-surface py-2.5 pl-10 pr-4 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
-                />
-              </div>
-
-              <select
-                value={txType}
-                onChange={(event) => {
-                  setTxType(event.target.value as TxType | 'All')
-                  setTxPage(1)
-                }}
-                className="rounded-full border border-transparent bg-surface px-4 py-2.5 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
-              >
-                {txTypeOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option === 'All' ? 'All types' : option}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={txStatus}
-                onChange={(event) => {
-                  setTxStatus(event.target.value as TxStatus | 'All')
-                  setTxPage(1)
-                }}
-                className="rounded-full border border-transparent bg-surface px-4 py-2.5 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
-              >
-                {txStatusOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option === 'All' ? 'All statuses' : option}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="divide-y divide-line px-6 py-2">
-            {txPageItems.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted">
-                {selectedTransactions.length === 0
-                  ? 'No transactions recorded for this customer yet.'
-                  : 'No transactions match your filters.'}
-              </p>
-            ) : (
-              txPageItems.map((tx, index) => {
-                const TypeIcon = txTypeIcon[tx.type]
-                return (
-                  <button
-                    key={tx.id}
-                    type="button"
-                    onClick={() => openTxDetail(tx.id)}
-                    className="flex w-full items-center gap-4 py-4 text-left transition-colors hover:bg-surface"
-                  >
-                    <span className="w-6 shrink-0 text-xs font-medium text-muted">
-                      {(txPage - 1) * TX_PAGE_SIZE + index + 1}
-                    </span>
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                      <TypeIcon size={16} />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-mono text-sm font-bold text-ink">{tx.id}</p>
-                      <p className="mt-0.5 truncate text-xs text-muted">
-                        {tx.type} · {tx.date}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="font-semibold text-ink">{formatAmount(tx.amount)}</p>
-                      <div className="mt-1">
-                        <StatusBadge status={txStatusVariant[tx.status]} label={tx.status} />
-                      </div>
-                    </div>
-                    <ChevronRight size={16} className="shrink-0 text-muted" />
-                  </button>
-                )
-              })
-            )}
-          </div>
-
-          <div className="flex items-center justify-between border-t border-line px-6 py-4 text-sm text-muted">
-            <span>
-              Page {txPage} of {txTotalPages}
-            </span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={txPage === 1}
-                onClick={() => setTxPage((prev) => Math.max(1, prev - 1))}
-                className="rounded-full border border-line px-3 py-1.5 font-medium text-ink/80 transition-colors hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:text-ink/80"
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                disabled={txPage === txTotalPages}
-                onClick={() => setTxPage((prev) => Math.min(txTotalPages, prev + 1))}
-                className="rounded-full border border-line px-3 py-1.5 font-medium text-ink/80 transition-colors hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:text-ink/80"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <Drawer
-          open={txDetailOpen}
-          onClose={() => setTxDetailOpen(false)}
-          title="Transaction detail"
-          footer={
-            selectedTxDetail ? (
-              <>
-                <button
-                  type="button"
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-line py-2.5 text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand"
-                >
-                  <Receipt size={16} /> Receipt
-                </button>
-                <button
-                  type="button"
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-red-200 bg-red-50 py-2.5 text-sm font-semibold text-red-700"
-                >
-                  <RotateCcw size={16} /> Reverse
-                </button>
-              </>
-            ) : null
-          }
-        >
-          {selectedTxDetail && (
-            <div className="space-y-5">
-              <div className="flex items-start gap-3">
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand ring-1 ring-brand/15">
-                  <ArrowLeftRight size={20} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-mono text-base font-bold text-ink">{selectedTxDetail.id}</p>
-                </div>
-                <StatusBadge
-                  status={txStatusVariant[selectedTxDetail.status]}
-                  label={selectedTxDetail.status}
-                />
-              </div>
-
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted">Overview</p>
-                <div className="mt-3 divide-y divide-line rounded-xl ring-1 ring-line">
-                  <div className="flex items-center justify-between gap-3 p-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                        <User size={16} />
-                      </span>
-                      <p className="text-xs text-muted">Customer</p>
-                    </div>
-                    <p className="min-w-0 truncate text-sm font-semibold text-ink">
-                      {selectedTxDetail.customer}
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between gap-3 p-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                        <CreditCard size={16} />
-                      </span>
-                      <p className="text-xs text-muted">Account Number</p>
-                    </div>
-                    <p className="shrink-0 truncate font-mono text-sm font-semibold text-ink">
-                      {selectedTxDetail.phone}
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between gap-3 p-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                        <Wallet size={16} />
-                      </span>
-                      <p className="text-xs text-muted">Amount</p>
-                    </div>
-                    <p className="shrink-0 text-sm font-semibold text-ink">
-                      {formatAmount(selectedTxDetail.amount)}
-                    </p>
-                  </div>
-                  {selectedTxDetail.recipientName &&
-                    (() => {
-                      const RecipientIcon = txTypeIcon[selectedTxDetail.type]
-                      return (
-                        <div className="flex items-center justify-between gap-3 p-3">
-                          <div className="flex min-w-0 items-center gap-3">
-                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                              <RecipientIcon size={16} />
-                            </span>
-                            <p className="text-xs text-muted">{recipientLabel[selectedTxDetail.type]}</p>
-                          </div>
-                          <div className="min-w-0 shrink-0 text-right">
-                            <p className="truncate text-sm font-semibold text-ink">
-                              {selectedTxDetail.recipientName}
-                            </p>
-                            <p className="truncate font-mono text-xs text-muted">
-                              {selectedTxDetail.recipientAccount}
-                            </p>
-                          </div>
-                        </div>
-                      )
-                    })()}
-                  <div className="flex items-center justify-between gap-3 p-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                        <Tag size={16} />
-                      </span>
-                      <p className="text-xs text-muted">Type</p>
-                    </div>
-                    <TypeBadge tone={typeTone[selectedTxDetail.type]} label={selectedTxDetail.type} />
-                  </div>
-                  <div className="flex items-center justify-between gap-3 p-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                        <Globe size={16} />
-                      </span>
-                      <p className="text-xs text-muted">Channel</p>
-                    </div>
-                    <p className="shrink-0 text-sm font-semibold text-ink">{selectedTxDetail.channel}</p>
-                  </div>
-                  <div className="flex items-center justify-between gap-3 p-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                        <Percent size={16} />
-                      </span>
-                      <p className="text-xs text-muted">Fee</p>
-                    </div>
-                    <p className="shrink-0 text-sm font-semibold text-ink">
-                      {selectedTxDetail.fee > 0 ? formatAmount(selectedTxDetail.fee) : 'N/A'}
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between gap-3 p-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                        <CalendarDays size={16} />
-                      </span>
-                      <p className="text-xs text-muted">Date</p>
-                    </div>
-                    <p className="shrink-0 text-sm font-semibold text-ink">{selectedTxDetail.date}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t border-line pt-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted">Ledger entries</p>
-                <div className="mt-3 divide-y divide-line rounded-xl ring-1 ring-line">
-                  <div className="flex items-center justify-between gap-3 p-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-700">
-                        <ArrowUpRight size={16} />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-ink">Debit</p>
-                        <p className="truncate text-xs text-muted">{selectedTxDetail.customer} wallet</p>
-                      </div>
-                    </div>
-                    <p className="shrink-0 font-mono text-sm font-semibold text-red-600">
-                      -{formatAmount(selectedTxDetail.amount)}
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between gap-3 p-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-700">
-                        <ArrowDownRight size={16} />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-ink">Credit</p>
-                        <p className="truncate text-xs text-muted">Fee income account</p>
-                      </div>
-                    </div>
-                    <p className="shrink-0 font-mono text-sm font-semibold text-green-700">
-                      +{selectedTxDetail.fee > 0 ? formatAmount(selectedTxDetail.fee) : 'TSh 0.00'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </Drawer>
-      </div>
+      <TransactionHistoryView
+        subjectName={selected.name}
+        subjectPhone={selected.phone}
+        statusBadge={selectedStatus ? { variant: statusVariant[selectedStatus], label: selectedStatus } : null}
+        onBack={backToList}
+        backAriaLabel="Back to customers"
+        transactions={selectedTransactions}
+        emptyMessage="No transactions recorded for this customer yet."
+        showRecipient
+      />
     )
   }
 
@@ -707,12 +325,57 @@ export default function Customers() {
             <thead className="border-y border-line bg-surface text-xs uppercase tracking-wide text-muted">
               <tr>
                 <th className="px-6 py-3 font-semibold">#</th>
-                <th className="px-6 py-3 font-semibold">Name</th>
+                <th className="px-6 py-3 font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('name')}
+                    className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-ink"
+                  >
+                    Name
+                    <SortIcon direction={sortKey === 'name' ? sortDir : null} />
+                  </button>
+                </th>
                 <th className="px-6 py-3 font-semibold">Account Number</th>
-                <th className="px-6 py-3 text-right font-semibold">Balance</th>
-                <th className="px-6 py-3 text-right font-semibold">Transactions</th>
-                <th className="px-6 py-3 font-semibold">Status</th>
-                <th className="px-6 py-3 font-semibold">Last Active</th>
+                <th className="px-6 py-3 text-right font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('balance')}
+                    className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-ink"
+                  >
+                    Balance
+                    <SortIcon direction={sortKey === 'balance' ? sortDir : null} />
+                  </button>
+                </th>
+                <th className="px-6 py-3 text-right font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('transactions')}
+                    className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-ink"
+                  >
+                    Transactions
+                    <SortIcon direction={sortKey === 'transactions' ? sortDir : null} />
+                  </button>
+                </th>
+                <th className="px-6 py-3 font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('lastActive')}
+                    className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-ink"
+                  >
+                    Last Active
+                    <SortIcon direction={sortKey === 'lastActive' ? sortDir : null} />
+                  </button>
+                </th>
+                <th className="px-6 py-3 font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('status')}
+                    className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-ink"
+                  >
+                    Status
+                    <SortIcon direction={sortKey === 'status' ? sortDir : null} />
+                  </button>
+                </th>
                 <th className="px-6 py-3 text-right font-semibold">Action</th>
               </tr>
             </thead>
@@ -747,20 +410,13 @@ export default function Customers() {
                       </button>
                     </td>
                     <td className="px-6 py-3.5">
-                      <StatusBadge status={statusVariant[customerStatus]} label={customerStatus} />
+                      <StatusBadge
+                        status={statusVariant[customerStatus]}
+                        label={formatLastActive(customer)}
+                      />
                     </td>
                     <td className="px-6 py-3.5">
-                      <span
-                        className={
-                          customerStatus === 'Active'
-                            ? 'text-ink/70'
-                            : customerStatus === 'Dormant'
-                              ? 'font-medium text-amber-700'
-                              : 'font-medium text-red-700'
-                        }
-                      >
-                        {formatLastActive(customer)}
-                      </span>
+                      <StatusBadge status={statusVariant[customerStatus]} label={customerStatus} />
                     </td>
                     <td className="px-6 py-3.5 text-right">
                       <button
@@ -906,7 +562,7 @@ export default function Customers() {
                     </span>
                     <p className="text-xs text-muted">Join Date</p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold text-ink">{formatDate(selected.joined)}</p>
+                  <p className="shrink-0 text-sm font-semibold text-ink">{selected.joined}</p>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -916,7 +572,7 @@ export default function Customers() {
                     <p className="text-xs text-muted">Last Transaction</p>
                   </div>
                   <p className="shrink-0 text-sm font-semibold text-ink">
-                    {lastTransactionDate ? formatDate(lastTransactionDate) : 'No transactions yet'}
+                    {lastTransaction ? formatTxDateTime(lastTransaction) : 'No transactions yet'}
                   </p>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">

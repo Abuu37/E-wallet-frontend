@@ -100,12 +100,13 @@ export default function CashierRegisterForm({
       branch,
       terminal: terminal.trim() || initialCashier?.terminal || `TILL-${id.replace('CSH-', '')}`,
       floatAccount: floatAccount.trim() || initialCashier?.floatAccount || `FA-${id.replace('CSH-', '')}`,
+      commissionAccount: initialCashier?.commissionAccount || `CA-${id.replace('CSH-', '')}`,
       floatBalance: Number(assignedFloat) || initialCashier?.floatBalance || 0,
       todayCashIn: initialCashier?.todayCashIn ?? 0,
       todayCashOut: initialCashier?.todayCashOut ?? 0,
-      status: initialCashier?.status ?? 'Active',
+      commissionPayable: initialCashier?.commissionPayable ?? 0,
+      unauthorizedReported: initialCashier?.unauthorizedReported ?? false,
       joined: initialCashier?.joined ?? new Date().toISOString().slice(0, 10),
-      lastActivity: initialCashier?.lastActivity ?? 'Just now',
       permissions,
     }
     onSubmit(cashier)

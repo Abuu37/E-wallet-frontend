@@ -16,10 +16,10 @@ import DashboardLayout from './components/layout/DashboardLayout'
 import Overview from './features/overview/pages/Overview'
 import DashboardTransactions from './features/transactions/pages/Transactions'
 import DashboardCustomers from './features/customers/pages/Customers'
-import DashboardWallets from './features/wallets/pages/Wallets'
-import DashboardMainWallet from './features/wallets/pages/MainWallet'
+import DashboardCompanyWallet from './features/wallets/pages/CompanyWallet'
 import DashboardCashiers from './features/cashiers/pages/Cashiers'
 import DashboardFinancial from './features/financial/pages/Financial'
+import DashboardLedger from './features/ledger/pages/Ledger'
 import DashboardLoans from './features/loans/pages/Loans'
 import DashboardFees from './features/fees/pages/Fees'
 import DashboardSettings from './features/settings/pages/Settings'
@@ -50,10 +50,10 @@ const router = createBrowserRouter([
       { index: true, element: <Overview /> },
       { path: 'transactions', element: <DashboardTransactions /> },
       { path: 'customers', element: <DashboardCustomers /> },
-      { path: 'wallets', element: <DashboardWallets /> },
-      { path: 'main-wallet', element: <DashboardMainWallet /> },
+      { path: 'company-wallet', element: <DashboardCompanyWallet /> },
       { path: 'cashiers', element: <DashboardCashiers /> },
       { path: 'financial', element: <DashboardFinancial /> },
+      { path: 'ledger', element: <DashboardLedger /> },
       { path: 'loans', element: <DashboardLoans /> },
       { path: 'fees', element: <DashboardFees /> },
       { path: 'settings', element: <DashboardSettings /> },

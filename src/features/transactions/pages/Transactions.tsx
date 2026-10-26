@@ -5,12 +5,14 @@ import {
   ArrowLeftRight,
   CircleCheck,
   Clock,
-  CircleAlert,
+  XCircle,
   CalendarDays,
   MoreVertical,
   Eye,
   Trash2,
+  Hash,
   User,
+  UserCog,
   CreditCard,
   Tag,
   Globe,
@@ -28,7 +30,23 @@ import StatusBadge from '../../../components/ui/StatusBadge'
 import TypeBadge from '../../../components/ui/TypeBadge'
 import Drawer from '../../../components/ui/Drawer'
 import Modal from '../../../components/ui/Modal'
-import { transactions as initialTransactions, type Transaction, type TxStatus, type TxType } from '../data'
+import DateFilter from '../../../components/ui/DateFilter'
+import SortIcon, { type SortDirection } from '../../../components/ui/SortIcon'
+import {
+  transactions as initialTransactions,
+  getAmountTone,
+  getTxFromTo,
+  formatTxDateTime,
+  isCashierServed,
+  getCashierId,
+  getRecognizedFee,
+  getCommission,
+  getNetRevenue,
+  type Transaction,
+  type TxStatus,
+  type TxType,
+  type TxChannel,
+} from '../data'
 import { maskAccount } from '../../../utils/mask'
 
 const statusVariant = {
@@ -70,22 +88,13 @@ const typeOptions: Array<TxType | 'All'> = [
   'Loan Disbursement',
   'Loan Repayment',
 ]
+const channelOptions: Array<TxChannel | 'All'> = ['All', 'Web App', 'USSD', 'Agent']
+
+type TxSortKey = 'type' | 'status' | 'amount'
 
 const PAGE_SIZE = 10
-// Commission is paid to the cashier/agent who handled the transaction, funded by the
-// operator — independent of the customer fee (e.g. Cash In has no fee but still pays commission).
-const COMMISSION_RATES: Partial<Record<TxType, number>> = { 'Cash In': 0.01, 'Cash Out': 0.01 }
 
-const formatAmount = (value: number) => `TSh ${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
-
-function getCommission(tx: Transaction) {
-  const rate = COMMISSION_RATES[tx.type]
-  return rate ? tx.amount * rate : 0
-}
-
-function getNetRevenue(tx: Transaction) {
-  return tx.fee - getCommission(tx)
-}
+const formatAmount = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
 
 interface ActionMenuState {
   id: string
@@ -98,7 +107,10 @@ export default function Transactions() {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<TxStatus | 'All'>('All')
   const [type, setType] = useState<TxType | 'All'>('All')
+  const [channel, setChannel] = useState<TxChannel | 'All'>('All')
   const [date, setDate] = useState('')
+  const [sortKey, setSortKey] = useState<TxSortKey | null>(null)
+  const [sortDir, setSortDir] = useState<SortDirection>(null)
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -115,20 +127,51 @@ export default function Transactions() {
         tx.type.toLowerCase().includes(q)
       const matchesStatus = status === 'All' || tx.status === status
       const matchesType = type === 'All' || tx.type === type
+      const matchesChannel = channel === 'All' || tx.channel === channel
       const matchesDate = !date || tx.date === date
-      return matchesQuery && matchesStatus && matchesType && matchesDate
+      return matchesQuery && matchesStatus && matchesType && matchesChannel && matchesDate
     })
-  }, [transactions, query, status, type, date])
+  }, [transactions, query, status, type, channel, date])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const sorted = useMemo(() => {
+    if (!sortKey || !sortDir) {
+      // Default: most recent transaction first.
+      return [...filtered].sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`))
+    }
+    const direction = sortDir === 'asc' ? 1 : -1
+    const compare: Record<TxSortKey, (a: Transaction, b: Transaction) => number> = {
+      type: (a, b) => a.type.localeCompare(b.type),
+      status: (a, b) => a.status.localeCompare(b.status),
+      amount: (a, b) => a.amount - b.amount,
+    }
+    return [...filtered].sort((a, b) => compare[sortKey](a, b) * direction)
+  }, [filtered, sortKey, sortDir])
+
+  const toggleSort = (key: TxSortKey) => {
+    if (sortKey !== key) {
+      setSortKey(key)
+      setSortDir('asc')
+    } else if (sortDir === 'asc') {
+      setSortDir('desc')
+    } else {
+      setSortKey(null)
+      setSortDir(null)
+    }
+    setPage(1)
+  }
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
+  const pageItems = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const selected: Transaction | null = transactions.find((tx) => tx.id === selectedId) ?? null
 
-  const totalCount = transactions.length
   const successfulCount = transactions.filter((tx) => tx.status === 'Successful').length
   const pendingCount = transactions.filter((tx) => tx.status === 'Pending').length
   const failedCount = transactions.filter((tx) => tx.status === 'Failed').length
+
+  const totalVolume = transactions
+    .filter((tx) => tx.status === 'Successful')
+    .reduce((sum, tx) => sum + tx.amount, 0)
 
   const resetToFirstPage = () => setPage(1)
 
@@ -178,32 +221,28 @@ export default function Transactions() {
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          icon={ArrowLeftRight}
+          icon={Wallet}
           tone="brand"
-          label="Total Transactions"
-          value={String(totalCount)}
-          delta={6.4}
+          label="Transaction Volume"
+          value={formatAmount(totalVolume)}
         />
         <StatCard
           icon={CircleCheck}
           tone="positive"
           label="Successful Transactions"
           value={String(successfulCount)}
-          delta={4.8}
         />
         <StatCard
           icon={Clock}
           tone="warning"
           label="Pending Transactions"
           value={String(pendingCount)}
-          delta={-1.8}
         />
         <StatCard
-          icon={CircleAlert}
+          icon={XCircle}
           tone="negative"
           label="Failed Transactions"
           value={String(failedCount)}
-          delta={-0.4}
         />
       </div>
 
@@ -256,21 +295,28 @@ export default function Transactions() {
             ))}
           </select>
 
-          <div className="relative">
-            <CalendarDays
-              size={16}
-              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-            />
-            <input
-              type="date"
-              value={date}
-              onChange={(event) => {
-                setDate(event.target.value)
-                resetToFirstPage()
-              }}
-              className="rounded-full border border-transparent bg-white py-2.5 pl-10 pr-4 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
-            />
-          </div>
+          <select
+            value={channel}
+            onChange={(event) => {
+              setChannel(event.target.value as TxChannel | 'All')
+              resetToFirstPage()
+            }}
+            className="rounded-full border border-transparent bg-white px-4 py-2.5 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
+          >
+            {channelOptions.map((option) => (
+              <option key={option} value={option}>
+                {option === 'All' ? 'All channels' : option}
+              </option>
+            ))}
+          </select>
+
+          <DateFilter
+            value={date}
+            onChange={(value) => {
+              setDate(value)
+              resetToFirstPage()
+            }}
+          />
         </div>
       </div>
 
@@ -279,63 +325,92 @@ export default function Transactions() {
           <table className="w-full text-left text-sm">
             <thead className="border-y border-line bg-surface text-xs uppercase tracking-wide text-muted">
               <tr>
-                <th className="px-6 py-3 font-semibold">ID</th>
+                <th className="px-6 py-3 font-semibold">#</th>
                 <th className="px-6 py-3 font-semibold">Transaction ID</th>
+                <th className="px-6 py-3 font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('type')}
+                    className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-ink"
+                  >
+                    Transaction Type
+                    <SortIcon direction={sortKey === 'type' ? sortDir : null} />
+                  </button>
+                </th>
+                <th className="px-6 py-3 font-semibold">From</th>
+                <th className="px-6 py-3 font-semibold">To</th>
                 <th className="px-6 py-3 font-semibold">Account Number</th>
-                <th className="px-6 py-3 font-semibold">Type</th>
-                <th className="px-6 py-3 text-right font-semibold">Amount</th>
-                <th className="px-6 py-3 text-right font-semibold">Fee</th>
-                <th className="px-6 py-3 text-right font-semibold">Commission</th>
-                <th className="px-6 py-3 text-right font-semibold">Net Revenue</th>
-                <th className="px-6 py-3 font-semibold">Status</th>
+                <th className="px-6 py-3 font-semibold">Channel</th>
                 <th className="px-6 py-3 font-semibold">Date</th>
+                <th className="px-6 py-3 text-right font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('amount')}
+                    className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-ink"
+                  >
+                    Amount
+                    <SortIcon direction={sortKey === 'amount' ? sortDir : null} />
+                  </button>
+                </th>
+                <th className="px-6 py-3 font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('status')}
+                    className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-ink"
+                  >
+                    Status
+                    <SortIcon direction={sortKey === 'status' ? sortDir : null} />
+                  </button>
+                </th>
                 <th className="px-6 py-3 text-right font-semibold">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {pageItems.map((tx, index) => (
-                <tr key={tx.id}>
-                  <td className="px-6 py-3.5 text-xs text-muted">
-                    {(page - 1) * PAGE_SIZE + index + 1}
-                  </td>
-                  <td className="px-6 py-3.5 font-mono text-xs text-muted">{tx.id}</td>
-                  <td className="px-6 py-3.5 font-mono text-ink/70">{maskAccount(tx.phone)}</td>
-                  <td className="px-6 py-3.5">
-                    <TypeBadge tone={typeTone[tx.type]} label={tx.type} />
-                  </td>
-                  <td className="px-6 py-3.5 text-right font-semibold text-ink">
-                    {formatAmount(tx.amount)}
-                  </td>
-                  <td className="px-6 py-3.5 text-right text-ink/70">{formatAmount(tx.fee)}</td>
-                  <td className="px-6 py-3.5 text-right text-ink/70">
-                    {formatAmount(getCommission(tx))}
-                  </td>
-                  <td
-                    className={`px-6 py-3.5 text-right font-semibold ${
-                      getNetRevenue(tx) < 0 ? 'text-red-600' : 'text-ink'
-                    }`}
+              {pageItems.map((tx, index) => {
+                const { from, to } = getTxFromTo(tx)
+                return (
+                  <tr
+                    key={tx.id}
+                    onClick={() => openTransaction(tx.id)}
+                    className="cursor-pointer transition-colors hover:bg-surface"
                   >
-                    {formatAmount(getNetRevenue(tx))}
-                  </td>
-                  <td className="px-6 py-3.5">
-                    <StatusBadge status={statusVariant[tx.status]} label={tx.status} />
-                  </td>
-                  <td className="px-6 py-3.5 text-ink/70">{tx.date}</td>
-                  <td className="px-6 py-3.5 text-right">
-                    <button
-                      type="button"
-                      ref={(node) => {
-                        menuButtonRefs.current[tx.id] = node
-                      }}
-                      onClick={() => toggleActionMenu(tx.id)}
-                      aria-label="Row actions"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink/80 transition-colors hover:border-brand hover:bg-brand hover:text-white"
-                    >
-                      <MoreVertical size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    <td className="px-6 py-3.5 text-xs text-muted">
+                      {(page - 1) * PAGE_SIZE + index + 1}
+                    </td>
+                    <td className="px-6 py-3.5 font-mono text-xs text-muted">{tx.id}</td>
+                    <td className="px-6 py-3.5">
+                      <TypeBadge tone={typeTone[tx.type]} label={tx.type} />
+                    </td>
+                    <td className="max-w-40 truncate px-6 py-3.5 text-ink/80">{from}</td>
+                    <td className="max-w-40 truncate px-6 py-3.5 text-ink/80">{to}</td>
+                    <td className="px-6 py-3.5 font-mono text-ink/70">{maskAccount(tx.phone)}</td>
+                    <td className="px-6 py-3.5 text-ink/70">{tx.channel}</td>
+                    <td className="px-6 py-3.5 text-ink/70">{formatTxDateTime(tx)}</td>
+                    <td className="px-6 py-3.5 text-right font-semibold text-ink">
+                      {formatAmount(tx.amount)}
+                    </td>
+                    <td className="px-6 py-3.5">
+                      <StatusBadge status={statusVariant[tx.status]} label={tx.status} />
+                    </td>
+                    <td className="px-6 py-3.5 text-right">
+                      <button
+                        type="button"
+                        ref={(node) => {
+                          menuButtonRefs.current[tx.id] = node
+                        }}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          toggleActionMenu(tx.id)
+                        }}
+                        aria-label="Row actions"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink/80 transition-colors hover:border-brand hover:bg-brand hover:text-white"
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
               {pageItems.length === 0 && (
                 <tr>
                   <td colSpan={11} className="px-6 py-8 text-center text-sm text-muted">
@@ -434,6 +509,7 @@ export default function Transactions() {
                 <ArrowLeftRight size={20} />
               </span>
               <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted">Transaction ID</p>
                 <p className="truncate font-mono text-base font-bold text-ink">{selected.id}</p>
               </div>
               <StatusBadge status={statusVariant[selected.status]} label={selected.status} />
@@ -469,9 +545,12 @@ export default function Transactions() {
                     </span>
                     <p className="text-xs text-muted">Amount</p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold text-ink">{formatAmount(selected.amount)}</p>
+                  <p className={`shrink-0 text-sm font-semibold ${getAmountTone(selected.type)}`}>
+                    {formatAmount(selected.amount)}
+                  </p>
                 </div>
                 {selected.recipientName &&
+                  !isCashierServed(selected) &&
                   (() => {
                     const RecipientIcon = txTypeIcon[selected.type]
                     return (
@@ -494,7 +573,7 @@ export default function Transactions() {
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
                       <Tag size={16} />
                     </span>
-                    <p className="text-xs text-muted">Type</p>
+                    <p className="text-xs text-muted">Transaction Type</p>
                   </div>
                   <TypeBadge tone={typeTone[selected.type]} label={selected.type} />
                 </div>
@@ -507,6 +586,32 @@ export default function Transactions() {
                   </div>
                   <p className="shrink-0 text-sm font-semibold text-ink">{selected.channel}</p>
                 </div>
+                {isCashierServed(selected) && (
+                  <>
+                    <div className="flex items-center justify-between gap-3 p-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                          <Hash size={16} />
+                        </span>
+                        <p className="text-xs text-muted">Cashier ID</p>
+                      </div>
+                      <p className="shrink-0 truncate font-mono text-sm font-semibold text-ink">
+                        {getCashierId(selected.recipientName)}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 p-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                          <UserCog size={16} />
+                        </span>
+                        <p className="text-xs text-muted">Cashier Name</p>
+                      </div>
+                      <p className="min-w-0 truncate text-sm font-semibold text-ink">
+                        {selected.recipientName}
+                      </p>
+                    </div>
+                  </>
+                )}
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
@@ -514,7 +619,9 @@ export default function Transactions() {
                     </span>
                     <p className="text-xs text-muted">Fee</p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold text-ink">{formatAmount(selected.fee)}</p>
+                  <p className="shrink-0 text-sm font-semibold text-ink">
+                    {formatAmount(getRecognizedFee(selected))}
+                  </p>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -547,43 +654,9 @@ export default function Transactions() {
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
                       <CalendarDays size={16} />
                     </span>
-                    <p className="text-xs text-muted">Date</p>
+                    <p className="text-xs text-muted">Date &amp; Time</p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold text-ink">{selected.date}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="border-t border-line pt-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Ledger entries</p>
-              <div className="mt-3 divide-y divide-line rounded-xl ring-1 ring-line">
-                <div className="flex items-center justify-between gap-3 p-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-700">
-                      <ArrowUpRight size={16} />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-ink">Debit</p>
-                      <p className="truncate text-xs text-muted">{selected.customer} wallet</p>
-                    </div>
-                  </div>
-                  <p className="shrink-0 font-mono text-sm font-semibold text-red-600">
-                    -{formatAmount(selected.amount)}
-                  </p>
-                </div>
-                <div className="flex items-center justify-between gap-3 p-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-700">
-                      <ArrowDownRight size={16} />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-ink">Credit</p>
-                      <p className="truncate text-xs text-muted">Fee income account</p>
-                    </div>
-                  </div>
-                  <p className="shrink-0 font-mono text-sm font-semibold text-green-700">
-                    +{selected.fee > 0 ? formatAmount(selected.fee) : 'TSh 0.00'}
-                  </p>
+                  <p className="shrink-0 text-sm font-semibold text-ink">{formatTxDateTime(selected)}</p>
                 </div>
               </div>
             </div>

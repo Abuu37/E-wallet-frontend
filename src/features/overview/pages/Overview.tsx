@@ -7,8 +7,8 @@ import {
   ArrowLeftRight,
   Building2,
   Landmark,
-  PiggyBank,
-  UserPlus,
+  Scale,
+  Banknote,
   HandCoins,
   BadgeCheck,
   AlertTriangle,
@@ -47,12 +47,12 @@ import {
   volumeByRange,
   volume30Day,
   transactionByType,
-  walletOverview,
   loanOverview,
   type VolumeRange,
 } from '../data'
-import { transactions } from '../../transactions/data'
+import { transactions, getAmountTone, formatTxDateTime } from '../../transactions/data'
 import { floatManagement } from '../../financial/data'
+import { chartOfAccounts, getAccountBalance, TRUST_ACCOUNT_BALANCE } from '../../ledger/data'
 import { maskAccount } from '../../../utils/mask'
 
 const txStatusVariant = {
@@ -71,7 +71,7 @@ const rangeOptions: { value: VolumeRange | 'custom'; label: string }[] = [
 ]
 
 function currency(value: number) {
-  return `TSh ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `TSh ${Math.round(value).toLocaleString()}`
 }
 
 function number(value: number) {
@@ -183,29 +183,16 @@ interface PanelRowProps {
   icon: LucideIcon
   label: string
   value: string
-  delta?: number
 }
 
-function PanelRow({ icon: Icon, label, value, delta }: PanelRowProps) {
-  const isUp = delta !== undefined && delta >= 0
-
+function PanelRow({ icon: Icon, label, value }: PanelRowProps) {
   return (
     <div className="flex items-center gap-3 py-3">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand">
         <Icon size={18} />
       </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-muted">{label}</p>
-        <p className="text-lg font-bold text-ink">{value}</p>
-      </div>
-      {delta !== undefined && (
-        <span
-          className={`shrink-0 text-xs font-semibold ${isUp ? 'text-green-700' : 'text-red-700'}`}
-        >
-          {isUp ? '+' : ''}
-          {delta}%
-        </span>
-      )}
+      <p className="min-w-0 flex-1 truncate text-sm text-muted">{label}</p>
+      <p className="shrink-0 text-lg font-bold text-ink">{value}</p>
     </div>
   )
 }
@@ -239,7 +226,18 @@ export default function Overview() {
     setTxDrawerOpen(true)
   }
 
-  const companyWallet = floatManagement.find((account) => account.label === 'Main Wallet')
+  const companyWallet = floatManagement.find((account) => account.label === 'Company Wallet')
+
+  const totalTypeShare = transactionByType.reduce((sum, entry) => sum + entry.value, 0)
+
+  // Same figures as the Company Wallet screen — see features/wallets/pages/CompanyWallet.tsx.
+  const balanceOf = (accountId: string) => {
+    const account = chartOfAccounts.find((item) => item.id === accountId)
+    return account ? getAccountBalance(account) : 0
+  }
+  const emoneyLiabilities =
+    balanceOf('2000') + balanceOf('2005') + balanceOf('2010') + balanceOf('2020')
+  const companyEquity = balanceOf('4000') - balanceOf('5000')
 
   return (
     <div className="space-y-6">
@@ -256,37 +254,30 @@ export default function Overview() {
           tone="brand"
           label="Total Cashiers"
           value={String(overviewStats.totalCashiers)}
-          delta={overviewStats.totalCashiersDelta}
         />
         <StatCard
           icon={Users}
           tone="accent"
           label="Total Customers"
           value={number(overviewStats.totalCustomers)}
-          delta={overviewStats.totalCustomersDelta}
         />
         <StatCard
           icon={Wallet}
           tone="brand"
           label="Total Wallet Balance"
           value={currency(overviewStats.totalWalletBalance)}
-          delta={overviewStats.totalWalletBalanceDelta}
-          deltaLabel="Held on behalf of customers & cashiers"
         />
         <StatCard
           icon={ArrowLeftRight}
           tone="brand"
           label="Total Transactions"
           value={number(overviewStats.totalTransactions)}
-          delta={overviewStats.totalTransactionsDelta}
         />
         <StatCard
           icon={Building2}
           tone="positive"
           label="Company Wallet"
           value={currency(companyWallet?.value ?? 0)}
-          delta={companyWallet?.delta ?? 0}
-          deltaLabel="Retained earnings from fees"
         />
       </div>
 
@@ -336,16 +327,16 @@ export default function Overview() {
                     <stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="4 4" />
+                <CartesianGrid vertical={false} stroke="#cbd5e1" strokeDasharray="4 4" />
                 <XAxis
                   dataKey="label"
                   tick={{ fontSize: 12, fill: '#475569' }}
-                  axisLine={{ stroke: '#e2e8f0' }}
+                  axisLine={{ stroke: '#cbd5e1' }}
                   tickLine={false}
                   minTickGap={16}
                 />
                 <YAxis
-                  tick={{ fontSize: 12, fill: '#475569' }}
+                  tick={{ fontSize: 12, fill: '#334155' }}
                   axisLine={false}
                   tickLine={false}
                   width={56}
@@ -375,15 +366,15 @@ export default function Overview() {
 
         <div className="rounded-2xl bg-white p-6 ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
           <h2 className="text-base font-bold text-ink">Transactions by type</h2>
-          <div className="mt-2 h-48">
+          <div className="relative mt-2 h-48">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
+              <PieChart margin={{ top: 16, bottom: 16 }}>
                 <Pie
                   data={transactionByType}
                   dataKey="value"
                   nameKey="type"
-                  innerRadius={50}
-                  outerRadius={75}
+                  innerRadius={42}
+                  outerRadius={64}
                   paddingAngle={2}
                   label={({ value }) => `${value}%`}
                   labelLine={false}
@@ -402,6 +393,9 @@ export default function Overview() {
                 />
               </PieChart>
             </ResponsiveContainer>
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <p className="text-xl font-extrabold text-ink">{totalTypeShare}%</p>
+            </div>
           </div>
           <div className="mt-2 space-y-2">
             {transactionByType.map((entry) => (
@@ -422,26 +416,15 @@ export default function Overview() {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div className="rounded-2xl bg-white p-6 ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
-          <h2 className="text-base font-bold text-ink">Wallet overview</h2>
+          <h2 className="text-base font-bold text-ink">Company Wallet</h2>
           <div className="mt-1 divide-y divide-line">
             <PanelRow
-              icon={PiggyBank}
-              label="Total Active Wallets"
-              value={number(walletOverview.activeWallets)}
-              delta={walletOverview.activeWalletsDelta}
-            />
-            <PanelRow
               icon={Landmark}
-              label="Total Cashier Float"
-              value={currency(walletOverview.cashierFloat)}
-              delta={walletOverview.cashierFloatDelta}
+              label="Trust Account Balance"
+              value={currency(TRUST_ACCOUNT_BALANCE)}
             />
-            <PanelRow
-              icon={UserPlus}
-              label="New Wallets"
-              value={number(walletOverview.newWallets)}
-              delta={walletOverview.newWalletsDelta}
-            />
+            <PanelRow icon={Scale} label="Liabilities" value={currency(emoneyLiabilities)} />
+            <PanelRow icon={Banknote} label="Equity" value={currency(companyEquity)} />
           </div>
         </div>
 
@@ -452,19 +435,16 @@ export default function Overview() {
               icon={BadgeCheck}
               label="Active Loans"
               value={number(loanOverview.activeLoans)}
-              delta={loanOverview.activeLoansDelta}
             />
             <PanelRow
               icon={HandCoins}
-              label="Repayment Loans"
+              label="Paid Loans"
               value={number(loanOverview.repaymentLoans)}
-              delta={loanOverview.repaymentLoansDelta}
             />
             <PanelRow
               icon={AlertTriangle}
               label="Overdue Loans"
               value={number(loanOverview.overdueLoans)}
-              delta={loanOverview.overdueLoansDelta}
             />
           </div>
         </div>
@@ -515,11 +495,13 @@ export default function Overview() {
                       <TypeBadge tone={typeTone[tx.type]} label={tx.type} />
                     </td>
                     <td className="px-6 py-3.5 text-ink/70">{toName}</td>
-                    <td className="px-6 py-3.5 text-right font-semibold text-ink">{currency(tx.amount)}</td>
+                    <td className="px-6 py-3.5 text-right font-semibold text-ink">
+                      {currency(tx.amount)}
+                    </td>
                     <td className="px-6 py-3.5">
                       <StatusBadge status={txStatusVariant[tx.status]} label={tx.status} />
                     </td>
-                    <td className="px-6 py-3.5 text-ink/70">{tx.date}</td>
+                    <td className="px-6 py-3.5 text-ink/70">{formatTxDateTime(tx)}</td>
                     <td className="px-6 py-3.5 text-right">
                       <button
                         type="button"
@@ -592,6 +574,7 @@ export default function Overview() {
                 <ArrowLeftRight size={20} />
               </span>
               <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted">Transaction ID</p>
                 <p className="truncate font-mono text-base font-bold text-ink">{selectedTx.id}</p>
               </div>
               <StatusBadge status={txStatusVariant[selectedTx.status]} label={selectedTx.status} />
@@ -627,7 +610,9 @@ export default function Overview() {
                     </span>
                     <p className="text-xs text-muted">Amount</p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold text-ink">{currency(selectedTx.amount)}</p>
+                  <p className={`shrink-0 text-sm font-semibold ${getAmountTone(selectedTx.type)}`}>
+                    {currency(selectedTx.amount)}
+                  </p>
                 </div>
                 {selectedTx.recipientName &&
                   (() => {
@@ -656,7 +641,7 @@ export default function Overview() {
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
                       <Tag size={16} />
                     </span>
-                    <p className="text-xs text-muted">Type</p>
+                    <p className="text-xs text-muted">Transaction Type</p>
                   </div>
                   <TypeBadge tone={typeTone[selectedTx.type]} label={selectedTx.type} />
                 </div>
@@ -685,9 +670,9 @@ export default function Overview() {
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
                       <CalendarDays size={16} />
                     </span>
-                    <p className="text-xs text-muted">Date</p>
+                    <p className="text-xs text-muted">Date &amp; Time</p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold text-ink">{selectedTx.date}</p>
+                  <p className="shrink-0 text-sm font-semibold text-ink">{formatTxDateTime(selectedTx)}</p>
                 </div>
               </div>
             </div>
