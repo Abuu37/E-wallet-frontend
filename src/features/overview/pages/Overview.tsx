@@ -51,7 +51,15 @@ import {
   type VolumeRange,
 } from '../data'
 import { transactions, getAmountTone, formatTxDateTime } from '../../transactions/data'
-import { chartOfAccounts, getAccountBalance, TRUST_ACCOUNT_BALANCE } from '../../ledger/data'
+import {
+  chartOfAccounts,
+  getAccountBalance,
+  getCustomerBalance,
+  getCashierFloatBalance,
+  TRUST_ACCOUNT_BALANCE,
+} from '../../ledger/data'
+import { customers } from '../../customers/data'
+import { cashiers } from '../../cashiers/data'
 import { maskAccount } from '../../../utils/mask'
 
 const txStatusVariant = {
@@ -236,6 +244,15 @@ export default function Overview() {
     balanceOf('2000') + balanceOf('2005') + balanceOf('2010') + balanceOf('2020')
   const companyEquity = balanceOf('4000') - balanceOf('5000')
 
+  // Total e-money the company is currently custodying for others: every customer's wallet
+  // plus every cashier's float, combined — distinct from Company Equity above, which is money
+  // the company itself owns.
+  const customerWalletBalance = customers.reduce((sum, c) => sum + getCustomerBalance(c), 0)
+  const cashierFloatBalance = cashiers.reduce((sum, c) => sum + getCashierFloatBalance(c), 0)
+  const totalWalletBalance = customerWalletBalance + cashierFloatBalance
+
+  const successfulTransactionsCount = transactions.filter((tx) => tx.status === 'Successful').length
+
   return (
     <div className="space-y-6">
       <div>
@@ -262,13 +279,13 @@ export default function Overview() {
           icon={Wallet}
           tone="brand"
           label="Total Wallet Balance"
-          value={currency(overviewStats.totalWalletBalance)}
+          value={currency(totalWalletBalance)}
         />
         <StatCard
           icon={ArrowLeftRight}
           tone="brand"
           label="Total Transactions"
-          value={number(overviewStats.totalTransactions)}
+          value={number(successfulTransactionsCount)}
         />
         <StatCard
           icon={Building2}
