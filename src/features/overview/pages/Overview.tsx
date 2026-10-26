@@ -25,6 +25,7 @@ import {
   CalendarDays,
   ArrowDownRight,
   ArrowUpRight,
+  ShieldCheck,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -61,6 +62,7 @@ import {
   getCustomerBalance,
   getCashierFloatBalance,
   TRUST_ACCOUNT_BALANCE,
+  RECONCILED_AT,
 } from '../../ledger/data'
 import { customers } from '../../customers/data'
 import { cashiers } from '../../cashiers/data'
@@ -254,6 +256,12 @@ export default function Overview() {
   const emoneyLiabilities =
     balanceOf('2000') + balanceOf('2005') + balanceOf('2010') + balanceOf('2020')
   const companyEquity = balanceOf('4000') - balanceOf('5000')
+  // Loans Receivable also backs part of e-money liabilities (a disbursed loan is backed by the
+  // loan itself, not bank cash), so it belongs on the asset side of this check too.
+  const loansReceivable = balanceOf('1020')
+  const reconciliationDifference =
+    TRUST_ACCOUNT_BALANCE + loansReceivable - (emoneyLiabilities + companyEquity)
+  const isBalanced = Math.abs(reconciliationDifference) < 0.01
 
   // Total e-money the company is currently custodying for others: every customer's wallet
   // plus every cashier's float, combined — distinct from Company Equity above, which is money
@@ -442,6 +450,7 @@ export default function Overview() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div className="rounded-2xl bg-white p-6 ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
           <h2 className="text-base font-bold text-ink">Company Wallet</h2>
+          <p className="mt-0.5 text-xs text-muted">Last reconciled: {RECONCILED_AT}</p>
           <div className="mt-1 divide-y divide-line">
             <PanelRow
               icon={Landmark}
@@ -450,6 +459,11 @@ export default function Overview() {
             />
             <PanelRow icon={Scale} label="Liabilities" value={currency(emoneyLiabilities)} />
             <PanelRow icon={Banknote} label="Equity" value={currency(companyEquity)} />
+            <PanelRow
+              icon={ShieldCheck}
+              label={isBalanced ? 'Reconciliation Difference' : 'Unreconciled since last statement'}
+              value={currency(reconciliationDifference)}
+            />
           </div>
         </div>
 

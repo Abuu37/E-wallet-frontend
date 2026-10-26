@@ -1,15 +1,19 @@
 import { Landmark, Scale, HandCoins, Banknote, ShieldCheck } from 'lucide-react'
 import StatCard from '../../../components/ui/StatCard'
 import TypeBadge from '../../../components/ui/TypeBadge'
-import { chartOfAccounts, getAccountBalance, getTax, TRUST_ACCOUNT_BALANCE } from '../../ledger/data'
+import {
+  chartOfAccounts,
+  getAccountBalance,
+  getTax,
+  TRUST_ACCOUNT_BALANCE,
+  RECONCILED_AT,
+} from '../../ledger/data'
 import {
   transactions,
   getRecognizedFee,
   getCommission,
   type TxType,
 } from '../../transactions/data'
-
-const LAST_RECONCILED_AT = '2026-10-22 08:00'
 
 const typeOrder: TxType[] = ['Cash In', 'Cash Out', 'W2B', 'W2W', 'Loan Disbursement', 'Loan Repayment']
 
@@ -43,9 +47,18 @@ export default function CompanyWallet() {
 
   const commissionPayable = balanceOf('2010')
 
-  // Assets = Liabilities + Equity. If the real bank balance ever stops matching this,
-  // something is wrong — money is unaccounted for, or missing.
-  const reconciliationDifference = TRUST_ACCOUNT_BALANCE - (emoneyLiabilities + equity)
+  // Loans Receivable is also a real asset backing part of e-money liabilities (a disbursed
+  // loan increases a customer's wallet, backed by the loan itself, not by bank cash) — it has
+  // to be on the asset side too, or this check misreports "unbalanced" the moment loan activity
+  // doesn't net to exactly zero.
+  const loansReceivable = balanceOf('1020')
+
+  // Assets (Trust Account + Loans Receivable) = Liabilities + Equity. Trust Account Balance is
+  // a snapshot as of RECONCILED_AT, not live, so a nonzero difference here is expected and
+  // correct whenever something has touched the Bank Account since that date — it means exactly
+  // that much activity hasn't shown up on a bank statement yet, not that money is missing.
+  const reconciliationDifference =
+    TRUST_ACCOUNT_BALANCE + loansReceivable - (emoneyLiabilities + equity)
   const isBalanced = Math.abs(reconciliationDifference) < 0.01
 
   const byType = typeOrder.map((type) => {
@@ -87,7 +100,7 @@ export default function CompanyWallet() {
           tone="brand"
           label="Trust Account Balance"
           value={currency(TRUST_ACCOUNT_BALANCE)}
-          deltaLabel={`Last reconciled: ${LAST_RECONCILED_AT}`}
+          deltaLabel={`Last reconciled: ${RECONCILED_AT}`}
         />
         <StatCard
           icon={Scale}
@@ -108,7 +121,7 @@ export default function CompanyWallet() {
           tone={isBalanced ? 'positive' : 'negative'}
           label="Reconciliation Difference"
           value={currency(reconciliationDifference)}
-          deltaLabel={isBalanced ? 'Books are balanced' : 'Trust balance does not match the ledger'}
+          deltaLabel={isBalanced ? 'Books are balanced' : 'Unreconciled activity since last statement'}
         />
       </div>
 

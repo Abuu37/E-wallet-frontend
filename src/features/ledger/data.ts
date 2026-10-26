@@ -5,8 +5,8 @@ import {
   getCommission,
   type Transaction,
 } from '../transactions/data'
-import type { Customer } from '../customers/data'
-import type { Cashier } from '../cashiers/data'
+import { customers, type Customer } from '../customers/data'
+import { cashiers, type Cashier } from '../cashiers/data'
 
 export type AccountCategory = 'Asset' | 'Liability' | 'Equity' | 'Revenue' | 'Expense'
 export type PostingStatus = 'Posted' | 'Pending'
@@ -32,13 +32,6 @@ export interface JournalEntry {
   description: string
   lines: JournalLine[]
 }
-
-// Captured from the real bank statement at the last reconciliation — independent of the
-// live ledger below. In a production system this would come from a bank-feed sync instead
-// of being a fixed snapshot; here it's set to match what the ledger computed at that moment,
-// so the reconciliation below can genuinely drift if the transaction data changes later
-// without this snapshot being refreshed.
-export const TRUST_ACCOUNT_BALANCE = 3_800_000
 
 export const chartOfAccounts: Account[] = [
   { id: '1010', name: 'Bank Account', category: 'Asset' },
@@ -170,18 +163,56 @@ const buildLines = (tx: Transaction): JournalLine[] => {
   return lines
 }
 
-/** One journal entry per transaction. Failed transactions never post — nothing moved. */
-export const journalEntries: JournalEntry[] = transactions
-  .filter((tx) => tx.status !== 'Failed')
-  .map((tx) => ({
+// Every customer's/cashier's starting balance (opening-balance + ledger-movement model) has to
+// be backed by real cash from day one — this is the single opening entry that funds all of it
+// out of the Bank Account, computed live from the actual seed data so it can never drift out of
+// sync with customers/data.ts or cashiers/data.ts.
+const OPENING_CUSTOMER_WALLET_TOTAL = customers.reduce((sum, c) => sum + c.openingBalance, 0)
+const OPENING_CASHIER_FLOAT_TOTAL = cashiers.reduce((sum, c) => sum + c.openingFloatBalance, 0)
+
+const openingBalanceEntry: JournalEntry = {
+  id: 'JE-OPENING',
+  timestamp: '2026-08-31T00:00:00Z',
+  referenceTxnId: 'OPENING-BALANCE',
+  status: 'Posted',
+  description: 'Opening balances — trust account funding for all customer wallets and cashier floats as of go-live',
+  lines: [
+    {
+      accountId: '1010',
+      accountName: accountName('1010'),
+      debit: OPENING_CUSTOMER_WALLET_TOTAL + OPENING_CASHIER_FLOAT_TOTAL,
+      credit: 0,
+    },
+    { accountId: '2000', accountName: accountName('2000'), debit: 0, credit: OPENING_CUSTOMER_WALLET_TOTAL },
+    { accountId: '2005', accountName: accountName('2005'), debit: 0, credit: OPENING_CASHIER_FLOAT_TOTAL },
+  ],
+}
+
+// The date of the last real bank statement this trust balance was checked against. Shared by
+// every screen that displays it, so they can't silently disagree on when it's from.
+export const RECONCILED_AT = '2026-10-22 08:00'
+
+// What the real bank statement said at RECONCILED_AT — independent of the live ledger below.
+// In a production system this comes from a bank-feed sync, not a derived value; here it's
+// computed from the same opening entry above purely because, in this mock dataset, nothing
+// else touches the Bank Account before RECONCILED_AT (the only other Bank Account activity —
+// W2B withdrawals — is dated after it). It is NOT recomputed from live ledger activity, so it
+// genuinely drifts from the live Bank Account balance once something happens after this date,
+// exactly like a real statement would until the next one arrives.
+export const TRUST_ACCOUNT_BALANCE = OPENING_CUSTOMER_WALLET_TOTAL + OPENING_CASHIER_FLOAT_TOTAL
+
+/** One journal entry per transaction, plus the opening entry above. Failed transactions never post — nothing moved. */
+export const journalEntries: JournalEntry[] = [
+  openingBalanceEntry,
+  ...transactions.filter((tx) => tx.status !== 'Failed').map((tx) => ({
     id: `JE-${tx.id.replace('TXN-', '')}`,
     timestamp: `${tx.date}T${tx.time}:00Z`,
     referenceTxnId: tx.id,
     status: (tx.status === 'Successful' ? 'Posted' : 'Pending') as PostingStatus,
     description: describe(tx),
     lines: buildLines(tx),
-  }))
-  .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+  })),
+].sort((a, b) => b.timestamp.localeCompare(a.timestamp))
 
 export const getEntryTotals = (entry: JournalEntry) => {
   const totalDebit = entry.lines.reduce((sum, line) => sum + line.debit, 0)
