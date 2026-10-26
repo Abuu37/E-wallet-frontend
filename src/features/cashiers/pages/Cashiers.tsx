@@ -35,6 +35,7 @@ import CashierRegisterForm from './CashierRegisterForm'
 import { cashiers as initialCashiers, type Cashier, type CashierStatus } from '../data'
 import { daysSince, getCashierStatus, getLastActiveDate } from '../status'
 import { transactions } from '../../transactions/data'
+import { getCashierFloatBalance } from '../../ledger/data'
 
 const statusVariant = {
   Active: 'positive',
@@ -129,7 +130,7 @@ export default function Cashiers() {
         (digitsQuery.length > 0 && cashier.phone.replace(/\D/g, '').includes(digitsQuery))
       const matchesStatus = status === 'All' || getCashierStatus(cashier) === status
       const matchesFloatHealth =
-        floatHealthFilter === 'All' || getFloatHealth(cashier.floatBalance).label === floatHealthFilter
+        floatHealthFilter === 'All' || getFloatHealth(getCashierFloatBalance(cashier)).label === floatHealthFilter
       return matchesQuery && matchesStatus && matchesFloatHealth
     })
   }, [cashiers, query, status, floatHealthFilter])
@@ -146,11 +147,12 @@ export default function Cashiers() {
         case 'name':
           return a.name.localeCompare(b.name) * direction
         case 'floatBalance':
-          return (a.floatBalance - b.floatBalance) * direction
+          return (getCashierFloatBalance(a) - getCashierFloatBalance(b)) * direction
         case 'floatHealth':
           return (
-            getFloatHealth(a.floatBalance).label.localeCompare(getFloatHealth(b.floatBalance).label) *
-            direction
+            getFloatHealth(getCashierFloatBalance(a)).label.localeCompare(
+              getFloatHealth(getCashierFloatBalance(b)).label,
+            ) * direction
           )
         case 'commissionBalance':
           return (a.commissionPayable - b.commissionPayable) * direction
@@ -196,8 +198,8 @@ export default function Cashiers() {
   const idleCount = cashiers.filter((cashier) => getCashierStatus(cashier) === 'Idle').length
   const dormantCount = cashiers.filter((cashier) => getCashierStatus(cashier) === 'Dormant').length
   const blockedCount = cashiers.filter((cashier) => getCashierStatus(cashier) === 'Blocked').length
-  const lowFloatCount = cashiers.filter((cashier) => cashier.floatBalance < LOW_FLOAT_THRESHOLD).length
-  const totalFloat = cashiers.reduce((sum, cashier) => sum + cashier.floatBalance, 0)
+  const lowFloatCount = cashiers.filter((cashier) => getCashierFloatBalance(cashier) < LOW_FLOAT_THRESHOLD).length
+  const totalFloat = cashiers.reduce((sum, cashier) => sum + getCashierFloatBalance(cashier), 0)
   const totalCommission = cashiers.reduce((sum, cashier) => sum + cashier.commissionPayable, 0)
 
   const resetToFirstPage = () => setPage(1)
@@ -543,7 +545,7 @@ export default function Cashiers() {
             </thead>
             <tbody className="divide-y divide-line">
               {pageItems.map((cashier, index) => {
-                const floatHealth = getFloatHealth(cashier.floatBalance)
+                const floatHealth = getFloatHealth(getCashierFloatBalance(cashier))
                 const txCount = transactions.filter((tx) => tx.recipientName === cashier.name).length
                 const cashierStatus = getCashierStatus(cashier)
                 const lastActiveDate = getLastActiveDate(cashier)
@@ -562,7 +564,7 @@ export default function Cashiers() {
                     <td className="whitespace-nowrap px-4 py-3.5 font-medium text-ink">{cashier.name}</td>
                     <td className="whitespace-nowrap px-4 py-3.5 font-mono text-ink/70">{cashier.phone}</td>
                     <td className="whitespace-nowrap px-4 py-3.5 text-right font-semibold text-ink">
-                      {formatAmount(cashier.floatBalance)}
+                      {formatAmount(getCashierFloatBalance(cashier))}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5">
                       <StatusBadge status={floatHealth.variant} label={floatHealth.label} />
@@ -728,7 +730,7 @@ export default function Cashiers() {
               <p className="flex items-center gap-1.5 text-xs font-medium text-muted">
                 <Landmark size={14} /> Assigned Float
               </p>
-              <p className="mt-1 text-3xl font-extrabold text-ink">{formatAmount(selected.floatBalance)}</p>
+              <p className="mt-1 text-3xl font-extrabold text-ink">{formatAmount(getCashierFloatBalance(selected))}</p>
             </div>
 
             <div>

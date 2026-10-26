@@ -13,7 +13,6 @@ import {
   EyeOff,
   Briefcase,
   Landmark,
-  Wallet,
   Shield,
   Info,
   CheckCircle2,
@@ -75,9 +74,6 @@ export default function CashierRegisterForm({
   const [branch, setBranch] = useState(initialCashier?.branch ?? branchOptions[0])
   const terminal = initialCashier?.terminal ?? ''
   const [floatAccount, setFloatAccount] = useState(initialCashier?.floatAccount ?? '')
-  const [assignedFloat, setAssignedFloat] = useState(
-    initialCashier ? String(initialCashier.floatBalance) : '',
-  )
   const [permissions, setPermissions] = useState<CashierPermissions>(
     initialCashier?.permissions ?? defaultPermissions,
   )
@@ -101,7 +97,7 @@ export default function CashierRegisterForm({
       terminal: terminal.trim() || initialCashier?.terminal || `TILL-${id.replace('CSH-', '')}`,
       floatAccount: floatAccount.trim() || initialCashier?.floatAccount || `FA-${id.replace('CSH-', '')}`,
       commissionAccount: initialCashier?.commissionAccount || `CA-${id.replace('CSH-', '')}`,
-      floatBalance: Number(assignedFloat) || initialCashier?.floatBalance || 0,
+      openingFloatBalance: initialCashier?.openingFloatBalance ?? 0,
       todayCashIn: initialCashier?.todayCashIn ?? 0,
       todayCashOut: initialCashier?.todayCashOut ?? 0,
       commissionPayable: initialCashier?.commissionPayable ?? 0,
@@ -358,22 +354,6 @@ export default function CashierRegisterForm({
           </div>
           <div>
             <label className="text-xs font-medium text-muted">
-              Assigned Float Amount <span className="text-red-500">*</span>
-            </label>
-            <div className="relative mt-1">
-              <Wallet size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-              <input
-                type="number"
-                step="0.01"
-                value={assignedFloat}
-                onChange={(event) => setAssignedFloat(event.target.value)}
-                placeholder="e.g. 5000000"
-                className={inputClass}
-              />
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted">
               Branch <span className="text-red-500">*</span>
             </label>
             <select
@@ -393,8 +373,8 @@ export default function CashierRegisterForm({
         <div className="mt-4 flex items-start gap-2 rounded-xl bg-green-50 p-3 text-xs text-green-800">
           <CheckCircle2 size={14} className="mt-0.5 shrink-0" />
           <p>
-            A float wallet will be created and linked to this cashier. The assigned amount will be
-            available for transactions.
+            A float wallet will be created and linked to this cashier. Use the "Top-Up Cashier
+            Float" quick action afterward to assign starting float.
           </p>
         </div>
       </div>

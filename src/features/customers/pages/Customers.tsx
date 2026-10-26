@@ -28,6 +28,7 @@ import SortIcon, { type SortDirection } from '../../../components/ui/SortIcon'
 import { customers as initialCustomers, type Customer, type CustomerStatus } from '../data'
 import { daysSince, getCustomerStatus, getLastActiveDate } from '../status'
 import { transactions, formatTxDateTime } from '../../transactions/data'
+import { getCustomerBalance } from '../../ledger/data'
 import { maskAccount } from '../../../utils/mask'
 
 const statusVariant = {
@@ -82,7 +83,6 @@ export default function Customers() {
   const [editName, setEditName] = useState('')
   const [editEmail, setEditEmail] = useState('')
   const [editPhone, setEditPhone] = useState('')
-  const [editBalance, setEditBalance] = useState('')
   const [actionMenu, setActionMenu] = useState<ActionMenuState | null>(null)
   const menuButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
 
@@ -110,7 +110,7 @@ export default function Customers() {
         case 'name':
           return a.name.localeCompare(b.name) * direction
         case 'balance':
-          return (a.balance - b.balance) * direction
+          return (getCustomerBalance(a) - getCustomerBalance(b)) * direction
         case 'transactions':
           return (txCountOf(a) - txCountOf(b)) * direction
         case 'lastActive':
@@ -158,7 +158,7 @@ export default function Customers() {
   )
 
   const totalCustomers = customers.length
-  const totalBalance = customers.reduce((sum, customer) => sum + customer.balance, 0)
+  const totalBalance = customers.reduce((sum, customer) => sum + getCustomerBalance(customer), 0)
   const activeCount = customers.filter((customer) => getCustomerStatus(customer) === 'Active').length
   const inactiveCount = customers.filter((customer) => getCustomerStatus(customer) === 'Inactive').length
   const dormantCount = customers.filter((customer) => getCustomerStatus(customer) === 'Dormant').length
@@ -191,7 +191,6 @@ export default function Customers() {
     setEditName(customer.name)
     setEditEmail(customer.email)
     setEditPhone(customer.phone)
-    setEditBalance(String(customer.balance))
     setEditOpen(true)
     closeActionMenu()
   }
@@ -215,7 +214,6 @@ export default function Customers() {
               name: editName.trim() || customer.name,
               email: editEmail.trim() || customer.email,
               phone: editPhone.trim() || customer.phone,
-              balance: Number(editBalance) || 0,
             }
           : customer,
       ),
@@ -395,7 +393,7 @@ export default function Customers() {
                     <td className="px-6 py-3.5 font-medium text-ink">{customer.name}</td>
                     <td className="px-6 py-3.5 font-mono text-ink/70">{maskAccount(customer.phone)}</td>
                     <td className="px-6 py-3.5 text-right font-semibold text-ink">
-                      {formatAmount(customer.balance)}
+                      {formatAmount(getCustomerBalance(customer))}
                     </td>
                     <td className="px-6 py-3.5 text-right">
                       <button
@@ -529,7 +527,7 @@ export default function Customers() {
               <p className="flex items-center gap-1.5 text-xs font-medium text-muted">
                 <Wallet size={14} /> Wallet Balance
               </p>
-              <p className="mt-1 text-3xl font-extrabold text-ink">{formatAmount(selected.balance)}</p>
+              <p className="mt-1 text-3xl font-extrabold text-ink">{formatAmount(getCustomerBalance(selected))}</p>
             </div>
 
             <div>
@@ -672,16 +670,6 @@ export default function Customers() {
               type="text"
               value={editPhone}
               onChange={(event) => setEditPhone(event.target.value)}
-              className="mt-1 w-full rounded-xl border border-transparent bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 ring-line focus:border-brand"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted">Wallet balance</label>
-            <input
-              type="number"
-              step="0.01"
-              value={editBalance}
-              onChange={(event) => setEditBalance(event.target.value)}
               className="mt-1 w-full rounded-xl border border-transparent bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 ring-line focus:border-brand"
             />
           </div>
