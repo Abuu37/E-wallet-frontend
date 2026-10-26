@@ -51,7 +51,6 @@ import {
   type VolumeRange,
 } from '../data'
 import { transactions, getAmountTone, formatTxDateTime } from '../../transactions/data'
-import { floatManagement } from '../../financial/data'
 import { chartOfAccounts, getAccountBalance, TRUST_ACCOUNT_BALANCE } from '../../ledger/data'
 import { maskAccount } from '../../../utils/mask'
 
@@ -226,8 +225,6 @@ export default function Overview() {
     setTxDrawerOpen(true)
   }
 
-  const companyWallet = floatManagement.find((account) => account.label === 'Company Wallet')
-
   const totalTypeShare = transactionByType.reduce((sum, entry) => sum + entry.value, 0)
 
   // Same figures as the Company Wallet screen — see features/wallets/pages/CompanyWallet.tsx.
@@ -276,8 +273,8 @@ export default function Overview() {
         <StatCard
           icon={Building2}
           tone="positive"
-          label="Company Wallet"
-          value={currency(companyWallet?.value ?? 0)}
+          label="Company Equity"
+          value={currency(companyEquity)}
         />
       </div>
 

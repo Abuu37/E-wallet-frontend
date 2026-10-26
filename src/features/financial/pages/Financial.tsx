@@ -83,7 +83,7 @@ const quickActions = [
 ] as const
 
 const floatIcon = {
-  'Company Wallet': Banknote,
+  'Company Equity': Banknote,
   'Customer Wallet': Wallet,
   'Cashier Float': UserCog,
 } as const
@@ -211,12 +211,15 @@ export default function Financial() {
     const account = chartOfAccounts.find((item) => item.id === accountId)
     return account ? getAccountBalance(account) : 0
   }
-  const companyWalletBalance = balanceOf('4000') - balanceOf('5000')
+  // Fee income minus commission expense — the company's own retained earnings, not a wallet
+  // balance like the two rows below it. Kept here as "Equity" (matching the Company Wallet
+  // page's own terminology) rather than "Company Wallet", since it isn't money anyone's owed.
+  const companyEquityBalance = balanceOf('4000') - balanceOf('5000')
   const customerWalletBalance = customers.reduce((sum, c) => sum + getCustomerBalance(c), 0)
   const cashierFloatBalance = cashiers.reduce((sum, c) => sum + getCashierFloatBalance(c), 0)
 
   const floatRows = [
-    { label: 'Company Wallet' as const, value: companyWalletBalance },
+    { label: 'Company Equity' as const, value: companyEquityBalance },
     { label: 'Customer Wallet' as const, value: customerWalletBalance },
     { label: 'Cashier Float' as const, value: cashierFloatBalance },
   ]
@@ -250,7 +253,7 @@ export default function Financial() {
         <StatCard
           icon={Wallet}
           tone="brand"
-          label="Total Wallet Balance"
+          label="Net E-Money Movement"
           value={currency(getTotalWalletBalance(transactions))}
         />
         <StatCard

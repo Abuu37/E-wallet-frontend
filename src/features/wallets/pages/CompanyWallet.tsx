@@ -45,7 +45,7 @@ export default function CompanyWallet() {
   // Assets = Liabilities + Equity. If the real bank balance ever stops matching this,
   // something is wrong — money is unaccounted for, or missing.
   const reconciliationDifference = TRUST_ACCOUNT_BALANCE - (emoneyLiabilities + equity)
-  const isBalanced = reconciliationDifference === 0
+  const isBalanced = Math.abs(reconciliationDifference) < 0.01
 
   const byType = typeOrder.map((type) => {
     const rows = transactions.filter((tx) => tx.type === type && tx.status !== 'Failed')

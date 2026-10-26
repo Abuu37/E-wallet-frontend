@@ -126,6 +126,7 @@ export default function Ledger() {
     [],
   )
   const balanceDiff = ledgerTotals.debit - ledgerTotals.credit
+  const isBalanced = Math.abs(balanceDiff) < 0.01
 
   if (view === 'detail' && selected && selectedTotals) {
     return (
@@ -268,11 +269,11 @@ export default function Ledger() {
         />
         <StatCard
           icon={Scale}
-          tone={balanceDiff === 0 ? 'positive' : 'negative'}
+          tone={isBalanced ? 'positive' : 'negative'}
           label="Balance Check"
           value={formatAmount(balanceDiff)}
           delta={0}
-          deltaLabel={balanceDiff === 0 ? 'Books are balanced' : 'Debits ≠ credits — investigate'}
+          deltaLabel={isBalanced ? 'Books are balanced' : 'Debits ≠ credits — investigate'}
         />
       </div>
 
