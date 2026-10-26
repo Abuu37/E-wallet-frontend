@@ -5,6 +5,8 @@ import {
   getCommission,
   type Transaction,
 } from '../transactions/data'
+import type { Customer } from '../customers/data'
+import type { Cashier } from '../cashiers/data'
 
 export type AccountCategory = 'Asset' | 'Liability' | 'Equity' | 'Revenue' | 'Expense'
 export type PostingStatus = 'Posted' | 'Pending'
@@ -157,7 +159,7 @@ export const journalEntries: JournalEntry[] = transactions
     id: `JE-${tx.id.replace('TXN-', '')}`,
     timestamp: `${tx.date}T${tx.time}:00Z`,
     referenceTxnId: tx.id,
-    status: tx.status === 'Successful' ? 'Posted' : 'Pending',
+    status: (tx.status === 'Successful' ? 'Posted' : 'Pending') as PostingStatus,
     description: describe(tx),
     lines: buildLines(tx),
   }))
@@ -228,3 +230,11 @@ export const getCashierLedgerMovement = (floatAccount: string) => {
   }
   return movement
 }
+
+/** A customer's displayed wallet balance: their opening balance plus their own ledger movement. */
+export const getCustomerBalance = (customer: Customer) =>
+  customer.openingBalance + getCustomerLedgerMovement(customer.id)
+
+/** A cashier's displayed float balance: their opening float plus their own ledger movement. */
+export const getCashierFloatBalance = (cashier: Cashier) =>
+  cashier.openingFloatBalance + getCashierLedgerMovement(cashier.floatAccount)
