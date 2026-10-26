@@ -1,7 +1,7 @@
 import { cashiers } from '../cashiers/data'
 
 export type TxStatus = 'Successful' | 'Pending' | 'Failed'
-export type TxType = 'W2W' | 'Cash In' | 'Cash Out' | 'Loan Disbursement' | 'Loan Repayment'
+export type TxType = 'W2W' | 'Cash In' | 'Cash Out' | 'W2B' | 'Loan Disbursement' | 'Loan Repayment'
 export type TxChannel = 'Web App' | 'USSD' | 'Agent'
 
 export interface Transaction {
@@ -56,7 +56,7 @@ export const formatTxDateTime = (tx: Pick<Transaction, 'date' | 'time'>, now: Da
 /** Amount text color by transaction type: Cash In is money coming in (green), Cash Out is money going out (red). */
 export const getAmountTone = (type: TxType) => {
   if (type === 'Cash In') return 'text-green-700'
-  if (type === 'Cash Out') return 'text-red-600'
+  if (type === 'Cash Out' || type === 'W2B') return 'text-red-600'
   return 'text-ink'
 }
 
@@ -137,6 +137,31 @@ export const getTotalWalletBalance = (txs: Transaction[]) =>
 export const getCashierId = (name?: string) =>
   (name && cashiers.find((cashier) => cashier.name === name)?.id) || '—'
 
+// Fixed categorical display order — kept separate from the live counts below so chart color
+// adjacency (picked per type, not per value) never has to be re-validated when volumes change.
+export const TX_TYPE_ORDER: TxType[] = [
+  'W2W',
+  'Cash Out',
+  'W2B',
+  'Cash In',
+  'Loan Disbursement',
+  'Loan Repayment',
+]
+
+/**
+ * Each type's share of all Successful transactions, as a rounded percentage — Pending/Failed
+ * are excluded from both the count and the denominator, matching how "Total Transactions" is
+ * defined elsewhere (Overview). Order follows TX_TYPE_ORDER regardless of volume.
+ */
+export const getTransactionTypeShare = (txs: Transaction[]) => {
+  const successful = txs.filter((tx) => tx.status === 'Successful')
+  const total = successful.length
+  return TX_TYPE_ORDER.map((type) => {
+    const count = successful.filter((tx) => tx.type === type).length
+    return { type, value: total > 0 ? Math.round((count / total) * 100) : 0 }
+  })
+}
+
 // Amounts are whole TZS (no cents) with a realistic floor of TSh 10,000 per transaction.
 export const transactions: Transaction[] = [
   { id: 'TXN-98214', customer: 'Grace Mwangi', phone: '+255 755 442 118', type: 'Loan Repayment', channel: 'Web App', amount: 5000, fee: 0, status: 'Successful', date: '2026-09-28', time: '16:42', recipientName: 'Loan LN-3012', recipientAccount: 'LN-3012', customerId: 'CUS-1003' },
@@ -157,4 +182,6 @@ export const transactions: Transaction[] = [
   { id: 'TXN-97907', customer: 'Hassan Kitwana', phone: '+255 713 902 448', type: 'Cash Out', channel: 'Agent', amount: 31000, fee: 300, status: 'Successful', date: '2026-10-20', time: '10:40', recipientName: 'Neema Komba', recipientAccount: 'FA-384032', customerId: 'CUS-1010' },
   { id: 'TXN-97908', customer: 'John Foxton', phone: '+255 712 003 221', type: 'Cash In', channel: 'Agent', amount: 12000, fee: 0, status: 'Successful', date: '2026-09-01', time: '15:03', recipientName: 'Yusuf Abdallah', recipientAccount: 'FA-384033', customerId: 'CUS-1002' },
   { id: 'TXN-97909', customer: 'Asha Juma', phone: '+255 617 812 845', type: 'Cash In', channel: 'Agent', amount: 14000, fee: 0, status: 'Successful', date: '2026-10-20', time: '11:17', recipientName: 'Grace Lyimo', recipientAccount: 'FA-384034', customerId: 'CUS-1001' },
+  { id: 'TXN-98301', customer: 'Grace Mwangi', phone: '+255 755 442 118', type: 'W2B', channel: 'Web App', amount: 50000, fee: 1000, status: 'Successful', date: '2026-10-24', time: '10:15', recipientName: 'NMB Bank', recipientAccount: '0142220099881', customerId: 'CUS-1003' },
+  { id: 'TXN-98302', customer: 'Peter Mushi', phone: '+255 688 990 004', type: 'W2B', channel: 'USSD', amount: 25000, fee: 0, status: 'Pending', date: '2026-10-25', time: '16:40', recipientName: 'CRDB Bank', recipientAccount: '0110123456789', customerId: 'CUS-1004' },
 ]

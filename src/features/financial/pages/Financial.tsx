@@ -22,6 +22,7 @@ import {
   RotateCcw,
   CirclePlus,
   FileText,
+  Landmark,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import StatCard from '../../../components/ui/StatCard'
@@ -52,6 +53,7 @@ const typeTone = {
   W2W: 'blue',
   'Cash In': 'green',
   'Cash Out': 'rose',
+  W2B: 'rose',
   'Loan Disbursement': 'orange',
   'Loan Repayment': 'amber',
 } as const
@@ -60,6 +62,7 @@ const txTypeIcon = {
   W2W: Send,
   'Cash In': ArrowDownRight,
   'Cash Out': ArrowUpRight,
+  W2B: Landmark,
   'Loan Disbursement': HandCoins,
   'Loan Repayment': HandCoins,
 } as const
@@ -68,6 +71,7 @@ const recipientLabel = {
   W2W: 'Recipient wallet',
   'Cash In': 'Served by (cashier)',
   'Cash Out': 'Served by (cashier)',
+  W2B: 'Bank account',
   'Loan Disbursement': 'Loan account',
   'Loan Repayment': 'Loan account',
 } as const

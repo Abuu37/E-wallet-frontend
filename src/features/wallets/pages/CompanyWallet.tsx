@@ -11,11 +11,12 @@ import {
 
 const LAST_RECONCILED_AT = '2026-10-22 08:00'
 
-const typeOrder: TxType[] = ['Cash In', 'Cash Out', 'W2W', 'Loan Disbursement', 'Loan Repayment']
+const typeOrder: TxType[] = ['Cash In', 'Cash Out', 'W2B', 'W2W', 'Loan Disbursement', 'Loan Repayment']
 
 const typeTone: Record<TxType, 'green' | 'rose' | 'blue' | 'orange' | 'amber'> = {
   'Cash In': 'green',
   'Cash Out': 'rose',
+  W2B: 'rose',
   W2W: 'blue',
   'Loan Disbursement': 'orange',
   'Loan Repayment': 'amber',

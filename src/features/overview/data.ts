@@ -93,13 +93,16 @@ export interface TransactionTypeShare {
 }
 
 // Fixed categorical order, validated adjacency (incl. circular pie wrap). Never reassign hues.
-export const transactionByType: TransactionTypeShare[] = [
-  { type: 'W2W', value: 34, color: '#2563eb' },
-  { type: 'Cash Out', value: 22, color: 'var(--color-chart-orange)' },
-  { type: 'Cash In', value: 18, color: 'var(--color-chart-aqua)' },
-  { type: 'Loan Disbursement', value: 12, color: 'var(--color-chart-amber)' },
-  { type: 'Loan Repayment', value: 6, color: 'var(--color-chart-green)' },
-]
+// Values (percentage shares) are computed live from real transactions — see
+// getTransactionTypeShare in features/transactions/data.ts; this only fixes each type's color.
+export const transactionTypeColor: Record<string, string> = {
+  W2W: '#2563eb',
+  'Cash Out': 'var(--color-chart-orange)',
+  W2B: 'var(--color-chart-red)',
+  'Cash In': 'var(--color-chart-aqua)',
+  'Loan Disbursement': 'var(--color-chart-amber)',
+  'Loan Repayment': 'var(--color-chart-green)',
+}
 
 export const walletOverview = {
   activeWallets: 9342,

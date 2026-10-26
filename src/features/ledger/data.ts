@@ -41,6 +41,7 @@ export interface JournalEntry {
 export const TRUST_ACCOUNT_BALANCE = 3_800_000
 
 export const chartOfAccounts: Account[] = [
+  { id: '1010', name: 'Bank Account', category: 'Asset' },
   { id: '1020', name: 'Loans Receivable', category: 'Asset' },
   { id: '2000', name: 'Customer Wallet', category: 'Liability' },
   { id: '2005', name: 'Cashier Float Wallet', category: 'Liability' },
@@ -76,6 +77,16 @@ const cashierFloatLine = (debit: number, credit: number): JournalLine => ({
   credit,
 })
 
+// W2B pays out to a real external bank account, so — unlike Cash In/Out, which only ever
+// move between two internal liability wallets — it needs an actual asset account on the
+// other side of the entry: the company's own bank balance genuinely decreases.
+const bankAccountLine = (debit: number, credit: number): JournalLine => ({
+  accountId: '1010',
+  accountName: accountName('1010'),
+  debit,
+  credit,
+})
+
 /** Splits a recognized fee into net Fee Income and the excise tax owed on it, as matched credit lines. */
 const feeLines = (fee: number): JournalLine[] => {
   if (fee <= 0) return []
@@ -93,6 +104,8 @@ const describe = (tx: Transaction) => {
       return `Cash deposit via ${tx.channel} — served by ${tx.recipientName ?? 'cashier'}`
     case 'Cash Out':
       return `Cash withdrawal via ${tx.channel} — served by ${tx.recipientName ?? 'cashier'}`
+    case 'W2B':
+      return `Wallet-to-bank withdrawal to ${tx.recipientName ?? 'bank account'}`
     case 'W2W':
       return `Wallet-to-wallet transfer to ${tx.recipientName ?? 'recipient'}`
     case 'Loan Disbursement':
@@ -127,6 +140,11 @@ const buildLines = (tx: Transaction): JournalLine[] => {
     case 'Cash Out':
       lines.push(walletLine(tx.amount, 0))
       lines.push(cashierFloatLine(0, tx.amount - fee))
+      lines.push(...feeLines(fee))
+      break
+    case 'W2B':
+      lines.push(walletLine(tx.amount, 0))
+      lines.push(bankAccountLine(0, tx.amount - fee))
       lines.push(...feeLines(fee))
       break
     case 'W2W':

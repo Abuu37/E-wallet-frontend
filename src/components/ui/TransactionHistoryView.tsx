@@ -18,6 +18,7 @@ import {
   Globe,
   Percent,
   CalendarDays,
+  Landmark,
 } from 'lucide-react'
 import TypeBadge from './TypeBadge'
 import StatusBadge, { type StatusBadgeVariant } from './StatusBadge'
@@ -47,6 +48,7 @@ const txTypeIcon: Record<TxType, typeof Send> = {
   W2W: Send,
   'Cash In': ArrowDownRight,
   'Cash Out': ArrowUpRight,
+  W2B: Landmark,
   'Loan Disbursement': HandCoins,
   'Loan Repayment': HandCoins,
 }
@@ -55,6 +57,7 @@ const typeTone = {
   W2W: 'blue',
   'Cash In': 'green',
   'Cash Out': 'rose',
+  W2B: 'rose',
   'Loan Disbursement': 'orange',
   'Loan Repayment': 'amber',
 } as const
@@ -63,6 +66,7 @@ const recipientLabel: Record<TxType, string> = {
   W2W: 'Recipient wallet',
   'Cash In': 'Served by (cashier)',
   'Cash Out': 'Served by (cashier)',
+  W2B: 'Bank account',
   'Loan Disbursement': 'Loan account',
   'Loan Repayment': 'Loan account',
 }
@@ -73,6 +77,7 @@ const txTypeOptions: Array<TxType | 'All'> = [
   'W2W',
   'Cash In',
   'Cash Out',
+  'W2B',
   'Loan Disbursement',
   'Loan Repayment',
 ]
