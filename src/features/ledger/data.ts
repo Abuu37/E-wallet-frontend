@@ -184,3 +184,47 @@ export const getAccountBalance = (account: Account) => {
   const isDebitNormal = account.category === 'Asset' || account.category === 'Expense'
   return isDebitNormal ? totalDebit - totalCredit : totalCredit - totalDebit
 }
+
+const resolveTx = (entry: JournalEntry) => transactions.find((tx) => tx.id === entry.referenceTxnId)
+
+/**
+ * Net Customer Wallet (2000) movement a specific customer's own transactions contributed to the
+ * ledger. W2W entries carry both a sender's debit and a recipient's credit on the same entry, so
+ * only the line matching this customer's role (sender vs. recipient) is counted — otherwise a W2W
+ * transfer would double-count into both parties' movement. Every other transaction type only ever
+ * touches one customer, so its single 2000 line is taken whichever side it's on.
+ */
+export const getCustomerLedgerMovement = (customerId: string) => {
+  let movement = 0
+  for (const entry of journalEntries) {
+    const tx = resolveTx(entry)
+    if (!tx) continue
+    for (const line of entry.lines) {
+      if (line.accountId !== '2000') continue
+      const included =
+        tx.type === 'W2W'
+          ? (tx.customerId === customerId && line.debit > 0) ||
+            (tx.recipientCustomerId === customerId && line.credit > 0)
+          : tx.customerId === customerId
+      if (included) movement += line.credit - line.debit
+    }
+  }
+  return movement
+}
+
+/**
+ * Net Cashier Float Wallet (2005) movement a specific cashier's float account contributed to the
+ * ledger. Cash In/Cash Out only ever touch one cashier's float per transaction, so no
+ * sender/recipient split is needed here.
+ */
+export const getCashierLedgerMovement = (floatAccount: string) => {
+  let movement = 0
+  for (const entry of journalEntries) {
+    const tx = resolveTx(entry)
+    if (!tx || tx.recipientAccount !== floatAccount) continue
+    for (const line of entry.lines) {
+      if (line.accountId === '2005') movement += line.credit - line.debit
+    }
+  }
+  return movement
+}
