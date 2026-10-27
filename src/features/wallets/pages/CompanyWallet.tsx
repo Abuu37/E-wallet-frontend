@@ -1,4 +1,4 @@
-import { Landmark, Scale, HandCoins, Banknote, ShieldCheck } from 'lucide-react'
+import { Landmark, Scale, HandCoins, Banknote } from 'lucide-react'
 import StatCard from '../../../components/ui/StatCard'
 import TypeBadge from '../../../components/ui/TypeBadge'
 import {
@@ -47,20 +47,6 @@ export default function CompanyWallet() {
 
   const commissionPayable = balanceOf('2010')
 
-  // Loans Receivable is also a real asset backing part of e-money liabilities (a disbursed
-  // loan increases a customer's wallet, backed by the loan itself, not by bank cash) — it has
-  // to be on the asset side too, or this check misreports "unbalanced" the moment loan activity
-  // doesn't net to exactly zero.
-  const loansReceivable = balanceOf('1020')
-
-  // Assets (Trust Account + Loans Receivable) = Liabilities + Equity. Trust Account Balance is
-  // a snapshot as of RECONCILED_AT, not live, so a nonzero difference here is expected and
-  // correct whenever something has touched the Bank Account since that date — it means exactly
-  // that much activity hasn't shown up on a bank statement yet, not that money is missing.
-  const reconciliationDifference =
-    TRUST_ACCOUNT_BALANCE + loansReceivable - (emoneyLiabilities + equity)
-  const isBalanced = Math.abs(reconciliationDifference) < 0.01
-
   const byType = typeOrder.map((type) => {
     const rows = transactions.filter((tx) => tx.type === type && tx.status !== 'Failed')
     const count = rows.length
@@ -94,7 +80,7 @@ export default function CompanyWallet() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard
           icon={Landmark}
           tone="brand"
@@ -115,13 +101,6 @@ export default function CompanyWallet() {
           label="Equity (Retained Earnings)"
           value={currency(equity)}
           deltaLabel="Net revenue earned, not yet paid out"
-        />
-        <StatCard
-          icon={ShieldCheck}
-          tone={isBalanced ? 'positive' : 'negative'}
-          label="Reconciliation Difference"
-          value={currency(reconciliationDifference)}
-          deltaLabel={isBalanced ? 'Books are balanced' : 'Unreconciled activity since last statement'}
         />
       </div>
 
