@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'motion/react'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -14,6 +14,7 @@ import {
   Percent,
   ShieldCheck,
   Settings,
+  LogOut,
   X,
 } from 'lucide-react'
 
@@ -51,15 +52,22 @@ const navGroups: Array<{ label: string | null; items: NavItem[] }> = [
       { to: '/dashboard/loans', label: 'Loans', icon: HandCoins },
       { to: '/dashboard/fees', label: 'Fees', icon: Percent },
       { to: '/dashboard/reconciliation', label: 'Reconciliation', icon: ShieldCheck },
+      { to: '/dashboard/settings', label: 'Settings', icon: Settings },
     ],
   },
 ]
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+  const navigate = useNavigate()
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
       isActive ? 'bg-brand text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'
     }`
+
+  const handleLogout = () => {
+    onNavigate?.()
+    navigate('/')
+  }
 
   return (
     <>
@@ -101,10 +109,14 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         ))}
 
         <div className="mt-auto border-t border-white/10 pt-3">
-          <NavLink to="/dashboard/settings" className={linkClass} onClick={onNavigate}>
-            <Settings size={18} />
-            Settings
-          </NavLink>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <LogOut size={18} />
+            Logout
+          </button>
         </div>
       </nav>
     </>
