@@ -19,6 +19,7 @@ export default function CustomerLayout() {
   const balance = getCustomerBalance(customer)
 
   const handleLogout = () => {
+    sessionStorage.removeItem('user')
     navigate('/')
   }
 

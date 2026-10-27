@@ -65,6 +65,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     }`
 
   const handleLogout = () => {
+    sessionStorage.removeItem('user')
     onNavigate?.()
     navigate('/')
   }

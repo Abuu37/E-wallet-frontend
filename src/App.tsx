@@ -28,6 +28,9 @@ import CustomerLayout from './components/layout/CustomerLayout'
 import AccountOverview from './features/account/pages/AccountOverview'
 import AccountWithdraw from './features/account/pages/AccountWithdraw'
 
+import ProtectedRoute from './features/auth/components/ProtectedRoute'
+
+
 const router = createBrowserRouter([
   {
     path: '/',
@@ -48,6 +51,12 @@ const router = createBrowserRouter([
     ],
   },
   {
+    element: (
+      <ProtectedRoute
+      allowedRoles={['Admin', 'Cashier']} />
+    ),
+    children: [
+      {
     path: '/dashboard',
     element: <DashboardLayout />,
     children: [
@@ -63,8 +72,20 @@ const router = createBrowserRouter([
       { path: 'reconciliation', element: <DashboardReconciliation /> },
       { path: 'settings', element: <DashboardSettings /> },
     ],
+
   },
+
+]
+ },
   {
+
+    element: (
+      <ProtectedRoute
+      allowedRoles={['Customer']}
+      />
+    ),
+    children: [
+      {
     path: '/account',
     element: <CustomerLayout />,
     children: [
@@ -72,6 +93,8 @@ const router = createBrowserRouter([
       { path: 'withdraw', element: <AccountWithdraw /> },
     ],
   },
+],
+},
 ])
 
 function App() {

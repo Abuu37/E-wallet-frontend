@@ -175,6 +175,7 @@ export default function DashboardTopbar({ onMenuClick }: DashboardTopbarProps) {
                 <button
                   type="button"
                   onClick={() => {
+                    sessionStorage.removeItem('user')
                     setProfileOpen(false)
                     navigate('/')
                   }}
