@@ -1,6 +1,8 @@
-import { Landmark, Scale, HandCoins, Banknote } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Landmark, Scale, HandCoins, Banknote, ShieldCheck, ChevronRight } from 'lucide-react'
 import StatCard from '../../../components/ui/StatCard'
 import TypeBadge from '../../../components/ui/TypeBadge'
+import StatusBadge from '../../../components/ui/StatusBadge'
 import {
   chartOfAccounts,
   getAccountBalance,
@@ -14,6 +16,7 @@ import {
   getCommission,
   type TxType,
 } from '../../transactions/data'
+import { reconciliationRuns } from '../../reconciliation/data'
 
 const typeOrder: TxType[] = ['Cash In', 'Cash Out', 'W2B', 'W2W', 'Loan Disbursement', 'Loan Repayment']
 
@@ -27,6 +30,14 @@ const typeTone: Record<TxType, 'green' | 'rose' | 'blue' | 'orange' | 'amber'> =
 }
 
 const currency = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
+
+const reconciliationStatusVariant = {
+  Balanced: 'positive',
+  Open: 'negative',
+  Investigating: 'warning',
+  Resolved: 'info',
+  'Written Off': 'neutral',
+} as const
 
 const balanceOf = (accountId: string) => {
   const account = chartOfAccounts.find((item) => item.id === accountId)
@@ -46,6 +57,10 @@ export default function CompanyWallet() {
   const equity = feeIncome - commissionExpense
 
   const commissionPayable = balanceOf('2010')
+
+  const lastReconciliation = [...reconciliationRuns]
+    .filter((run) => run.scope === 'Company')
+    .sort((a, b) => b.asOf.localeCompare(a.asOf))[0]
 
   const byType = typeOrder.map((type) => {
     const rows = transactions.filter((tx) => tx.type === type && tx.status !== 'Failed')
@@ -112,6 +127,30 @@ export default function CompanyWallet() {
           value={currency(commissionPayable)}
           deltaLabel="Owed to cashiers, not yet settled"
         />
+
+        <Link
+          to="/dashboard/reconciliation"
+          className="flex items-center gap-3 rounded-2xl bg-white p-6 ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand">
+            <ShieldCheck size={18} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-ink/80">Last Reconciliation</p>
+            {lastReconciliation ? (
+              <div className="mt-1 flex items-center gap-2">
+                <span className="text-sm font-bold text-ink">{currency(lastReconciliation.difference)}</span>
+                <StatusBadge
+                  status={reconciliationStatusVariant[lastReconciliation.status]}
+                  label={lastReconciliation.status}
+                />
+              </div>
+            ) : (
+              <p className="mt-1 text-sm font-bold text-ink">No runs yet</p>
+            )}
+          </div>
+          <ChevronRight size={18} className="shrink-0 text-muted" />
+        </Link>
       </div>
 
       <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">

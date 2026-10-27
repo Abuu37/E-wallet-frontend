@@ -22,6 +22,7 @@ import DashboardFinancial from './features/financial/pages/Financial'
 import DashboardLedger from './features/ledger/pages/Ledger'
 import DashboardLoans from './features/loans/pages/Loans'
 import DashboardFees from './features/fees/pages/Fees'
+import DashboardReconciliation from './features/reconciliation/pages/Reconciliation'
 import DashboardSettings from './features/settings/pages/Settings'
 
 const router = createBrowserRouter([
@@ -56,6 +57,7 @@ const router = createBrowserRouter([
       { path: 'ledger', element: <DashboardLedger /> },
       { path: 'loans', element: <DashboardLoans /> },
       { path: 'fees', element: <DashboardFees /> },
+      { path: 'reconciliation', element: <DashboardReconciliation /> },
       { path: 'settings', element: <DashboardSettings /> },
     ],
   },

@@ -12,6 +12,7 @@ import {
   Scale,
   HandCoins,
   Percent,
+  ShieldCheck,
   Settings,
   X,
 } from 'lucide-react'
@@ -49,6 +50,7 @@ const navGroups: Array<{ label: string | null; items: NavItem[] }> = [
       { to: '/dashboard/ledger', label: 'Ledger', icon: Scale },
       { to: '/dashboard/loans', label: 'Loans', icon: HandCoins },
       { to: '/dashboard/fees', label: 'Fees', icon: Percent },
+      { to: '/dashboard/reconciliation', label: 'Reconciliation', icon: ShieldCheck },
     ],
   },
 ]
