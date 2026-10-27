@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { UserCog, Landmark, CheckCircle2, AlertCircle, Wallet, CreditCard } from 'lucide-react'
 import StatusBadge from '../../../components/ui/StatusBadge'
-import { getCurrentCustomer } from '../../auth/session'
+import { customers } from '../../customers/data'
 import { getCustomerBalance } from '../../ledger/data'
 import type { Transaction } from '../../transactions/data'
 
@@ -12,8 +12,11 @@ const bankOptions = ['NMB Bank', 'CRDB Bank', 'NBC Bank', 'Stanbic Bank', 'Equit
 const fieldClass =
   'mt-1 w-full rounded-xl border border-transparent bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 ring-line focus:border-brand'
 
+// No login session is tracked for the customer view — a fixed demo account, same approach
+// as the staff dashboard's own hardcoded currentUser in DashboardTopbar.
+const customer = customers[0]
+
 export default function AccountWithdraw() {
-  const { customer } = getCurrentCustomer()
   const balance = getCustomerBalance(customer)
 
   const [amount, setAmount] = useState('')

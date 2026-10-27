@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { Wallet, Landmark, ChevronRight, ArrowDownRight, ArrowUpRight, Send } from 'lucide-react'
 import StatusBadge from '../../../components/ui/StatusBadge'
 import TypeBadge from '../../../components/ui/TypeBadge'
-import { getCurrentCustomer } from '../../auth/session'
+import { customers } from '../../customers/data'
 import { getCustomerBalance } from '../../ledger/data'
 import { getCustomerTransactions } from '../../customers/status'
 import { formatTxDateTime, type TxType } from '../../transactions/data'
@@ -42,8 +42,11 @@ const txIconBg: Record<TxType, string> = {
   'Loan Repayment': 'bg-amber-50 text-amber-600',
 }
 
+// No login session is tracked for the customer view — a fixed demo account, same approach
+// as the staff dashboard's own hardcoded currentUser in DashboardTopbar.
+const customer = customers[0]
+
 export default function AccountOverview() {
-  const { customer } = getCurrentCustomer()
   const balance = getCustomerBalance(customer)
   const recent = [...getCustomerTransactions(customer)]
     .sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`))

@@ -8,7 +8,6 @@ import paymentImage from '../../../assets/imgs/payment-img1.jpg'
 import appScreenImage from '../../../assets/imgs/image 2.avif'
 import { customers } from '../../customers/data'
 import { cashiers } from '../../cashiers/data'
-import { setCurrentCustomerId } from '../session'
 
 const normalizePhone = (value: string) => value.replace(/\s+/g, '')
 
@@ -27,19 +26,13 @@ export default function Login() {
   const [activeSlide, setActiveSlide] = useState(0)
   const [phone, setPhone] = useState('')
 
-  // One form for everyone — who you are is resolved from the phone number, not a role you
-  // picked. A real backend would authenticate the phone+PIN and return the account's actual
-  // role; this frontend-only app simulates that by checking the phone against the real
-  // customer and cashier records. No match in either means there's no staff record for this
-  // phone either (there's no seeded Admin list at all), so it falls back to the admin view —
-  // same "admin is the catch-all" behavior this app already had before customer login existed.
+  
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     const typed = normalizePhone(phone)
     const customerMatch = customers.find((customer) => normalizePhone(customer.phone) === typed)
     if (customerMatch) {
-      setCurrentCustomerId(customerMatch.id)
       navigate('/account')
       return
     }

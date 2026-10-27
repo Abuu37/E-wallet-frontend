@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { CreditCard, LayoutDashboard, Landmark, LogOut, Info } from 'lucide-react'
-import { getCurrentCustomer, clearSession } from '../../features/auth/session'
+import { CreditCard, LayoutDashboard, Landmark, LogOut } from 'lucide-react'
+import { customers } from '../../features/customers/data'
 import { getCustomerBalance } from '../../features/ledger/data'
 
 const currency = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
@@ -10,13 +10,15 @@ const navItems = [
   { to: '/account/withdraw', label: 'Withdraw', icon: Landmark },
 ]
 
+// No login session is tracked for the customer view — same as the staff dashboard's own
+// hardcoded currentUser in DashboardTopbar, this is a fixed demo account, not a real identity.
+const customer = customers[0]
+
 export default function CustomerLayout() {
   const navigate = useNavigate()
-  const { customer, isFallback } = getCurrentCustomer()
   const balance = getCustomerBalance(customer)
 
   const handleLogout = () => {
-    clearSession()
     navigate('/')
   }
 
@@ -28,12 +30,6 @@ export default function CustomerLayout() {
   return (
     <div className="min-h-screen bg-surface">
       <header className="sticky top-0 z-30 border-b border-line bg-white/90 backdrop-blur">
-        {isFallback && (
-          <div className="flex items-center gap-2 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-800">
-            <Info size={14} className="shrink-0" />
-            No one's logged in — showing {customer.name}'s account as a demo preview.
-          </div>
-        )}
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-4">
           <div className="flex items-center gap-2 text-lg font-extrabold tracking-tight text-ink">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-white">
