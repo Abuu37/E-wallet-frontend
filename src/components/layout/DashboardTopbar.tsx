@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { Menu, ChevronDown, Settings, LogOut, Bell, AlertTriangle, Info, Clock } from 'lucide-react'
+import { cashiers } from '../../features/cashiers/data'
 
 interface DashboardTopbarProps {
   onMenuClick: () => void
@@ -34,13 +35,43 @@ function getGreeting() {
   return 'Good evening'
 }
 
-const currentUser = {
+const defaultUser = {
   name: 'Code Abuu',
   initials: 'CA',
 }
 
+/**
+ * Resolves to the real logged-in cashier's name when mockAuth's session says so, falling back
+ * to the generic Admin placeholder otherwise. Called fresh on every render (not module scope)
+ * so it reflects whoever actually just logged in, not whatever sessionStorage held when this
+ * module first loaded.
+ */
+function getCurrentStaffUser() {
+  try {
+    const stored = sessionStorage.getItem('user')
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      if (parsed.role === 'Cashier' && parsed.cashierId) {
+        const cashier = cashiers.find((item) => item.id === parsed.cashierId)
+        if (cashier) {
+          const initials = cashier.name
+            .split(' ')
+            .map((part) => part[0])
+            .join('')
+            .toUpperCase()
+          return { name: cashier.name, initials }
+        }
+      }
+    }
+  } catch {
+    // malformed session value — fall through to the default below
+  }
+  return defaultUser
+}
+
 export default function DashboardTopbar({ onMenuClick }: DashboardTopbarProps) {
   const navigate = useNavigate()
+  const currentUser = getCurrentStaffUser()
   const [profileOpen, setProfileOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [unreadIds, setUnreadIds] = useState(initialNotifications.map((n) => n.id))

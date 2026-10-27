@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { CreditCard, LayoutDashboard, Landmark, LogOut } from 'lucide-react'
-import { customers } from '../../features/customers/data'
+import { getLoggedInCustomer } from '../../features/account/currentCustomer'
 import { getCustomerBalance } from '../../features/ledger/data'
 
 const currency = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
@@ -10,12 +10,11 @@ const navItems = [
   { to: '/account/withdraw', label: 'Withdraw', icon: Landmark },
 ]
 
-// No login session is tracked for the customer view — same as the staff dashboard's own
-// hardcoded currentUser in DashboardTopbar, this is a fixed demo account, not a real identity.
-const customer = customers[0]
-
 export default function CustomerLayout() {
   const navigate = useNavigate()
+  // Resolved fresh on every render (not module scope) so it reflects whoever is actually
+  // logged in right now, not whatever sessionStorage held when this module first loaded.
+  const customer = getLoggedInCustomer()
   const balance = getCustomerBalance(customer)
 
   const handleLogout = () => {

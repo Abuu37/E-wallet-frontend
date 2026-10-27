@@ -10,6 +10,9 @@ export interface User {
     phone: string
     pin: string
     role: UserRole
+    /** Links this login identity to its real record — only set for Cashier/Customer, who each have an actual record to show. Admin has no such record; it manages everything. */
+    customerId?: string
+    cashierId?: string
 }
 
 export const mockUsers: User[] = [
@@ -26,17 +29,21 @@ export const mockUsers: User[] = [
     {
         email: 'ibrahimabuu37@gmail.com',
         password: 'abuu123',
-        phone: '+255 714 242 529',
+        // Mwajuma Hassan's real phone (CSH-3001) — logging in as Cashier shows her real identity.
+        phone: '+255 754 220 019',
         pin: '5678',
-        role: 'Cashier'
+        role: 'Cashier',
+        cashierId: 'CSH-3001',
     },
 
     {
         email: 'kitofuabubakar@gmail.com',
         password: 'kitofu123',
-        phone: '+255 768 891 044',
+        // Asha Juma's real phone (CUS-1001) — logging in as Customer shows her real wallet/transactions.
+        phone: '+255 617 812 846',
         pin: '9012',
-        role: 'Customer'
+        role: 'Customer',
+        customerId: 'CUS-1001',
     },
 ]
 

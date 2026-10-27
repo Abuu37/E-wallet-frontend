@@ -10,7 +10,7 @@ export interface Customer {
 }
 
 export const customers: Customer[] = [
-  { id: 'CUS-1001', name: 'Asha Juma', email: 'asha.juma@example.com', phone: '+255 617 812 845', openingBalance: 94680.5, joined: '2025-11-02' },
+  { id: 'CUS-1001', name: 'Asha Juma', email: 'asha.juma@example.com', phone: '+255 617 812 846', openingBalance: 94680.5, joined: '2025-11-02' },
   { id: 'CUS-1002', name: 'John Foxton', email: 'john.foxton@example.com', phone: '+255 712 003 221', openingBalance: 30230.0, joined: '2025-12-14' },
   { id: 'CUS-1003', name: 'Grace Mwangi', email: 'grace.mwangi@example.com', phone: '+255 755 442 118', openingBalance: 0.0, joined: '2026-01-20' },
   { id: 'CUS-1004', name: 'Peter Mushi', email: 'peter.mushi@example.com', phone: '+255 688 990 004', openingBalance: 0.0, joined: '2026-02-08' },
