@@ -51,7 +51,7 @@ export default function AccountOverview() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl bg-gradient-to-br from-brand to-brand-dark p-6 text-white shadow-lg shadow-brand/20">
+      <div className="rounded-2xl bg-linear-to-br from-brand to-brand-dark p-6 text-white shadow-lg shadow-brand/20">
         <p className="flex items-center gap-1.5 text-sm text-white/70">
           <Wallet size={14} /> Wallet Balance
         </p>

@@ -1,15 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { CreditCard, Phone, Lock, Eye, EyeOff, Sparkles, AlertCircle } from 'lucide-react'
+import { CreditCard, Phone, Lock, Eye, EyeOff, Sparkles } from 'lucide-react'
 import Button from '../../../components/ui/Button'
 import ewalletImage from '../../../assets/imgs/ewallet.webp'
 import paymentImage from '../../../assets/imgs/payment-img1.jpg'
 import appScreenImage from '../../../assets/imgs/image 2.avif'
 import { customers } from '../../customers/data'
+import { cashiers } from '../../cashiers/data'
 import { setCurrentCustomerId } from '../session'
-
-type LoginAs = 'customer' | 'staff'
 
 const normalizePhone = (value: string) => value.replace(/\s+/g, '')
 
@@ -26,26 +25,32 @@ export default function Login() {
   const [showPin, setShowPin] = useState(false)
   const [pin, setPin] = useState('')
   const [activeSlide, setActiveSlide] = useState(0)
-  const [loginAs, setLoginAs] = useState<LoginAs>('customer')
   const [phone, setPhone] = useState('')
-  const [loginError, setLoginError] = useState<string | null>(null)
 
-  const handleSubmit = (event: FormEvent) => {
+  // One form for everyone — who you are is resolved from the phone number, not a role you
+  // picked. A real backend would authenticate the phone+PIN and return the account's actual
+  // role; this frontend-only app simulates that by checking the phone against the real
+  // customer and cashier records. No match in either means there's no staff record for this
+  // phone either (there's no seeded Admin list at all), so it falls back to the admin view —
+  // same "admin is the catch-all" behavior this app already had before customer login existed.
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setLoginError(null)
 
-    if (loginAs === 'staff') {
+    const typed = normalizePhone(phone)
+    const customerMatch = customers.find((customer) => normalizePhone(customer.phone) === typed)
+    if (customerMatch) {
+      setCurrentCustomerId(customerMatch.id)
+      navigate('/account')
+      return
+    }
+
+    const cashierMatch = cashiers.find((cashier) => normalizePhone(cashier.phone) === typed)
+    if (cashierMatch) {
       navigate('/dashboard')
       return
     }
 
-    const match = customers.find((customer) => normalizePhone(customer.phone) === normalizePhone(phone))
-    if (!match) {
-      setLoginError('No customer account found for that phone number.')
-      return
-    }
-    setCurrentCustomerId(match.id)
-    navigate('/account')
+    navigate('/dashboard')
   }
 
   useEffect(() => {
@@ -173,24 +178,6 @@ export default function Login() {
           </div>
 
           <div className="mt-8 rounded-3xl bg-white p-8 shadow-2xl shadow-ink/10">
-            <div className="mb-5 grid grid-cols-2 gap-2 rounded-full bg-surface p-1">
-              {(['customer', 'staff'] as const).map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => {
-                    setLoginAs(option)
-                    setLoginError(null)
-                  }}
-                  className={`rounded-full py-2 text-sm font-semibold capitalize transition-colors ${
-                    loginAs === option ? 'bg-brand text-white' : 'text-muted hover:text-ink'
-                  }`}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
-
             <form className="space-y-5" onSubmit={handleSubmit}>
               <div>
                 <label htmlFor="phone" className="text-sm font-medium text-ink">
@@ -211,12 +198,6 @@ export default function Login() {
                     placeholder="+255 7XX XXX XXX"
                   />
                 </div>
-                {loginError && (
-                  <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-red-600">
-                    <AlertCircle size={14} />
-                    {loginError}
-                  </p>
-                )}
               </div>
 
               <div>

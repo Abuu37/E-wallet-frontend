@@ -22,7 +22,7 @@ export default function AccountWithdraw() {
   const [formError, setFormError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState<Transaction[]>([])
 
-  const submitWithdrawal = (event: FormEvent) => {
+  const submitWithdrawal = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setFormError(null)
 
@@ -41,7 +41,7 @@ export default function AccountWithdraw() {
     }
 
     const request: Transaction = {
-      id: `TXN-REQ-${Date.now()}`,
+      id: `TXN-REQ-${submitted.length + 1}`,
       customer: customer.name,
       phone: customer.phone,
       type: 'W2B',
