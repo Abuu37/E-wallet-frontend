@@ -24,6 +24,9 @@ import DashboardLoans from './features/loans/pages/Loans'
 import DashboardFees from './features/fees/pages/Fees'
 import DashboardReconciliation from './features/reconciliation/pages/Reconciliation'
 import DashboardSettings from './features/settings/pages/Settings'
+import CustomerLayout from './components/layout/CustomerLayout'
+import AccountOverview from './features/account/pages/AccountOverview'
+import AccountWithdraw from './features/account/pages/AccountWithdraw'
 
 const router = createBrowserRouter([
   {
@@ -59,6 +62,14 @@ const router = createBrowserRouter([
       { path: 'fees', element: <DashboardFees /> },
       { path: 'reconciliation', element: <DashboardReconciliation /> },
       { path: 'settings', element: <DashboardSettings /> },
+    ],
+  },
+  {
+    path: '/account',
+    element: <CustomerLayout />,
+    children: [
+      { index: true, element: <AccountOverview /> },
+      { path: 'withdraw', element: <AccountWithdraw /> },
     ],
   },
 ])

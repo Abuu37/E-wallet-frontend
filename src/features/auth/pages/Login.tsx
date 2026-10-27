@@ -1,11 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { CreditCard, Phone, Lock, Eye, EyeOff, Sparkles } from 'lucide-react'
+import { CreditCard, Phone, Lock, Eye, EyeOff, Sparkles, AlertCircle } from 'lucide-react'
 import Button from '../../../components/ui/Button'
 import ewalletImage from '../../../assets/imgs/ewallet.webp'
 import paymentImage from '../../../assets/imgs/payment-img1.jpg'
 import appScreenImage from '../../../assets/imgs/image 2.avif'
+import { customers } from '../../customers/data'
+import { setCurrentCustomerId } from '../session'
+
+type LoginAs = 'customer' | 'staff'
+
+const normalizePhone = (value: string) => value.replace(/\s+/g, '')
 
 const slides = [ewalletImage, paymentImage, appScreenImage]
 const SLIDE_DURATION = 15000
@@ -20,6 +26,27 @@ export default function Login() {
   const [showPin, setShowPin] = useState(false)
   const [pin, setPin] = useState('')
   const [activeSlide, setActiveSlide] = useState(0)
+  const [loginAs, setLoginAs] = useState<LoginAs>('customer')
+  const [phone, setPhone] = useState('')
+  const [loginError, setLoginError] = useState<string | null>(null)
+
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault()
+    setLoginError(null)
+
+    if (loginAs === 'staff') {
+      navigate('/dashboard')
+      return
+    }
+
+    const match = customers.find((customer) => normalizePhone(customer.phone) === normalizePhone(phone))
+    if (!match) {
+      setLoginError('No customer account found for that phone number.')
+      return
+    }
+    setCurrentCustomerId(match.id)
+    navigate('/account')
+  }
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -146,13 +173,25 @@ export default function Login() {
           </div>
 
           <div className="mt-8 rounded-3xl bg-white p-8 shadow-2xl shadow-ink/10">
-            <form
-              className="space-y-5"
-              onSubmit={(event) => {
-                event.preventDefault()
-                navigate('/dashboard')
-              }}
-            >
+            <div className="mb-5 grid grid-cols-2 gap-2 rounded-full bg-surface p-1">
+              {(['customer', 'staff'] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => {
+                    setLoginAs(option)
+                    setLoginError(null)
+                  }}
+                  className={`rounded-full py-2 text-sm font-semibold capitalize transition-colors ${
+                    loginAs === option ? 'bg-brand text-white' : 'text-muted hover:text-ink'
+                  }`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+
+            <form className="space-y-5" onSubmit={handleSubmit}>
               <div>
                 <label htmlFor="phone" className="text-sm font-medium text-ink">
                   Phone number
@@ -166,10 +205,18 @@ export default function Login() {
                     id="phone"
                     name="phone"
                     type="tel"
+                    value={phone}
+                    onChange={(event) => setPhone(event.target.value)}
                     className={fieldClass}
                     placeholder="+255 7XX XXX XXX"
                   />
                 </div>
+                {loginError && (
+                  <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-red-600">
+                    <AlertCircle size={14} />
+                    {loginError}
+                  </p>
+                )}
               </div>
 
               <div>
