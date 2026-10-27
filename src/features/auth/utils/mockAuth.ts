@@ -13,6 +13,8 @@ export interface User {
     /** Links this login identity to its real record — only set for Cashier/Customer, who each have an actual record to show. Admin has no such record; it manages everything. */
     customerId?: string
     cashierId?: string
+    /** Admin has no linked record to pull a display name from (there's no "admins" data array in this app), so it's stored directly here instead. Cashier/Customer get theirs from their real linked record, so they don't need this field. */
+    name?: string
 }
 
 export const mockUsers: User[] = [
@@ -22,8 +24,8 @@ export const mockUsers: User[] = [
         password: 'admin123',
         phone: '+255 617 812 845',
         pin: '1234',
-        role: 'Admin'
-
+        role: 'Admin',
+        name: 'Code Abuu',
     },
 
     {

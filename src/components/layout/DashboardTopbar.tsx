@@ -40,11 +40,19 @@ const defaultUser = {
   initials: 'CA',
 }
 
+const initialsOf = (name: string) =>
+  name
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+
 /**
- * Resolves to the real logged-in cashier's name when mockAuth's session says so, falling back
- * to the generic Admin placeholder otherwise. Called fresh on every render (not module scope)
- * so it reflects whoever actually just logged in, not whatever sessionStorage held when this
- * module first loaded.
+ * Resolves to whoever's actually logged in — the real cashier's name for a Cashier session,
+ * or Admin's own stored name for an Admin session — falling back to the generic placeholder
+ * if there's no session at all. Called fresh on every render (not module scope) so it reflects
+ * whoever actually just logged in, not whatever sessionStorage held when this module first
+ * loaded.
  */
 function getCurrentStaffUser() {
   try {
@@ -53,14 +61,10 @@ function getCurrentStaffUser() {
       const parsed = JSON.parse(stored)
       if (parsed.role === 'Cashier' && parsed.cashierId) {
         const cashier = cashiers.find((item) => item.id === parsed.cashierId)
-        if (cashier) {
-          const initials = cashier.name
-            .split(' ')
-            .map((part) => part[0])
-            .join('')
-            .toUpperCase()
-          return { name: cashier.name, initials }
-        }
+        if (cashier) return { name: cashier.name, initials: initialsOf(cashier.name) }
+      }
+      if (parsed.role === 'Admin' && parsed.name) {
+        return { name: parsed.name, initials: initialsOf(parsed.name) }
       }
     }
   } catch {
