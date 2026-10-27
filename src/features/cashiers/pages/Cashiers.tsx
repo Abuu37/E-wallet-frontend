@@ -338,28 +338,24 @@ export default function Cashiers() {
           tone="brand"
           label="Total Cashiers"
           value={String(totalCashiers)}
-          delta={0}
         />
         <StatCard
           icon={UserCheck}
           tone="positive"
           label="Active Cashiers"
           value={String(activeCount)}
-          delta={2.5}
         />
         <StatCard
           icon={Clock}
           tone="warning"
           label="Pending Cashiers"
           value={String(pendingCount)}
-          delta={0}
         />
         <StatCard
           icon={PauseCircle}
           tone="warning"
           label="Idle Cashiers"
           value={String(idleCount)}
-          delta={-1.5}
           deltaLabel={`${dormantCount} dormant`}
         />
         <StatCard
@@ -367,21 +363,18 @@ export default function Cashiers() {
           tone="negative"
           label="Blocked Cashiers"
           value={String(blockedCount)}
-          delta={0}
         />
         <StatCard
           icon={Landmark}
           tone="accent"
           label="Total Float Balance"
           value={formatAmount(totalFloat)}
-          delta={2.8}
         />
         <StatCard
           icon={AlertTriangle}
           tone="negative"
           label="Low-Float Cashiers"
           value={String(lowFloatCount)}
-          delta={-1.2}
           deltaLabel={`Below ${formatAmount(LOW_FLOAT_THRESHOLD)} float`}
         />
         <StatCard
@@ -389,7 +382,6 @@ export default function Cashiers() {
           tone="positive"
           label="Total Commission"
           value={formatAmount(totalCommission)}
-          delta={1.4}
         />
       </div>
 

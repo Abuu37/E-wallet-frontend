@@ -251,28 +251,24 @@ export default function Ledger() {
           tone="brand"
           label="Journal Entries"
           value={String(totalEntries)}
-          delta={0}
         />
         <StatCard
           icon={ArrowRightLeft}
           tone="accent"
           label="Total Debits"
           value={formatAmount(ledgerTotals.debit)}
-          delta={0}
         />
         <StatCard
           icon={CircleDollarSign}
           tone="accent"
           label="Total Credits"
           value={formatAmount(ledgerTotals.credit)}
-          delta={0}
         />
         <StatCard
           icon={Scale}
           tone={isBalanced ? 'positive' : 'negative'}
           label="Balance Check"
           value={formatAmount(balanceDiff)}
-          delta={0}
           deltaLabel={isBalanced ? 'Books are balanced' : 'Debits ≠ credits — investigate'}
         />
       </div>

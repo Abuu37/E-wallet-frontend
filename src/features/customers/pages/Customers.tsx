@@ -251,35 +251,30 @@ export default function Customers() {
           tone="brand"
           label="Total Customer"
           value={String(totalCustomers)}
-          delta={6.4}
         />
         <StatCard
           icon={Landmark}
           tone="accent"
           label="Total Wallet Balance"
           value={formatAmount(totalBalance)}
-          delta={9.3}
         />
         <StatCard
           icon={CircleCheck}
           tone="positive"
           label="Active Wallet"
           value={String(activeCount)}
-          delta={3.8}
         />
         <StatCard
           icon={Clock}
           tone="warning"
           label="Dormant Wallet"
           value={String(dormantCount)}
-          delta={1.2}
         />
         <StatCard
           icon={UserX}
           tone="negative"
           label="Inactive Wallet"
           value={String(inactiveCount)}
-          delta={-2.5}
         />
       </div>
 
