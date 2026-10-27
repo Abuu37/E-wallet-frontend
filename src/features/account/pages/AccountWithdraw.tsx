@@ -13,6 +13,7 @@ const fieldClass =
   'mt-1 w-full rounded-xl border border-transparent bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 ring-line focus:border-brand'
 
 export default function AccountWithdraw() {
+  
   const customer = getLoggedInCustomer()
   const balance = getCustomerBalance(customer)
 

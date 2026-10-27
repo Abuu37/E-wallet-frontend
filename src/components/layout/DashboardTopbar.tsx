@@ -75,7 +75,7 @@ function getCurrentStaffUser() {
 
 export default function DashboardTopbar({ onMenuClick }: DashboardTopbarProps) {
   const navigate = useNavigate()
-  const currentUser = getCurrentStaffUser()
+  const currentUser = getCurrentStaffUser() // called the staff details from sessionStorage, or default if none
   const [profileOpen, setProfileOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [unreadIds, setUnreadIds] = useState(initialNotifications.map((n) => n.id))
