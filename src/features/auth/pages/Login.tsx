@@ -9,6 +9,7 @@ import ewalletImage from "../../../assets/imgs/ewallet.webp";
 import paymentImage from "../../../assets/imgs/payment-img1.jpg";
 import appScreenImage from "../../../assets/imgs/image 2.avif";
 import { mockUsers, getRedirectPath } from "../utils/mockAuth";
+import Swal from "sweetalert2";
 
 import PhoneInput, { isValidPhoneNumber, type Country, type Value } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
@@ -45,25 +46,46 @@ export default function Login() {
   const navigate = useNavigate();
   const [showPin, setShowPin] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
-  const [authError, setAuthError] = useState("");
   const [country, setCountry] = useState<Country>("TZ");
 
-  const handleLogin = (values: LoginValues) => {
-    const user = mockUsers.find(
-      (item) =>
-        normalizePhone(item.phone) === normalizePhone(values.phone) &&
-        item.pin === values.pin,
-    );
+  const handleLogin = async (values: LoginValues) => {
 
-    if (!user) {
-      setAuthError("Invalid phone number or PIN.");
-      return;
+    try{
+
+      const user = mockUsers.find(
+        (item) => normalizePhone(item.phone) === normalizePhone(values.phone) && item.pin === values.pin
+      );
+
+      if (!user) {
+        await Swal.fire({
+          icon: "error",
+          title: "Login Failed",
+          text: "Invalid phone number or PIN. Please try again.",
+        });
+        return;
+      }
+
+      sessionStorage.setItem("user", JSON.stringify(user));
+
+      await Swal.fire({
+        icon: "success",
+        title: "Login Successful",
+        text: "You have successfully logged in.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+      navigate(getRedirectPath(user.role), { replace: true });
+
+    } catch (error) {
+      console.error("Login error:", error);
+      await Swal.fire({
+        icon: "error",
+        title: "Login Failed",
+        text: "An error occurred while trying to log in. Please try again.",
+      });
     }
-
-    setAuthError("");
-    // Store the whole user, not just the role — ProtectedRoute reads `.role` off this.
-    sessionStorage.setItem("user", JSON.stringify(user));
-    navigate(getRedirectPath(user.role), { replace: true });
+   
   };
 
   useEffect(() => {
@@ -201,8 +223,8 @@ export default function Login() {
               <Formik<LoginValues>
                 initialValues={{ phone: "", pin: "" }}
                 validationSchema={loginSchema}
-                onSubmit={(values, { setSubmitting }) => {
-                  handleLogin(values);
+                onSubmit={async (values, { setSubmitting }) => {
+                  await handleLogin(values);
                   setSubmitting(false);
                 }}
               >
@@ -296,12 +318,6 @@ export default function Login() {
                     <Button type="submit" className="w-full" disabled={isSubmitting}>
                       Log In
                     </Button>
-
-                    {authError && (
-                      <p className="text-sm text-red-600" role="alert">
-                        {authError}
-                      </p>
-                    )}
                   </Form>
                 )}
               </Formik>
