@@ -8,7 +8,6 @@ import {
   CreditCard,
   User,
   Mail,
-  Phone,
   Lock,
   Eye,
   EyeOff,
@@ -22,6 +21,8 @@ import Button from '../../../components/ui/Button'
 import ewalletImage from '../../../assets/imgs/ewallet.webp'
 import paymentImage from '../../../assets/imgs/payment-img1.jpg'
 import appScreenImage from '../../../assets/imgs/image 2.avif'
+import PhoneInput, { isValidPhoneNumber, formatPhoneNumberIntl, type Country, type Value } from 'react-phone-number-input'
+import 'react-phone-number-input/style.css'
 
 const slides = [paymentImage, appScreenImage, ewalletImage]
 const SLIDE_DURATION = 15000
@@ -32,8 +33,8 @@ const detailsSchema = Yup.object({
   lastName: Yup.string().trim().required('Last name is required'),
   email: Yup.string().email('Enter a valid email').required('Email is required'),
   phone: Yup.string()
-    .matches(/^\+?[0-9\s-]{7,15}$/, 'Enter a valid phone number')
-    .required('Phone number is required'),
+    .required('Phone number is required')
+    .test('is-valid-phone', 'Enter a valid phone number', (value) => Boolean(value && isValidPhoneNumber(value))),
 })
 
 const getFieldClass = (hasError: boolean) =>
@@ -77,6 +78,7 @@ export default function Register() {
   const [step, setStep] = useState<Step>('details')
   const [activeSlide, setActiveSlide] = useState(0)
   const [details, setDetails] = useState<DetailsValues | null>(null)
+  const [country, setCountry] = useState<Country>('TZ')
 
   const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''))
   const [otpError, setOtpError] = useState('')
@@ -354,7 +356,7 @@ export default function Register() {
                           setSubmitting(false)
                         }}
                       >
-                        {({ isSubmitting, errors, touched }) => (
+                        {({ isSubmitting, errors, touched, values, setFieldValue, setFieldTouched }) => (
                           <Form className="space-y-5">
                             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                               <div>
@@ -448,17 +450,20 @@ export default function Register() {
                               <label htmlFor="phone" className="text-sm font-medium text-ink">
                                 Phone number <RequiredMark />
                               </label>
-                              <div className="relative mt-2">
-                                <Phone
-                                  size={18}
-                                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-                                />
-                                <Field
+                              <div className="mt-2">
+                                <PhoneInput
                                   id="phone"
-                                  name="phone"
-                                  type="tel"
-                                  className={`${getFieldClass(Boolean(touched.phone && errors.phone))} pr-4`}
-                                  placeholder="+255 7XX XXX XXX"
+                                  international
+                                  defaultCountry={country}
+                                  value={values.phone as Value}
+                                  onChange={(value) => setFieldValue('phone', value ?? '')}
+                                  onCountryChange={(value) => {
+                                    if (value) setCountry(value)
+                                  }}
+                                  onBlur={() => setFieldTouched('phone', true)}
+                                  placeholder="Enter phone number"
+                                  autoComplete="tel"
+                                  className={`phone-input ${touched.phone && errors.phone ? 'PhoneInput--error' : ''}`}
                                 />
                               </div>
                               <ErrorMessage name="phone" component="p" className={errorClass} />
@@ -500,7 +505,9 @@ export default function Register() {
                         <h3 className="mt-4 text-lg font-bold text-ink">Verify your phone number</h3>
                         <p className="mt-2 text-sm text-muted">
                           Enter the 6-digit code we sent to{' '}
-                          <span className="font-semibold text-ink">{details?.phone}</span>
+                          <span className="font-semibold text-ink">
+                            {details?.phone ? formatPhoneNumberIntl(details.phone) : ''}
+                          </span>
                         </p>
                       </div>
 
