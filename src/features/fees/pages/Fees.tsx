@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { Formik, Form, Field, ErrorMessage } from 'formik'
+import * as Yup from 'yup'
 import {
   Pencil,
   Search,
@@ -74,6 +76,41 @@ const formatRange = (min: number, max: number) => `${formatAmount(min)} – ${fo
 const SHARE_RATE = 0.5
 const PAGE_SIZE = 10
 
+interface FeeFormValues {
+  type: FeeApplyType
+  transactionType: TransactionType
+  rangeMin: string
+  rangeMax: string
+  customerFee: string
+}
+
+const blankFeeForm: FeeFormValues = {
+  type: 'Flat',
+  transactionType: 'Cash In',
+  rangeMin: '',
+  rangeMax: '',
+  customerFee: '',
+}
+
+const feeFormSchema = Yup.object({
+  transactionType: Yup.mixed<TransactionType>().oneOf(transactionTypeOptions).required(),
+  rangeMin: Yup.number()
+    .typeError('Enter a valid number')
+    .min(0, 'Must be 0 or more')
+    .required('Range Min is required'),
+  rangeMax: Yup.number()
+    .typeError('Enter a valid number')
+    .moreThan(Yup.ref('rangeMin'), 'Range Max must be greater than Range Min')
+    .required('Range Max is required'),
+  customerFee: Yup.number().typeError('Enter a valid number').min(0, 'Must be 0 or more').required('Required'),
+})
+
+const getFieldClass = (hasError: boolean) =>
+  `mt-1 w-full rounded-xl border bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 transition-colors focus:border-brand ${
+    hasError ? 'border-red-400 ring-red-300' : 'border-transparent ring-line'
+  }`
+const errorClass = 'mt-1 text-xs font-medium text-red-600'
+
 export default function Fees() {
   const [feeTiers, setFeeTiers] = useState<FeeTier[]>(initialFeeTiers)
   const [query, setQuery] = useState('')
@@ -82,11 +119,7 @@ export default function Fees() {
 
   const [formMode, setFormMode] = useState<'create' | 'edit' | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
-  const [editType, setEditType] = useState<FeeApplyType>('Flat')
-  const [editTransactionType, setEditTransactionType] = useState<TransactionType>('Cash In')
-  const [editRangeMin, setEditRangeMin] = useState('')
-  const [editRangeMax, setEditRangeMax] = useState('')
-  const [editCustomerFee, setEditCustomerFee] = useState('')
+  const [formInitialValues, setFormInitialValues] = useState<FeeFormValues>(blankFeeForm)
 
   const filtered = useMemo(() => {
     return feeTiers.filter((tier) => {
@@ -117,21 +150,19 @@ export default function Fees() {
   const openCreate = () => {
     setFormMode('create')
     setEditId(null)
-    setEditType('Flat')
-    setEditTransactionType('Cash In')
-    setEditRangeMin('')
-    setEditRangeMax('')
-    setEditCustomerFee('')
+    setFormInitialValues(blankFeeForm)
   }
 
   const openEdit = (tier: FeeTier) => {
     setFormMode('edit')
     setEditId(tier.id)
-    setEditType(tier.type)
-    setEditTransactionType(tier.transactionType)
-    setEditRangeMin(String(tier.rangeMin))
-    setEditRangeMax(String(tier.rangeMax))
-    setEditCustomerFee(String(tier.customerFee))
+    setFormInitialValues({
+      type: tier.type,
+      transactionType: tier.transactionType,
+      rangeMin: String(tier.rangeMin),
+      rangeMax: String(tier.rangeMax),
+      customerFee: String(tier.customerFee),
+    })
   }
 
   const closeForm = () => {
@@ -139,18 +170,18 @@ export default function Fees() {
     setEditId(null)
   }
 
-  const saveForm = () => {
+  const saveForm = (values: FeeFormValues) => {
     if (formMode === 'edit' && editId) {
       setFeeTiers((prev) =>
         prev.map((tier) =>
           tier.id === editId
             ? {
                 ...tier,
-                type: editType,
-                transactionType: editTransactionType,
-                rangeMin: Number(editRangeMin) || tier.rangeMin,
-                rangeMax: Number(editRangeMax) || tier.rangeMax,
-                customerFee: Number(editCustomerFee) || tier.customerFee,
+                type: values.type,
+                transactionType: values.transactionType,
+                rangeMin: Number(values.rangeMin),
+                rangeMax: Number(values.rangeMax),
+                customerFee: Number(values.customerFee),
               }
             : tier,
         ),
@@ -158,11 +189,11 @@ export default function Fees() {
     } else if (formMode === 'create') {
       const newTier: FeeTier = {
         id: nextTierId(),
-        type: editType,
-        transactionType: editTransactionType,
-        rangeMin: Number(editRangeMin) || 0,
-        rangeMax: Number(editRangeMax) || 0,
-        customerFee: Number(editCustomerFee) || 0,
+        type: values.type,
+        transactionType: values.transactionType,
+        rangeMin: Number(values.rangeMin),
+        rangeMax: Number(values.rangeMax),
+        customerFee: Number(values.customerFee),
       }
       setFeeTiers((prev) => [newTier, ...prev])
       resetToFirstPage()
@@ -357,84 +388,93 @@ export default function Fees() {
         </div>
       </div>
 
-      <Modal
-        open={formMode !== null}
-        onClose={closeForm}
-        title={
-          <>
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand">
-              {formMode === 'create' ? <Plus size={16} /> : <Pencil size={16} />}
-            </span>
-            {formMode === 'create' ? 'Create New Fee' : 'Edit Fee Tier'}
-          </>
-        }
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={closeForm}
-              className="flex-1 rounded-full border border-line py-2.5 text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={saveForm}
-              className="flex-1 rounded-full bg-brand py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand/90"
-            >
-              {formMode === 'create' ? 'Create Fee' : 'Save Changes'}
-            </button>
-          </>
-        }
+      <Formik<FeeFormValues>
+        enableReinitialize
+        initialValues={formInitialValues}
+        validationSchema={feeFormSchema}
+        onSubmit={(values, { setSubmitting }) => {
+          saveForm(values)
+          setSubmitting(false)
+        }}
       >
-        <div className="space-y-4">
-          <div>
-            <label className="text-xs font-medium text-muted">Transaction Type</label>
-            <select
-              value={editTransactionType}
-              onChange={(event) => setEditTransactionType(event.target.value as TransactionType)}
-              className="mt-1 w-full rounded-xl border border-transparent bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 ring-line focus:border-brand"
-            >
-              {transactionTypeOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-medium text-muted">Range Min</label>
-              <input
-                type="number"
-                value={editRangeMin}
-                onChange={(event) => setEditRangeMin(event.target.value)}
-                className="mt-1 w-full rounded-xl border border-transparent bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 ring-line focus:border-brand"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted">Range Max</label>
-              <input
-                type="number"
-                value={editRangeMax}
-                onChange={(event) => setEditRangeMax(event.target.value)}
-                className="mt-1 w-full rounded-xl border border-transparent bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 ring-line focus:border-brand"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted">
-              {editTransactionType === 'Cash In' ? 'Agent Commission' : 'Customer Fee'}
-            </label>
-            <input
-              type="number"
-              value={editCustomerFee}
-              onChange={(event) => setEditCustomerFee(event.target.value)}
-              className="mt-1 w-full rounded-xl border border-transparent bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 ring-line focus:border-brand"
-            />
-          </div>
-        </div>
-      </Modal>
+        {({ values, errors, touched, isSubmitting, submitForm }) => (
+          <Modal
+            open={formMode !== null}
+            onClose={closeForm}
+            title={
+              <>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand">
+                  {formMode === 'create' ? <Plus size={16} /> : <Pencil size={16} />}
+                </span>
+                {formMode === 'create' ? 'Create New Fee' : 'Edit Fee Tier'}
+              </>
+            }
+            footer={
+              <>
+                <button
+                  type="button"
+                  onClick={closeForm}
+                  className="flex-1 rounded-full border border-line py-2.5 text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => submitForm()}
+                  className="flex-1 rounded-full bg-brand py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {formMode === 'create' ? 'Create Fee' : 'Save Changes'}
+                </button>
+              </>
+            }
+          >
+            <Form className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-muted">Transaction Type</label>
+                <Field as="select" name="transactionType" className={getFieldClass(false)}>
+                  {transactionTypeOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </Field>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-muted">Range Min</label>
+                  <Field
+                    type="number"
+                    name="rangeMin"
+                    className={getFieldClass(Boolean(touched.rangeMin && errors.rangeMin))}
+                  />
+                  <ErrorMessage name="rangeMin" component="p" className={errorClass} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted">Range Max</label>
+                  <Field
+                    type="number"
+                    name="rangeMax"
+                    className={getFieldClass(Boolean(touched.rangeMax && errors.rangeMax))}
+                  />
+                  <ErrorMessage name="rangeMax" component="p" className={errorClass} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted">
+                  {values.transactionType === 'Cash In' ? 'Agent Commission' : 'Customer Fee'}
+                </label>
+                <Field
+                  type="number"
+                  name="customerFee"
+                  className={getFieldClass(Boolean(touched.customerFee && errors.customerFee))}
+                />
+                <ErrorMessage name="customerFee" component="p" className={errorClass} />
+              </div>
+            </Form>
+          </Modal>
+        )}
+      </Formik>
     </div>
   )
 }
