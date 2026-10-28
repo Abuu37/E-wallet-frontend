@@ -281,7 +281,7 @@ export default function Settings() {
                   initialValues={{ currentPin: '', newPin: '', confirmPin: '' }}
                   validationSchema={pinSchema}
                   onSubmit={(values, { setSubmitting, resetForm }) => {
-                    let session: Record<string, unknown> = {}
+                    let session: Record<string, unknown>
                     try {
                       session = JSON.parse(sessionStorage.getItem('user') ?? '{}')
                     } catch {
