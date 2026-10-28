@@ -13,5 +13,18 @@ export async function confirmLogout(): Promise<boolean> {
     confirmButtonColor: '#dc2626',
     cancelButtonColor: '#64748b',
   })
-  return result.isConfirmed
+
+  if (!result.isConfirmed) return false
+
+  await Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon: 'success',
+    title: 'Logout Successful',
+    text: "You've been logged out.",
+    showConfirmButton: false,
+    timer: 1500,
+  })
+
+  return true
 }
