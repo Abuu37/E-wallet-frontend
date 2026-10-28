@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useFormik } from 'formik'
+import * as Yup from 'yup'
 import {
   ArrowLeft,
   Users,
@@ -19,6 +20,7 @@ import {
   Check,
   Plus,
 } from 'lucide-react'
+import { useState } from 'react'
 import { branchOptions, type Cashier, type CashierGender, type CashierPermissions } from '../data'
 
 const genderOptions: CashierGender[] = ['Female', 'Male', 'Other']
@@ -41,10 +43,29 @@ const defaultPermissions: CashierPermissions = {
   checkBalance: true,
 }
 
-const inputClass =
-  'w-full rounded-xl border border-transparent bg-surface py-2.5 pl-10 pr-3.5 text-sm outline-none ring-1 ring-line focus:border-brand'
-const plainInputClass =
-  'w-full rounded-xl border border-transparent bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 ring-line focus:border-brand'
+const getInputClass = (hasError: boolean) =>
+  `w-full rounded-xl border bg-surface py-2.5 pl-10 pr-3.5 text-sm outline-none ring-1 transition-colors focus:border-brand ${
+    hasError ? 'border-red-400 ring-red-300' : 'border-transparent ring-line'
+  }`
+const getPlainInputClass = (hasError: boolean) =>
+  `w-full rounded-xl border bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 transition-colors focus:border-brand ${
+    hasError ? 'border-red-400 ring-red-300' : 'border-transparent ring-line'
+  }`
+const errorClass = 'mt-1 text-xs font-medium text-red-600'
+
+interface CashierFormValues {
+  cashierId: string
+  name: string
+  phone: string
+  email: string
+  gender: CashierGender
+  dateOfBirth: string
+  address: string
+  username: string
+  password: string
+  branch: string
+  floatAccount: string
+}
 
 interface CashierRegisterFormProps {
   mode: 'create' | 'edit'
@@ -61,19 +82,8 @@ export default function CashierRegisterForm({
   onCancel,
   onSubmit,
 }: CashierRegisterFormProps) {
-  const [cashierId, setCashierId] = useState(initialCashier?.id ?? defaultCashierId)
-  const [name, setName] = useState(initialCashier?.name ?? '')
-  const [phone, setPhone] = useState(initialCashier?.phone ?? '')
-  const [email, setEmail] = useState(initialCashier?.email ?? '')
-  const [gender, setGender] = useState<CashierGender>(initialCashier?.gender ?? 'Female')
-  const [dateOfBirth, setDateOfBirth] = useState(initialCashier?.dateOfBirth ?? '')
-  const [address, setAddress] = useState(initialCashier?.address ?? '')
-  const [username, setUsername] = useState(initialCashier?.username ?? '')
-  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [branch, setBranch] = useState(initialCashier?.branch ?? branchOptions[0])
   const terminal = initialCashier?.terminal ?? ''
-  const [floatAccount, setFloatAccount] = useState(initialCashier?.floatAccount ?? '')
   const [permissions, setPermissions] = useState<CashierPermissions>(
     initialCashier?.permissions ?? defaultPermissions,
   )
@@ -82,34 +92,68 @@ export default function CashierRegisterForm({
     setPermissions((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
-  const handleSubmit = () => {
-    const id = cashierId.trim() || defaultCashierId
-    const cashier: Cashier = {
-      id,
-      name: name.trim() || initialCashier?.name || 'New Cashier',
-      phone: phone.trim() || initialCashier?.phone || '',
-      email: email.trim() || initialCashier?.email || '',
-      gender,
-      dateOfBirth: dateOfBirth || initialCashier?.dateOfBirth || '',
-      address: address.trim() || initialCashier?.address || '',
-      username: username.trim() || initialCashier?.username || '',
-      branch,
-      terminal: terminal.trim() || initialCashier?.terminal || `TILL-${id.replace('CSH-', '')}`,
-      floatAccount: floatAccount.trim() || initialCashier?.floatAccount || `FA-${id.replace('CSH-', '')}`,
-      commissionAccount: initialCashier?.commissionAccount || `CA-${id.replace('CSH-', '')}`,
-      openingFloatBalance: initialCashier?.openingFloatBalance ?? 0,
-      todayCashIn: initialCashier?.todayCashIn ?? 0,
-      todayCashOut: initialCashier?.todayCashOut ?? 0,
-      commissionPayable: initialCashier?.commissionPayable ?? 0,
-      unauthorizedReported: initialCashier?.unauthorizedReported ?? false,
-      joined: initialCashier?.joined ?? new Date().toISOString().slice(0, 10),
-      permissions,
-    }
-    onSubmit(cashier)
-  }
+  const cashierSchema = Yup.object({
+    name: Yup.string().trim().required('Full name is required'),
+    phone: Yup.string()
+      .matches(/^\+?[0-9\s-]{7,15}$/, 'Enter a valid phone number')
+      .required('Phone number is required'),
+    email: Yup.string().email('Enter a valid email'),
+    branch: Yup.string().required('Branch is required'),
+    cashierId: Yup.string().trim().required('Cashier ID is required'),
+    username: Yup.string().trim().required('Username is required'),
+    password:
+      mode === 'create'
+        ? Yup.string().min(6, 'Password must be at least 6 characters').required('Password is required')
+        : Yup.string(),
+    floatAccount: Yup.string().trim().required('Float wallet account is required'),
+  })
+
+  const formik = useFormik<CashierFormValues>({
+    initialValues: {
+      cashierId: initialCashier?.id ?? defaultCashierId,
+      name: initialCashier?.name ?? '',
+      phone: initialCashier?.phone ?? '',
+      email: initialCashier?.email ?? '',
+      gender: initialCashier?.gender ?? 'Female',
+      dateOfBirth: initialCashier?.dateOfBirth ?? '',
+      address: initialCashier?.address ?? '',
+      username: initialCashier?.username ?? '',
+      password: '',
+      branch: initialCashier?.branch ?? branchOptions[0],
+      floatAccount: initialCashier?.floatAccount ?? '',
+    },
+    validationSchema: cashierSchema,
+    onSubmit: (values) => {
+      const id = values.cashierId.trim() || defaultCashierId
+      const cashier: Cashier = {
+        id,
+        name: values.name.trim(),
+        phone: values.phone.trim(),
+        email: values.email.trim(),
+        gender: values.gender,
+        dateOfBirth: values.dateOfBirth || initialCashier?.dateOfBirth || '',
+        address: values.address.trim(),
+        username: values.username.trim(),
+        branch: values.branch,
+        terminal: terminal.trim() || initialCashier?.terminal || `TILL-${id.replace('CSH-', '')}`,
+        floatAccount: values.floatAccount.trim(),
+        commissionAccount: initialCashier?.commissionAccount || `CA-${id.replace('CSH-', '')}`,
+        openingFloatBalance: initialCashier?.openingFloatBalance ?? 0,
+        todayCashIn: initialCashier?.todayCashIn ?? 0,
+        todayCashOut: initialCashier?.todayCashOut ?? 0,
+        commissionPayable: initialCashier?.commissionPayable ?? 0,
+        unauthorizedReported: initialCashier?.unauthorizedReported ?? false,
+        joined: initialCashier?.joined ?? new Date().toISOString().slice(0, 10),
+        permissions,
+      }
+      onSubmit(cashier)
+    },
+  })
+
+  const hasError = (field: keyof CashierFormValues) => Boolean(formik.touched[field] && formik.errors[field])
 
   return (
-    <div className="space-y-5">
+    <form className="space-y-5" onSubmit={formik.handleSubmit}>
       <button
         type="button"
         onClick={onCancel}
@@ -156,12 +200,15 @@ export default function CashierRegisterForm({
               <User size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
               <input
                 type="text"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
+                name="name"
+                value={formik.values.name}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 placeholder="e.g. Mary James"
-                className={inputClass}
+                className={getInputClass(hasError('name'))}
               />
             </div>
+            {hasError('name') && <p className={errorClass}>{formik.errors.name}</p>}
           </div>
           <div>
             <label className="text-xs font-medium text-muted">
@@ -171,12 +218,15 @@ export default function CashierRegisterForm({
               <Phone size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
               <input
                 type="text"
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
+                name="phone"
+                value={formik.values.phone}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 placeholder="e.g. 0712 345 678"
-                className={inputClass}
+                className={getInputClass(hasError('phone'))}
               />
             </div>
+            {hasError('phone') && <p className={errorClass}>{formik.errors.phone}</p>}
           </div>
           <div>
             <label className="text-xs font-medium text-muted">Email Address</label>
@@ -184,19 +234,23 @@ export default function CashierRegisterForm({
               <Mail size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
               <input
                 type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                name="email"
+                value={formik.values.email}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 placeholder="e.g. mary.james@walletpesa.co.tz"
-                className={inputClass}
+                className={getInputClass(hasError('email'))}
               />
             </div>
+            {hasError('email') && <p className={errorClass}>{formik.errors.email}</p>}
           </div>
           <div>
             <label className="text-xs font-medium text-muted">Gender</label>
             <select
-              value={gender}
-              onChange={(event) => setGender(event.target.value as CashierGender)}
-              className={`mt-1 ${plainInputClass}`}
+              name="gender"
+              value={formik.values.gender}
+              onChange={formik.handleChange}
+              className={`mt-1 ${getPlainInputClass(false)}`}
             >
               {genderOptions.map((option) => (
                 <option key={option} value={option}>
@@ -214,9 +268,10 @@ export default function CashierRegisterForm({
               />
               <input
                 type="date"
-                value={dateOfBirth}
-                onChange={(event) => setDateOfBirth(event.target.value)}
-                className={inputClass}
+                name="dateOfBirth"
+                value={formik.values.dateOfBirth}
+                onChange={formik.handleChange}
+                className={getInputClass(false)}
               />
             </div>
           </div>
@@ -225,9 +280,10 @@ export default function CashierRegisterForm({
               Branch <span className="text-red-500">*</span>
             </label>
             <select
-              value={branch}
-              onChange={(event) => setBranch(event.target.value)}
-              className={`mt-1 ${plainInputClass}`}
+              name="branch"
+              value={formik.values.branch}
+              onChange={formik.handleChange}
+              className={`mt-1 ${getPlainInputClass(false)}`}
             >
               {branchOptions.map((option) => (
                 <option key={option} value={option}>
@@ -241,11 +297,12 @@ export default function CashierRegisterForm({
             <div className="relative mt-1">
               <MapPin size={16} className="pointer-events-none absolute left-3.5 top-3 text-muted" />
               <textarea
-                value={address}
-                onChange={(event) => setAddress(event.target.value)}
+                name="address"
+                value={formik.values.address}
+                onChange={formik.handleChange}
                 rows={2}
                 placeholder="e.g. 123 Msimbazi Street, Dar es Salaam"
-                className={`${inputClass} resize-none pt-2.5`}
+                className={`${getInputClass(false)} resize-none pt-2.5`}
               />
             </div>
           </div>
@@ -272,12 +329,15 @@ export default function CashierRegisterForm({
               <Hash size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
               <input
                 type="text"
-                value={cashierId}
+                name="cashierId"
+                value={formik.values.cashierId}
                 readOnly={mode === 'edit'}
-                onChange={(event) => setCashierId(event.target.value)}
-                className={`${inputClass} font-mono ${mode === 'edit' ? 'text-muted' : ''}`}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                className={`${getInputClass(hasError('cashierId'))} font-mono ${mode === 'edit' ? 'text-muted' : ''}`}
               />
             </div>
+            {hasError('cashierId') && <p className={errorClass}>{formik.errors.cashierId}</p>}
           </div>
           <div>
             <label className="text-xs font-medium text-muted">
@@ -287,25 +347,30 @@ export default function CashierRegisterForm({
               <User size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
               <input
                 type="text"
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
+                name="username"
+                value={formik.values.username}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 placeholder="e.g. maryjames"
-                className={inputClass}
+                className={getInputClass(hasError('username'))}
               />
             </div>
+            {hasError('username') && <p className={errorClass}>{formik.errors.username}</p>}
           </div>
           <div>
             <label className="text-xs font-medium text-muted">
-              Password <span className="text-red-500">*</span>
+              Password {mode === 'create' && <span className="text-red-500">*</span>}
             </label>
             <div className="relative mt-1">
               <Lock size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
               <input
                 type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                name="password"
+                value={formik.values.password}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 placeholder={mode === 'edit' ? 'Leave blank to keep current password' : 'Enter a secure password'}
-                className={`${inputClass} pr-10`}
+                className={`${getInputClass(hasError('password'))} pr-10`}
               />
               <button
                 type="button"
@@ -316,6 +381,7 @@ export default function CashierRegisterForm({
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
+            {hasError('password') && <p className={errorClass}>{formik.errors.password}</p>}
           </div>
         </div>
 
@@ -345,21 +411,25 @@ export default function CashierRegisterForm({
               <Landmark size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
               <input
                 type="text"
-                value={floatAccount}
-                onChange={(event) => setFloatAccount(event.target.value)}
+                name="floatAccount"
+                value={formik.values.floatAccount}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 placeholder="e.g. FLT-000001"
-                className={`${inputClass} font-mono`}
+                className={`${getInputClass(hasError('floatAccount'))} font-mono`}
               />
             </div>
+            {hasError('floatAccount') && <p className={errorClass}>{formik.errors.floatAccount}</p>}
           </div>
           <div>
             <label className="text-xs font-medium text-muted">
               Branch <span className="text-red-500">*</span>
             </label>
             <select
-              value={branch}
-              onChange={(event) => setBranch(event.target.value)}
-              className={`mt-1 ${plainInputClass}`}
+              name="branch"
+              value={formik.values.branch}
+              onChange={formik.handleChange}
+              className={`mt-1 ${getPlainInputClass(false)}`}
             >
               {branchOptions.map((option) => (
                 <option key={option} value={option}>
@@ -428,14 +498,13 @@ export default function CashierRegisterForm({
           Cancel
         </button>
         <button
-          type="button"
-          onClick={handleSubmit}
+          type="submit"
           className="inline-flex items-center gap-1.5 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand/90"
         >
           <Plus size={16} />
           {mode === 'create' ? 'Create Cashier' : 'Save Changes'}
         </button>
       </div>
-    </div>
+    </form>
   )
 }
