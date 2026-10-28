@@ -58,7 +58,6 @@ export default function Login() {
     }
 
     setAuthError("");
-    // Store the whole user, not just the role — ProtectedRoute reads `.role` off this.
     sessionStorage.setItem("user", JSON.stringify(user));
     navigate(getRedirectPath(user.role), { replace: true });
   };
@@ -124,7 +123,7 @@ export default function Login() {
             animate={{ x: [0, 25, 0], y: [0, -25, 0], scale: [1, 1.15, 1] }}
             transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
           />
-
+  
           <Link
             to="/"
             className="relative flex items-center gap-2 text-lg font-extrabold tracking-tight text-white"
