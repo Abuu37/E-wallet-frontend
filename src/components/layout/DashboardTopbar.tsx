@@ -164,7 +164,10 @@ export default function DashboardTopbar({ onMenuClick }: DashboardTopbarProps) {
               >
                 <button
                   type="button"
-                  onClick={() => setProfileOpen(false)}
+                  onClick={() => {
+                    setProfileOpen(false)
+                    navigate('/dashboard/settings')
+                  }}
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink/80 hover:bg-surface hover:text-brand"
                 >
                   <Settings size={16} />
