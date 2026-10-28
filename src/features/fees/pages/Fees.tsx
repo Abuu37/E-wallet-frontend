@@ -251,6 +251,10 @@ export default function Fees() {
       </div>
 
       <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
+        <div className="border-b border-line px-6 py-3 text-xs text-muted">
+          <span className="font-semibold text-ink/70">W2W</span> = Wallet-to-Wallet ·{' '}
+          <span className="font-semibold text-ink/70">W2B</span> = Wallet-to-Bank
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="border-y border-line bg-surface text-xs uppercase tracking-wide text-muted">
