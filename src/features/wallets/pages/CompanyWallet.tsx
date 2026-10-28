@@ -167,8 +167,8 @@ export default function CompanyWallet() {
                 <th className="px-6 py-3 font-semibold">Type</th>
                 <th className="px-6 py-3 text-right font-semibold">Count</th>
                 <th className="px-6 py-3 text-right font-semibold">Volume</th>
-                <th className="px-6 py-3 text-right font-semibold">Fees</th>
-                <th className="px-6 py-3 text-right font-semibold">Commission</th>
+                <th className="px-6 py-3 text-right font-semibold">Fees Earned</th>
+                <th className="px-6 py-3 text-right font-semibold">Commission Paid</th>
                 <th className="px-6 py-3 text-right font-semibold">Tax</th>
                 <th className="px-6 py-3 text-right font-semibold">Net</th>
               </tr>
@@ -184,9 +184,7 @@ export default function CompanyWallet() {
                     {currency(row.volume)}
                   </td>
                   <td className="px-6 py-3.5 text-right text-ink/70">{currency(row.fees)}</td>
-                  <td className="px-6 py-3.5 text-right text-ink/70">
-                    {row.commission > 0 ? `-${currency(row.commission)}` : currency(0)}
-                  </td>
+                  <td className="px-6 py-3.5 text-right text-ink/70">{currency(row.commission)}</td>
                   <td className="px-6 py-3.5 text-right text-ink/70">{currency(row.tax)}</td>
                   <td
                     className={`px-6 py-3.5 text-right font-semibold ${
@@ -212,7 +210,7 @@ export default function CompanyWallet() {
                   {currency(totals.fees)}
                 </td>
                 <td className="px-6 py-3.5 text-right text-sm font-bold text-ink">
-                  {totals.commission > 0 ? `-${currency(totals.commission)}` : currency(0)}
+                  {currency(totals.commission)}
                 </td>
                 <td className="px-6 py-3.5 text-right text-sm font-bold text-ink">
                   {currency(totals.tax)}
