@@ -149,14 +149,9 @@ export default function Register() {
     otpRefs.current[0]?.focus()
   }
 
-  const verifyOtp = async () => {
+  const verifyOtp = () => {
     if (otp.some((digit) => digit === '')) {
       setOtpError('Enter the full 6-digit code')
-      await Swal.fire({
-        icon: 'error',
-        title: 'Incomplete code',
-        text: 'Enter the full 6-digit code to continue.',
-      })
       return
     }
     setPin('')
@@ -167,26 +162,32 @@ export default function Register() {
 
   const handleCreateAccount = async () => {
     if (pin.length !== PIN_LENGTH) {
-      const message = `PIN must be ${PIN_LENGTH} digits`
-      setPinError(message)
-      await Swal.fire({ icon: 'error', title: 'Invalid PIN', text: message })
+      setPinError(`PIN must be ${PIN_LENGTH} digits`)
       return
     }
     if (pin !== confirmPin) {
-      const message = 'PINs do not match'
-      setPinError(message)
-      await Swal.fire({ icon: 'error', title: 'PIN mismatch', text: message })
+      setPinError('PINs do not match')
       return
     }
     setPinError('')
-    await Swal.fire({
-      icon: 'success',
-      title: 'Account Created',
-      text: "You're all set — welcome to WalletPesa.",
-      timer: 1500,
-      showConfirmButton: false,
-    })
-    setStep('success')
+
+    try {
+      await Swal.fire({
+        icon: 'success',
+        title: 'Account Created',
+        text: "You're all set — welcome to WalletPesa.",
+        timer: 1500,
+        showConfirmButton: false,
+      })
+      setStep('success')
+    } catch (error) {
+      console.error('Registration error:', error)
+      await Swal.fire({
+        icon: 'error',
+        title: 'Registration Failed',
+        text: 'An error occurred while creating your account. Please try again.',
+      })
+    }
   }
 
   const currentStepIndex = stepOrder.indexOf(step)
