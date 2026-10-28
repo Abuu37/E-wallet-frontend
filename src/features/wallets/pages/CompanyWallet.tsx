@@ -29,7 +29,8 @@ const typeTone: Record<TxType, 'green' | 'rose' | 'blue' | 'orange' | 'amber'> =
   'Loan Repayment': 'amber',
 }
 
-const currency = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
+const currency = (value: number) =>
+  `${value < 0 ? '−' : ''}TSh ${Math.round(Math.abs(value)).toLocaleString()}`
 
 const reconciliationStatusVariant = {
   Balanced: 'positive',

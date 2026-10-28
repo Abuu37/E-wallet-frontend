@@ -66,7 +66,8 @@ const transactionTypeTone = {
 const transactionTypeOptions: TransactionType[] = ['Cash In', 'Cash Out', 'Transfer']
 const transactionTypeFilterOptions: Array<TransactionType | 'All'> = ['All', ...transactionTypeOptions]
 
-const formatAmount = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
+const formatAmount = (value: number) =>
+  `${value < 0 ? '−' : ''}TSh ${Math.round(Math.abs(value)).toLocaleString()}`
 const formatRange = (min: number, max: number) => `${formatAmount(min)} – ${formatAmount(max)}`
 
 const SHARE_RATE = 0.5

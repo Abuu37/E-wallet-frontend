@@ -46,7 +46,8 @@ type SortKey = 'debit' | 'credit' | 'status'
 
 const PAGE_SIZE = 10
 
-const formatAmount = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
+const formatAmount = (value: number) =>
+  `${value < 0 ? '−' : ''}TSh ${Math.round(Math.abs(value)).toLocaleString()}`
 
 export default function Ledger() {
   const [tab, setTab] = useState<'journal' | 'coa'>('journal')
