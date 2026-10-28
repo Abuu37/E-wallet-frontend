@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { Formik, Form, Field, ErrorMessage } from 'formik'
+import * as Yup from 'yup'
 import { Mail, Phone, MapPin, Clock, User, MessageSquare } from 'lucide-react'
 import SectionHeading from '../../components/ui/SectionHeading'
 import Button from '../../components/ui/Button'
@@ -9,6 +11,24 @@ const info = [
   { icon: MapPin, label: 'Office', value: 'Dar es Salaam, Tanzania' },
   { icon: Clock, label: 'Support Hours', value: 'Mon to Sat, 8:00 to 20:00' },
 ]
+
+const getFieldClass = (hasError: boolean) =>
+  `mt-2 w-full rounded-xl border px-4 py-2.5 text-sm outline-none transition-colors focus:border-brand ${
+    hasError ? 'border-red-400' : 'border-line'
+  }`
+const errorClass = 'mt-1 text-xs font-medium text-red-600'
+
+interface ContactValues {
+  name: string
+  email: string
+  message: string
+}
+
+const contactSchema = Yup.object({
+  name: Yup.string().trim().required('Full name is required'),
+  email: Yup.string().email('Enter a valid email').required('Email is required'),
+  message: Yup.string().trim().min(10, 'Message must be at least 10 characters').required('Message is required'),
+})
 
 export default function Contact() {
   const [submitted, setSubmitted] = useState(false)
@@ -45,56 +65,65 @@ export default function Contact() {
                 </p>
               </div>
             ) : (
-              <form
-                className="space-y-5"
-                onSubmit={(event) => {
-                  event.preventDefault()
+              <Formik<ContactValues>
+                initialValues={{ name: '', email: '', message: '' }}
+                validationSchema={contactSchema}
+                onSubmit={(_values, { setSubmitting }) => {
                   setSubmitted(true)
+                  setSubmitting(false)
                 }}
               >
-                <div>
-                  <label htmlFor="name" className="flex items-center gap-2 text-sm font-medium text-ink">
-                    <User size={16} className="text-brand" />
-                    Full name
-                  </label>
-                  <input
-                    id="name"
-                    type="text"
-                    required
-                    className="mt-2 w-full rounded-xl border border-line px-4 py-2.5 text-sm outline-none focus:border-brand"
-                    placeholder="Asha Juma"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="email" className="flex items-center gap-2 text-sm font-medium text-ink">
-                    <Mail size={16} className="text-brand" />
-                    Email
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    required
-                    className="mt-2 w-full rounded-xl border border-line px-4 py-2.5 text-sm outline-none focus:border-brand"
-                    placeholder="you@example.com"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="message" className="flex items-center gap-2 text-sm font-medium text-ink">
-                    <MessageSquare size={16} className="text-brand" />
-                    Message
-                  </label>
-                  <textarea
-                    id="message"
-                    required
-                    rows={4}
-                    className="mt-2 w-full rounded-xl border border-line px-4 py-2.5 text-sm outline-none focus:border-brand"
-                    placeholder="How can we help?"
-                  />
-                </div>
-                <Button type="submit" className="w-full">
-                  Send Message
-                </Button>
-              </form>
+                {({ isSubmitting, errors, touched }) => (
+                  <Form className="space-y-5">
+                    <div>
+                      <label htmlFor="name" className="flex items-center gap-2 text-sm font-medium text-ink">
+                        <User size={16} className="text-brand" />
+                        Full name
+                      </label>
+                      <Field
+                        id="name"
+                        name="name"
+                        type="text"
+                        className={getFieldClass(Boolean(touched.name && errors.name))}
+                        placeholder="Asha Juma"
+                      />
+                      <ErrorMessage name="name" component="p" className={errorClass} />
+                    </div>
+                    <div>
+                      <label htmlFor="email" className="flex items-center gap-2 text-sm font-medium text-ink">
+                        <Mail size={16} className="text-brand" />
+                        Email
+                      </label>
+                      <Field
+                        id="email"
+                        name="email"
+                        type="email"
+                        className={getFieldClass(Boolean(touched.email && errors.email))}
+                        placeholder="you@example.com"
+                      />
+                      <ErrorMessage name="email" component="p" className={errorClass} />
+                    </div>
+                    <div>
+                      <label htmlFor="message" className="flex items-center gap-2 text-sm font-medium text-ink">
+                        <MessageSquare size={16} className="text-brand" />
+                        Message
+                      </label>
+                      <Field
+                        as="textarea"
+                        id="message"
+                        name="message"
+                        rows={4}
+                        className={getFieldClass(Boolean(touched.message && errors.message))}
+                        placeholder="How can we help?"
+                      />
+                      <ErrorMessage name="message" component="p" className={errorClass} />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                      Send Message
+                    </Button>
+                  </Form>
+                )}
+              </Formik>
             )}
           </div>
         </div>
