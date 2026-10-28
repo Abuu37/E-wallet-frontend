@@ -258,7 +258,7 @@ export default function Fees() {
                 <th className="px-6 py-3 font-semibold">Range</th>
                 <th className="px-6 py-3 text-right font-semibold">Customer Fee</th>
                 <th className="px-6 py-3 text-right font-semibold">Agent Share</th>
-                <th className="px-6 py-3 text-right font-semibold">Company Share</th>
+                <th className="px-6 py-3 text-right font-semibold">Company Earns</th>
                 <th className="px-6 py-3 text-right font-semibold">Action</th>
               </tr>
             </thead>
@@ -273,19 +273,23 @@ export default function Fees() {
                     <td className="px-6 py-3.5">
                       <TypeBadge tone={transactionTypeTone[tier.transactionType]} label={tier.transactionType} />
                     </td>
-                    <td className="px-6 py-3.5 font-mono text-ink/70">
+                    <td className="px-6 py-3.5 tabular-nums text-ink/70">
                       {formatRange(tier.rangeMin, tier.rangeMax)}
                     </td>
-                    <td className="px-6 py-3.5 text-right font-semibold text-ink">
-                      {isCashIn ? formatAmount(0) : formatAmount(tier.customerFee)}
+                    <td className="px-6 py-3.5 text-right tabular-nums">
+                      {isCashIn ? (
+                        <span className="text-muted">Free</span>
+                      ) : (
+                        <span className="font-semibold text-ink">{formatAmount(tier.customerFee)}</span>
+                      )}
                     </td>
-                    <td className="px-6 py-3.5 text-right text-ink/70">
+                    <td className="px-6 py-3.5 text-right tabular-nums text-ink/70">
                       {isCashIn ? formatAmount(tier.customerFee) : formatAmount(tier.customerFee * SHARE_RATE)}
                     </td>
                     <td
-                      className={`px-6 py-3.5 text-right ${isCashIn ? 'font-semibold text-red-600' : 'text-ink/70'}`}
+                      className={`px-6 py-3.5 text-right tabular-nums ${isCashIn ? 'text-red-500' : 'text-ink/70'}`}
                     >
-                      {isCashIn ? `-${formatAmount(tier.customerFee)}` : formatAmount(tier.customerFee * SHARE_RATE)}
+                      {formatAmount(isCashIn ? -tier.customerFee : tier.customerFee * SHARE_RATE)}
                     </td>
                     <td className="px-6 py-3.5 text-right">
                       <button
