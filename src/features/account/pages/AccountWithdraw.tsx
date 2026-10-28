@@ -1,4 +1,6 @@
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
+import { Formik, Form, Field, ErrorMessage } from 'formik'
+import * as Yup from 'yup'
 import { UserCog, Landmark, CheckCircle2, AlertCircle, Wallet, CreditCard } from 'lucide-react'
 import StatusBadge from '../../../components/ui/StatusBadge'
 import { getLoggedInCustomer } from '../currentCustomer'
@@ -9,57 +11,53 @@ const currency = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
 
 const bankOptions = ['NMB Bank', 'CRDB Bank', 'NBC Bank', 'Stanbic Bank', 'Equity Bank']
 
-const fieldClass =
-  'mt-1 w-full rounded-xl border border-transparent bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 ring-line focus:border-brand'
+const getFieldClass = (hasError: boolean) =>
+  `mt-1 w-full rounded-xl border bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 transition-colors focus:border-brand ${
+    hasError ? 'border-red-400 ring-red-300' : 'border-transparent ring-line'
+  }`
+const errorClass = 'mt-1 flex items-center gap-1.5 text-xs font-medium text-red-600'
+
+interface WithdrawValues {
+  amount: string
+  bankName: string
+  accountNumber: string
+}
 
 export default function AccountWithdraw() {
-  
   const customer = getLoggedInCustomer()
   const balance = getCustomerBalance(customer)
 
-  const [amount, setAmount] = useState('')
-  const [bankName, setBankName] = useState(bankOptions[0])
-  const [accountNumber, setAccountNumber] = useState('')
-  const [formError, setFormError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState<Transaction[]>([])
 
-  const submitWithdrawal = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setFormError(null)
+  const withdrawSchema = Yup.object({
+    amount: Yup.number()
+      .typeError('Enter a valid amount.')
+      .positive('Enter a valid amount.')
+      .max(balance, `That's more than your current balance of ${currency(balance)}.`)
+      .required('Enter a valid amount.'),
+    bankName: Yup.string().oneOf(bankOptions).required('Select a bank'),
+    accountNumber: Yup.string().trim().required('Enter the destination bank account number.'),
+  })
 
-    const value = Number(amount)
-    if (!Number.isFinite(value) || value <= 0) {
-      setFormError('Enter a valid amount.')
-      return
-    }
-    if (value > balance) {
-      setFormError(`That's more than your current balance of ${currency(balance)}.`)
-      return
-    }
-    if (!accountNumber.trim()) {
-      setFormError('Enter the destination bank account number.')
-      return
-    }
-
+  const submitWithdrawal = (values: WithdrawValues, resetForm: () => void) => {
     const request: Transaction = {
       id: `TXN-REQ-${submitted.length + 1}`,
       customer: customer.name,
       phone: customer.phone,
       type: 'W2B',
       channel: 'Web App',
-      amount: value,
+      amount: Number(values.amount),
       fee: 0,
       status: 'Pending',
       date: new Date().toISOString().slice(0, 10),
       time: new Date().toTimeString().slice(0, 5),
-      recipientName: bankName,
-      recipientAccount: accountNumber.trim(),
+      recipientName: values.bankName,
+      recipientAccount: values.accountNumber.trim(),
       customerId: customer.id,
     }
 
     setSubmitted((prev) => [request, ...prev])
-    setAmount('')
-    setAccountNumber('')
+    resetForm()
   }
 
   return (
@@ -103,65 +101,77 @@ export default function AccountWithdraw() {
           </div>
         </div>
 
-        <form className="mt-4 space-y-4" onSubmit={submitWithdrawal}>
-          <div>
-            <label className="text-xs font-medium text-muted">
-              Amount <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              value={amount}
-              onChange={(event) => setAmount(event.target.value)}
-              placeholder="e.g. 20000"
-              className={fieldClass}
-            />
-          </div>
+        <Formik<WithdrawValues>
+          initialValues={{ amount: '', bankName: bankOptions[0], accountNumber: '' }}
+          validationSchema={withdrawSchema}
+          onSubmit={(values, { setSubmitting, resetForm }) => {
+            submitWithdrawal(values, resetForm)
+            setSubmitting(false)
+          }}
+        >
+          {({ isSubmitting, errors, touched }) => (
+            <Form className="mt-4 space-y-4">
+              <div>
+                <label className="text-xs font-medium text-muted">
+                  Amount <span className="text-red-500">*</span>
+                </label>
+                <Field
+                  type="number"
+                  name="amount"
+                  step="0.01"
+                  placeholder="e.g. 20000"
+                  className={getFieldClass(Boolean(touched.amount && errors.amount))}
+                />
+                <ErrorMessage name="amount" component="p" className={errorClass} />
+              </div>
 
-          <div>
-            <label className="text-xs font-medium text-muted">Bank</label>
-            <select value={bankName} onChange={(event) => setBankName(event.target.value)} className={fieldClass}>
-              {bankOptions.map((bank) => (
-                <option key={bank} value={bank}>
-                  {bank}
-                </option>
-              ))}
-            </select>
-          </div>
+              <div>
+                <label className="text-xs font-medium text-muted">Bank</label>
+                <Field as="select" name="bankName" className={getFieldClass(false)}>
+                  {bankOptions.map((bank) => (
+                    <option key={bank} value={bank}>
+                      {bank}
+                    </option>
+                  ))}
+                </Field>
+              </div>
 
-          <div>
-            <label className="text-xs font-medium text-muted">
-              Account Number <span className="text-red-500">*</span>
-            </label>
-            <div className="relative mt-1">
-              <CreditCard size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-              <input
-                type="text"
-                value={accountNumber}
-                onChange={(event) => setAccountNumber(event.target.value)}
-                placeholder="e.g. 0142220099881"
-                className={`${fieldClass} mt-0 pl-10`}
-              />
-            </div>
-          </div>
+              <div>
+                <label className="text-xs font-medium text-muted">
+                  Account Number <span className="text-red-500">*</span>
+                </label>
+                <div className="relative mt-1">
+                  <CreditCard size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+                  <Field
+                    type="text"
+                    name="accountNumber"
+                    placeholder="e.g. 0142220099881"
+                    className={`${getFieldClass(Boolean(touched.accountNumber && errors.accountNumber))} mt-0 pl-10`}
+                  />
+                </div>
+                <ErrorMessage name="accountNumber">
+                  {(msg) => (
+                    <p className={errorClass}>
+                      <AlertCircle size={14} />
+                      {msg}
+                    </p>
+                  )}
+                </ErrorMessage>
+              </div>
 
-          {formError && (
-            <p className="flex items-center gap-1.5 text-xs font-medium text-red-600">
-              <AlertCircle size={14} />
-              {formError}
-            </p>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full rounded-full bg-brand py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Request Withdrawal
+              </button>
+              <p className="text-center text-xs text-muted">
+                Your request is reviewed and typically settles within a business day.
+              </p>
+            </Form>
           )}
-
-          <button
-            type="submit"
-            className="w-full rounded-full bg-brand py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand/90"
-          >
-            Request Withdrawal
-          </button>
-          <p className="text-center text-xs text-muted">
-            Your request is reviewed and typically settles within a business day.
-          </p>
-        </form>
+        </Formik>
       </div>
 
       {submitted.length > 0 && (
