@@ -1,24 +1,26 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { Formik, Form, Field, ErrorMessage } from "formik";
+import { Formik, Form, ErrorMessage } from "formik";
 import * as Yup from "yup";
-import { CreditCard, Phone, Lock, Eye, EyeOff, Sparkles } from "lucide-react";
+import { CreditCard, Lock, Eye, EyeOff, Sparkles } from "lucide-react";
 import Button from "../../../components/ui/Button";
 import ewalletImage from "../../../assets/imgs/ewallet.webp";
 import paymentImage from "../../../assets/imgs/payment-img1.jpg";
 import appScreenImage from "../../../assets/imgs/image 2.avif";
 import { mockUsers, getRedirectPath } from "../utils/mockAuth";
 
+import PhoneInput, { isValidPhoneNumber, type Country, type Value } from "react-phone-number-input";
+import "react-phone-number-input/style.css";
+
 const normalizePhone = (value: string) => value.replace(/\s+/g, "");
 
 const slides = [ewalletImage, paymentImage, appScreenImage];
 const SLIDE_DURATION = 15000;
-
 const PIN_LENGTH = 4;
 
-const getFieldClass = (hasError: boolean) =>
-  `w-full rounded-full border py-2.5 pl-11 text-sm outline-none transition-colors focus:bg-white ${
+const getPinFieldClass = (hasError: boolean) =>
+  `w-full rounded-full border py-2.5 pl-11 pr-11 text-sm tracking-[0.5em] outline-none transition-colors focus:bg-white ${
     hasError
       ? "border-red-400 bg-surface focus:border-red-500"
       : "border-transparent bg-surface focus:border-brand"
@@ -32,8 +34,8 @@ interface LoginValues {
 
 const loginSchema = Yup.object({
   phone: Yup.string()
-    .matches(/^\+?[0-9\s-]{7,15}$/, "Enter a valid phone number")
-    .required("Phone number is required"),
+    .required("Phone number is required")
+    .test("is-valid-phone", "Enter a valid phone number", (value) => Boolean(value && isValidPhoneNumber(value))),
   pin: Yup.string()
     .matches(/^\d{4}$/, `PIN must be ${PIN_LENGTH} digits`)
     .required("PIN is required"),
@@ -44,6 +46,7 @@ export default function Login() {
   const [showPin, setShowPin] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
   const [authError, setAuthError] = useState("");
+  const [country, setCountry] = useState<Country>("TZ");
 
   const handleLogin = (values: LoginValues) => {
     const user = mockUsers.find(
@@ -58,6 +61,7 @@ export default function Login() {
     }
 
     setAuthError("");
+    // Store the whole user, not just the role — ProtectedRoute reads `.role` off this.
     sessionStorage.setItem("user", JSON.stringify(user));
     navigate(getRedirectPath(user.role), { replace: true });
   };
@@ -123,7 +127,7 @@ export default function Login() {
             animate={{ x: [0, 25, 0], y: [0, -25, 0], scale: [1, 1.15, 1] }}
             transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
           />
-  
+
           <Link
             to="/"
             className="relative flex items-center gap-2 text-lg font-extrabold tracking-tight text-white"
@@ -202,7 +206,7 @@ export default function Login() {
                   setSubmitting(false);
                 }}
               >
-                {({ isSubmitting, errors, touched }) => (
+                {({ isSubmitting, errors, touched, values, setFieldValue, setFieldTouched }) => (
                   <Form className="space-y-5">
                     <div>
                       <label
@@ -211,17 +215,20 @@ export default function Login() {
                       >
                         Phone number
                       </label>
-                      <div className="relative mt-2">
-                        <Phone
-                          size={18}
-                          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-                        />
-                        <Field
+                      <div className="mt-2">
+                        <PhoneInput
                           id="phone"
-                          name="phone"
-                          type="tel"
-                          className={`${getFieldClass(Boolean(touched.phone && errors.phone))} pr-4`}
-                          placeholder="+255 7XX XXX XXX"
+                          international
+                          defaultCountry={country}
+                          value={values.phone as Value}
+                          onChange={(value) => setFieldValue("phone", value ?? "")}
+                          onCountryChange={(value) => {
+                            if (value) setCountry(value);
+                          }}
+                          onBlur={() => setFieldTouched("phone", true)}
+                          placeholder="Enter phone number"
+                          autoComplete="tel"
+                          className={`phone-input ${touched.phone && errors.phone ? "PhoneInput--error" : ""}`}
                         />
                       </div>
                       <ErrorMessage name="phone" component="p" className={errorClass} />
@@ -236,14 +243,22 @@ export default function Login() {
                           size={18}
                           className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
                         />
-                        <Field
+                        <input
                           id="pin"
                           name="pin"
                           type={showPin ? "text" : "password"}
                           inputMode="numeric"
+                          autoComplete="current-password"
                           maxLength={PIN_LENGTH}
-                          className={`${getFieldClass(Boolean(touched.pin && errors.pin))} pr-11 tracking-[0.5em]`}
+                          value={values.pin}
+                          onChange={(event) => {
+                            if (/^\d*$/.test(event.target.value)) {
+                              setFieldValue("pin", event.target.value);
+                            }
+                          }}
+                          onBlur={() => setFieldTouched("pin", true)}
                           placeholder="••••"
+                          className={getPinFieldClass(Boolean(touched.pin && errors.pin))}
                         />
                         <button
                           type="button"
@@ -255,6 +270,7 @@ export default function Login() {
                         </button>
                       </div>
                       <ErrorMessage name="pin" component="p" className={errorClass} />
+
                       <div className="mt-3 flex items-center justify-between">
                         <label
                           htmlFor="remember"
@@ -280,6 +296,7 @@ export default function Login() {
                     <Button type="submit" className="w-full" disabled={isSubmitting}>
                       Log In
                     </Button>
+
                     {authError && (
                       <p className="text-sm text-red-600" role="alert">
                         {authError}
