@@ -58,9 +58,14 @@ export default function Login() {
 
       if (!user) {
         await Swal.fire({
+          toast: true,
+          position: "top-end",
           icon: "error",
           title: "Login Failed",
           text: "Invalid phone number or PIN. Please try again.",
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true,
         });
         return;
       }
@@ -68,6 +73,8 @@ export default function Login() {
       sessionStorage.setItem("user", JSON.stringify(user));
 
       await Swal.fire({
+        toast: true,
+        position: "top-end",
         icon: "success",
         title: "Login Successful",
         text: "You have successfully logged in.",
@@ -80,9 +87,14 @@ export default function Login() {
     } catch (error) {
       console.error("Login error:", error);
       await Swal.fire({
+        toast: true,
+        position: "top-end",
         icon: "error",
         title: "Login Failed",
         text: "An error occurred while trying to log in. Please try again.",
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
       });
     }
    

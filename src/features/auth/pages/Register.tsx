@@ -173,6 +173,8 @@ export default function Register() {
 
     try {
       await Swal.fire({
+        toast: true,
+        position: 'top-end',
         icon: 'success',
         title: 'Account Created',
         text: "You're all set — welcome to WalletPesa.",
@@ -183,9 +185,14 @@ export default function Register() {
     } catch (error) {
       console.error('Registration error:', error)
       await Swal.fire({
+        toast: true,
+        position: 'top-end',
         icon: 'error',
         title: 'Registration Failed',
         text: 'An error occurred while creating your account. Please try again.',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
       })
     }
   }
