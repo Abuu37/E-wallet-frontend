@@ -93,3 +93,12 @@ body {
   font-size: 0.875rem;
   color: var(--color-ink);
 }
+
+/* SweetAlert2 toast icons render small and thin by default — bump up the success one
+   (login/register/logout confirmations) so it actually reads as a success state at a glance.
+   transform scales the ring and checkmark together, so the library's own internal
+   positioning (top/left percentages on the checkmark lines) stays correct. */
+.swal2-toast .swal2-icon.swal2-success {
+  transform: scale(1.4);
+  margin-inline-end: 0.75em;
+}
