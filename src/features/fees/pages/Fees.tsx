@@ -271,6 +271,9 @@ export default function Fees() {
             <tbody className="divide-y divide-line">
               {pageItems.map((tier, index) => {
                 const isCashIn = tier.transactionType === 'Cash In'
+                // Only Cash In/Cash Out go through a cashier — W2W and W2B are self-service, so
+                // there's no agent to split the fee with (see rolePermissions.ts).
+                const isCashierServed = isCashIn || tier.transactionType === 'Cash Out'
                 return (
                   <tr key={tier.id}>
                     <td className="px-6 py-3.5 text-xs text-muted">
@@ -290,12 +293,20 @@ export default function Fees() {
                       )}
                     </td>
                     <td className="px-6 py-3.5 text-right tabular-nums text-ink/70">
-                      {isCashIn ? formatAmount(tier.customerFee) : formatAmount(tier.customerFee * SHARE_RATE)}
+                      {isCashIn && <>{formatAmount(tier.customerFee)}</>}
+                      {!isCashIn && isCashierServed && <>{formatAmount(tier.customerFee * SHARE_RATE)}</>}
+                      {!isCashierServed && <span className="text-muted">No agent</span>}
                     </td>
                     <td
                       className={`px-6 py-3.5 text-right tabular-nums ${isCashIn ? 'text-red-500' : 'text-ink/70'}`}
                     >
-                      {formatAmount(isCashIn ? -tier.customerFee : tier.customerFee * SHARE_RATE)}
+                      {formatAmount(
+                        isCashIn
+                          ? -tier.customerFee
+                          : isCashierServed
+                            ? tier.customerFee * SHARE_RATE
+                            : tier.customerFee,
+                      )}
                     </td>
                     <td className="px-6 py-3.5 text-right">
                       <button
