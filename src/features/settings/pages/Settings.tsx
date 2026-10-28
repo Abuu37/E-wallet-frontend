@@ -55,8 +55,16 @@ function PinInput({
   )
 }
 
+type Section = 'profile' | 'security'
+
+const sections: Array<{ id: Section; label: string; icon: typeof User }> = [
+  { id: 'profile', label: 'Profile', icon: User },
+  { id: 'security', label: 'Security', icon: ShieldCheck },
+]
+
 export default function Settings() {
   const currentUser = getCurrentStaffUser()
+  const [activeSection, setActiveSection] = useState<Section>('profile')
 
   const [name, setName] = useState(currentUser.name)
   const [email, setEmail] = useState(currentUser.email)
@@ -118,141 +126,177 @@ export default function Settings() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-4xl">
       <div>
         <h1 className="text-2xl font-extrabold text-ink">Settings</h1>
         <p className="mt-1 text-sm text-muted">Manage your account details and sign-in security.</p>
       </div>
 
-      <div className="rounded-2xl bg-white p-6 ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
-        <div className="flex items-center gap-4">
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand text-lg font-bold text-white">
-            {currentUser.initials}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-base font-bold text-ink">{currentUser.name}</p>
-            <p className="truncate text-sm text-muted">{ORGANIZATION}</p>
-          </div>
-          <StatusBadge status="info" label={currentUser.role} />
-        </div>
-      </div>
-
-      <div className="rounded-2xl bg-white p-8 ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
-        <h2 className="text-lg font-bold text-ink">Profile settings</h2>
-        <p className="mt-1 text-sm text-muted">Update the details shown across the dashboard.</p>
-
-        <form className="mt-6 space-y-5" onSubmit={saveProfile}>
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <div>
-              <label htmlFor="name" className="text-sm font-medium text-ink">
-                Full name
-              </label>
-              <div className="relative mt-2">
-                <User size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  className={fieldClass}
-                />
+      <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-start">
+        <aside className="shrink-0 lg:w-64">
+          <div className="rounded-2xl bg-white p-4 ring-1 ring-line">
+            <div className="flex items-center gap-3 border-b border-line pb-4">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
+                {currentUser.initials}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-ink">{currentUser.name}</p>
+                <p className="truncate text-xs text-muted">{ORGANIZATION}</p>
               </div>
             </div>
+            <div className="pt-2">
+              <StatusBadge status="info" label={currentUser.role} />
+            </div>
 
-            <div>
-              <label htmlFor="org" className="text-sm font-medium text-ink">
-                Organization
-              </label>
-              <div className="relative mt-2">
-                <Building2 size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
-                <input
-                  id="org"
-                  type="text"
-                  value={ORGANIZATION}
-                  disabled
-                  className={`${fieldClass} cursor-not-allowed text-muted`}
-                />
+            <nav className="mt-4 flex flex-row gap-1 lg:flex-col">
+              {sections.map((section) => (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => setActiveSection(section.id)}
+                  className={`flex flex-1 items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors lg:flex-none ${
+                    activeSection === section.id
+                      ? 'bg-brand/10 text-brand'
+                      : 'text-ink/70 hover:bg-surface hover:text-ink'
+                  }`}
+                >
+                  <section.icon size={18} />
+                  {section.label}
+                </button>
+              ))}
+            </nav>
+          </div>
+        </aside>
+
+        <div className="min-w-0 flex-1">
+          {activeSection === 'profile' && (
+            <div className="rounded-2xl bg-white p-8 ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
+              <h2 className="text-lg font-bold text-ink">Profile settings</h2>
+              <p className="mt-1 text-sm text-muted">Update the details shown across the dashboard.</p>
+
+              <form className="mt-6 space-y-5" onSubmit={saveProfile}>
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="name" className="text-sm font-medium text-ink">
+                      Full name
+                    </label>
+                    <div className="relative mt-2">
+                      <User
+                        size={18}
+                        className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                      />
+                      <input
+                        id="name"
+                        type="text"
+                        value={name}
+                        onChange={(event) => setName(event.target.value)}
+                        className={fieldClass}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="org" className="text-sm font-medium text-ink">
+                      Organization
+                    </label>
+                    <div className="relative mt-2">
+                      <Building2
+                        size={18}
+                        className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                      />
+                      <input
+                        id="org"
+                        type="text"
+                        value={ORGANIZATION}
+                        disabled
+                        className={`${fieldClass} cursor-not-allowed text-muted`}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="email" className="text-sm font-medium text-ink">
+                    Email
+                  </label>
+                  <div className="relative mt-2">
+                    <Mail size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
+                    <input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      className={fieldClass}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="phone" className="text-sm font-medium text-ink">
+                    Phone number
+                  </label>
+                  <div className="relative mt-2">
+                    <Phone size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
+                    <input
+                      id="phone"
+                      type="tel"
+                      value={phone}
+                      onChange={(event) => setPhone(event.target.value)}
+                      className={fieldClass}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  {profileSaved && (
+                    <span className="flex items-center gap-1.5 text-sm font-medium text-green-700">
+                      <CheckCircle2 size={16} />
+                      Saved
+                    </span>
+                  )}
+                  <Button type="button" variant="secondary" onClick={resetProfile}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">Save changes</Button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {activeSection === 'security' && (
+            <div className="rounded-2xl bg-white p-8 ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand">
+                  <ShieldCheck size={18} />
+                </span>
+                <div>
+                  <h2 className="text-lg font-bold text-ink">Security</h2>
+                  <p className="mt-0.5 text-sm text-muted">Change the PIN you sign in with.</p>
+                </div>
               </div>
+
+              <form className="mt-6 space-y-5" onSubmit={changePin}>
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+                  <PinInput id="current-pin" label="Current PIN" value={currentPin} onChange={setCurrentPin} />
+                  <PinInput id="new-pin" label="New PIN" value={newPin} onChange={setNewPin} />
+                  <PinInput id="confirm-pin" label="Confirm new PIN" value={confirmPin} onChange={setConfirmPin} />
+                </div>
+
+                {pinError && <p className="text-sm font-medium text-red-600">{pinError}</p>}
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  {pinSaved && (
+                    <span className="flex items-center gap-1.5 text-sm font-medium text-green-700">
+                      <CheckCircle2 size={16} />
+                      PIN updated
+                    </span>
+                  )}
+                  <Button type="submit">Update PIN</Button>
+                </div>
+              </form>
             </div>
-          </div>
-
-          <div>
-            <label htmlFor="email" className="text-sm font-medium text-ink">
-              Email
-            </label>
-            <div className="relative mt-2">
-              <Mail size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className={fieldClass}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="phone" className="text-sm font-medium text-ink">
-              Phone number
-            </label>
-            <div className="relative mt-2">
-              <Phone size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
-              <input
-                id="phone"
-                type="tel"
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                className={fieldClass}
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-3 pt-2">
-            {profileSaved && (
-              <span className="flex items-center gap-1.5 text-sm font-medium text-green-700">
-                <CheckCircle2 size={16} />
-                Saved
-              </span>
-            )}
-            <Button type="button" variant="secondary" onClick={resetProfile}>
-              Cancel
-            </Button>
-            <Button type="submit">Save changes</Button>
-          </div>
-        </form>
-      </div>
-
-      <div className="rounded-2xl bg-white p-8 ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand">
-            <ShieldCheck size={18} />
-          </span>
-          <div>
-            <h2 className="text-lg font-bold text-ink">Security</h2>
-            <p className="mt-0.5 text-sm text-muted">Change the PIN you sign in with.</p>
-          </div>
+          )}
         </div>
-
-        <form className="mt-6 space-y-5" onSubmit={changePin}>
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-            <PinInput id="current-pin" label="Current PIN" value={currentPin} onChange={setCurrentPin} />
-            <PinInput id="new-pin" label="New PIN" value={newPin} onChange={setNewPin} />
-            <PinInput id="confirm-pin" label="Confirm new PIN" value={confirmPin} onChange={setConfirmPin} />
-          </div>
-
-          {pinError && <p className="text-sm font-medium text-red-600">{pinError}</p>}
-
-          <div className="flex items-center justify-end gap-3 pt-2">
-            {pinSaved && (
-              <span className="flex items-center gap-1.5 text-sm font-medium text-green-700">
-                <CheckCircle2 size={16} />
-                PIN updated
-              </span>
-            )}
-            <Button type="submit">Update PIN</Button>
-          </div>
-        </form>
       </div>
     </div>
   )
