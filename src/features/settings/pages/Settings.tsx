@@ -132,9 +132,9 @@ export default function Settings() {
         <p className="mt-1 text-sm text-muted">Manage your account details and sign-in security.</p>
       </div>
 
-      <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-start">
-        <aside className="shrink-0 lg:w-64">
-          <div className="rounded-2xl bg-white p-4 ring-1 ring-line">
+      <div className="mt-6 overflow-hidden rounded-2xl bg-white ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
+        <div className="flex flex-col lg:flex-row">
+          <aside className="shrink-0 border-b border-line p-4 lg:w-64 lg:border-b-0 lg:border-r">
             <div className="flex items-center gap-3 border-b border-line pb-4">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
                 {currentUser.initials}
@@ -165,12 +165,11 @@ export default function Settings() {
                 </button>
               ))}
             </nav>
-          </div>
-        </aside>
+          </aside>
 
-        <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1">
           {activeSection === 'profile' && (
-            <div className="rounded-2xl bg-white p-8 ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
+            <div className="p-8">
               <h2 className="text-lg font-bold text-ink">Profile settings</h2>
               <p className="mt-1 text-sm text-muted">Update the details shown across the dashboard.</p>
 
@@ -264,7 +263,7 @@ export default function Settings() {
           )}
 
           {activeSection === 'security' && (
-            <div className="rounded-2xl bg-white p-8 ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
+            <div className="p-8">
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand">
                   <ShieldCheck size={18} />
@@ -296,6 +295,7 @@ export default function Settings() {
               </form>
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>
