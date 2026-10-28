@@ -5,7 +5,7 @@ import StatusBadge from '../../../components/ui/StatusBadge'
 import { getCurrentStaffUser } from '../../auth/currentStaffUser'
 
 const fieldClass =
-  'w-full rounded-full border border-transparent bg-surface py-2.5 pl-11 pr-4 text-sm outline-none transition-colors focus:border-brand focus:bg-white'
+  'w-full rounded-full border border-transparent bg-surface py-3.5 pl-12 pr-5 text-sm outline-none transition-colors focus:border-brand focus:bg-white'
 
 const pinFieldClass =
   'w-full rounded-full border border-transparent bg-surface py-2.5 pl-11 pr-11 text-sm tracking-[0.3em] outline-none transition-colors focus:border-brand focus:bg-white'
@@ -132,7 +132,7 @@ export default function Settings() {
         <p className="mt-1 text-sm text-muted">Manage your account details and sign-in security.</p>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-2xl bg-white ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
+      <div className="mt-6 overflow-hidden bg-white ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
         <div className="flex flex-col lg:flex-row">
           <aside className="shrink-0 border-b border-line p-4 lg:w-64 lg:border-b-0 lg:border-r">
             <nav className="flex flex-row gap-1 lg:flex-col">
@@ -157,58 +157,56 @@ export default function Settings() {
           <div className="min-w-0 flex-1">
           {activeSection === 'profile' && (
             <div className="p-8">
-              <div className="flex items-center gap-3 border-b border-line pb-6">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center bg-brand text-sm font-bold text-white">
+              <div className="flex flex-col items-center border-b border-line pb-6 text-center">
+                <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-brand text-base font-bold text-white">
                   {currentUser.initials}
                 </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-ink">{currentUser.name}</p>
-                  <p className="truncate text-xs text-muted">{ORGANIZATION}</p>
+                <p className="mt-3 text-sm font-bold text-ink">{currentUser.name}</p>
+                <p className="text-xs text-muted">{ORGANIZATION}</p>
+                <div className="mt-2">
+                  <StatusBadge status="info" label={currentUser.role} />
                 </div>
-                <StatusBadge status="info" label={currentUser.role} />
               </div>
 
               <h2 className="mt-6 text-lg font-bold text-ink">Profile settings</h2>
               <p className="mt-1 text-sm text-muted">Update the details shown across the dashboard.</p>
 
               <form className="mt-6 space-y-5" onSubmit={saveProfile}>
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  <div>
-                    <label htmlFor="name" className="text-sm font-medium text-ink">
-                      Full name
-                    </label>
-                    <div className="relative mt-2">
-                      <User
-                        size={18}
-                        className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-                      />
-                      <input
-                        id="name"
-                        type="text"
-                        value={name}
-                        onChange={(event) => setName(event.target.value)}
-                        className={fieldClass}
-                      />
-                    </div>
+                <div>
+                  <label htmlFor="name" className="text-sm font-medium text-ink">
+                    Full name
+                  </label>
+                  <div className="relative mt-2">
+                    <User
+                      size={18}
+                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                    />
+                    <input
+                      id="name"
+                      type="text"
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                      className={fieldClass}
+                    />
                   </div>
+                </div>
 
-                  <div>
-                    <label htmlFor="org" className="text-sm font-medium text-ink">
-                      Organization
-                    </label>
-                    <div className="relative mt-2">
-                      <Building2
-                        size={18}
-                        className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-                      />
-                      <input
-                        id="org"
-                        type="text"
-                        value={ORGANIZATION}
-                        disabled
-                        className={`${fieldClass} cursor-not-allowed text-muted`}
-                      />
-                    </div>
+                <div>
+                  <label htmlFor="org" className="text-sm font-medium text-ink">
+                    Organization
+                  </label>
+                  <div className="relative mt-2">
+                    <Building2
+                      size={18}
+                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                    />
+                    <input
+                      id="org"
+                      type="text"
+                      value={ORGANIZATION}
+                      disabled
+                      className={`${fieldClass} cursor-not-allowed text-muted`}
+                    />
                   </div>
                 </div>
 
