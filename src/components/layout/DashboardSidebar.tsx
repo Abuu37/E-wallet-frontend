@@ -17,6 +17,7 @@ import {
   LogOut,
   X,
 } from 'lucide-react'
+import { confirmLogout } from '../../features/auth/confirmLogout'
 
 interface NavItem {
   to: string
@@ -64,7 +65,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       isActive ? 'bg-brand text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'
     }`
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const confirmed = await confirmLogout()
+    if (!confirmed) return
     sessionStorage.removeItem('user')
     onNavigate?.()
     navigate('/')

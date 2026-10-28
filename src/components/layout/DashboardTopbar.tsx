@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { Menu, ChevronDown, Settings, LogOut, Bell, AlertTriangle, Info, Clock } from 'lucide-react'
 import { getCurrentStaffUser } from '../../features/auth/currentStaffUser'
+import { confirmLogout } from '../../features/auth/confirmLogout'
 
 interface DashboardTopbarProps {
   onMenuClick: () => void
@@ -171,9 +172,11 @@ export default function DashboardTopbar({ onMenuClick }: DashboardTopbarProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    sessionStorage.removeItem('user')
+                  onClick={async () => {
                     setProfileOpen(false)
+                    const confirmed = await confirmLogout()
+                    if (!confirmed) return
+                    sessionStorage.removeItem('user')
                     navigate('/')
                   }}
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink/80 hover:bg-surface hover:text-brand"

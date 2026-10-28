@@ -2,6 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { CreditCard, LayoutDashboard, Landmark, LogOut } from 'lucide-react'
 import { getLoggedInCustomer } from '../../features/account/currentCustomer'
 import { getCustomerBalance } from '../../features/ledger/data'
+import { confirmLogout } from '../../features/auth/confirmLogout'
 
 const currency = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
 
@@ -17,7 +18,9 @@ export default function CustomerLayout() {
   const customer = getLoggedInCustomer()
   const balance = getCustomerBalance(customer)
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const confirmed = await confirmLogout()
+    if (!confirmed) return
     sessionStorage.removeItem('user')
     navigate('/')
   }
