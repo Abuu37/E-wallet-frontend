@@ -275,7 +275,7 @@ export default function Settings() {
               </div>
 
               <form className="mt-6 space-y-5" onSubmit={changePin}>
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+                <div className="max-w-xs space-y-5">
                   <PinInput id="current-pin" label="Current PIN" value={currentPin} onChange={setCurrentPin} />
                   <PinInput id="new-pin" label="New PIN" value={newPin} onChange={setNewPin} />
                   <PinInput id="confirm-pin" label="Confirm new PIN" value={confirmPin} onChange={setConfirmPin} />
