@@ -60,10 +60,11 @@ function StatTile({ icon: Icon, tone, label, value, statusIcon: StatusIcon, stat
 const transactionTypeTone = {
   'Cash In': 'green',
   'Cash Out': 'rose',
-  Transfer: 'purple',
+  W2W: 'blue',
+  W2B: 'rose',
 } as const
 
-const transactionTypeOptions: TransactionType[] = ['Cash In', 'Cash Out', 'Transfer']
+const transactionTypeOptions: TransactionType[] = ['Cash In', 'Cash Out', 'W2W', 'W2B']
 const transactionTypeFilterOptions: Array<TransactionType | 'All'> = ['All', ...transactionTypeOptions]
 
 const formatAmount = (value: number) =>

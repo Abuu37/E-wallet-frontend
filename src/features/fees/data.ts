@@ -1,5 +1,5 @@
 export type FeeApplyType = 'Flat' | 'Percentage'
-export type TransactionType = 'Cash In' | 'Cash Out' | 'Transfer'
+export type TransactionType = 'Cash In' | 'Cash Out' | 'W2W' | 'W2B'
 
 export const feeOverviewStats = {
   totalFeeRevenue: 45200000,
@@ -35,11 +35,20 @@ export const feeTiers: FeeTier[] = [
   { id: 'TIER-12', type: 'Flat', transactionType: 'Cash Out', rangeMin: 100001, rangeMax: 500000, customerFee: 5000 },
   { id: 'TIER-13', type: 'Flat', transactionType: 'Cash Out', rangeMin: 500001, rangeMax: 1000000, customerFee: 6000 },
   { id: 'TIER-14', type: 'Flat', transactionType: 'Cash Out', rangeMin: 1000001, rangeMax: 5000000, customerFee: 7000 },
-  { id: 'TIER-15', type: 'Flat', transactionType: 'Transfer', rangeMin: 1000, rangeMax: 10000, customerFee: 300 },
-  { id: 'TIER-16', type: 'Flat', transactionType: 'Transfer', rangeMin: 10001, rangeMax: 20000, customerFee: 600 },
-  { id: 'TIER-17', type: 'Flat', transactionType: 'Transfer', rangeMin: 20001, rangeMax: 50000, customerFee: 900 },
-  { id: 'TIER-18', type: 'Flat', transactionType: 'Transfer', rangeMin: 50001, rangeMax: 100000, customerFee: 1200 },
-  { id: 'TIER-19', type: 'Flat', transactionType: 'Transfer', rangeMin: 100001, rangeMax: 500000, customerFee: 1500 },
-  { id: 'TIER-20', type: 'Flat', transactionType: 'Transfer', rangeMin: 500001, rangeMax: 1000000, customerFee: 1800 },
-  { id: 'TIER-21', type: 'Flat', transactionType: 'Transfer', rangeMin: 1000001, rangeMax: 5000000, customerFee: 2100 },
+  { id: 'TIER-15', type: 'Flat', transactionType: 'W2W', rangeMin: 1000, rangeMax: 10000, customerFee: 300 },
+  { id: 'TIER-16', type: 'Flat', transactionType: 'W2W', rangeMin: 10001, rangeMax: 20000, customerFee: 600 },
+  { id: 'TIER-17', type: 'Flat', transactionType: 'W2W', rangeMin: 20001, rangeMax: 50000, customerFee: 900 },
+  { id: 'TIER-18', type: 'Flat', transactionType: 'W2W', rangeMin: 50001, rangeMax: 100000, customerFee: 1200 },
+  { id: 'TIER-19', type: 'Flat', transactionType: 'W2W', rangeMin: 100001, rangeMax: 500000, customerFee: 1500 },
+  { id: 'TIER-20', type: 'Flat', transactionType: 'W2W', rangeMin: 500001, rangeMax: 1000000, customerFee: 1800 },
+  { id: 'TIER-21', type: 'Flat', transactionType: 'W2W', rangeMin: 1000001, rangeMax: 5000000, customerFee: 2100 },
+  // W2B pays out to a real external bank account (see ledger/data.ts), so it costs more than a
+  // same-wallet W2W transfer — priced here a step above Cash Out, which also leaves the system.
+  { id: 'TIER-22', type: 'Flat', transactionType: 'W2B', rangeMin: 1000, rangeMax: 10000, customerFee: 1500 },
+  { id: 'TIER-23', type: 'Flat', transactionType: 'W2B', rangeMin: 10001, rangeMax: 20000, customerFee: 2500 },
+  { id: 'TIER-24', type: 'Flat', transactionType: 'W2B', rangeMin: 20001, rangeMax: 50000, customerFee: 3500 },
+  { id: 'TIER-25', type: 'Flat', transactionType: 'W2B', rangeMin: 50001, rangeMax: 100000, customerFee: 4500 },
+  { id: 'TIER-26', type: 'Flat', transactionType: 'W2B', rangeMin: 100001, rangeMax: 500000, customerFee: 5500 },
+  { id: 'TIER-27', type: 'Flat', transactionType: 'W2B', rangeMin: 500001, rangeMax: 1000000, customerFee: 6500 },
+  { id: 'TIER-28', type: 'Flat', transactionType: 'W2B', rangeMin: 1000001, rangeMax: 5000000, customerFee: 7500 },
 ]
