@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { Menu, ChevronDown, Settings, LogOut, Bell, AlertTriangle, Info, Clock } from 'lucide-react'
-import { cashiers } from '../../features/cashiers/data'
+import { getCurrentStaffUser } from '../../features/auth/currentStaffUser'
 
 interface DashboardTopbarProps {
   onMenuClick: () => void
@@ -33,44 +33,6 @@ function getGreeting() {
   if (hour < 12) return 'Good morning'
   if (hour < 18) return 'Good afternoon'
   return 'Good evening'
-}
-
-const defaultUser = {
-  name: 'Code Abuu',
-  initials: 'CA',
-}
-
-const initialsOf = (name: string) =>
-  name
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase()
-
-/**
- * Resolves to whoever's actually logged in — the real cashier's name for a Cashier session,
- * or Admin's own stored name for an Admin session — falling back to the generic placeholder
- * if there's no session at all. Called fresh on every render (not module scope) so it reflects
- * whoever actually just logged in, not whatever sessionStorage held when this module first
- * loaded.
- */
-function getCurrentStaffUser() {
-  try {
-    const stored = sessionStorage.getItem('user')
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      if (parsed.role === 'Cashier' && parsed.cashierId) {
-        const cashier = cashiers.find((item) => item.id === parsed.cashierId)
-        if (cashier) return { name: cashier.name, initials: initialsOf(cashier.name) }
-      }
-      if (parsed.role === 'Admin' && parsed.name) {
-        return { name: parsed.name, initials: initialsOf(parsed.name) }
-      }
-    }
-  } catch {
-    // malformed session value — fall through to the default below
-  }
-  return defaultUser
 }
 
 export default function DashboardTopbar({ onMenuClick }: DashboardTopbarProps) {
