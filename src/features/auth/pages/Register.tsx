@@ -23,6 +23,7 @@ import paymentImage from '../../../assets/imgs/payment-img1.jpg'
 import appScreenImage from '../../../assets/imgs/image 2.avif'
 import PhoneInput, { isValidPhoneNumber, formatPhoneNumberIntl, type Country, type Value } from 'react-phone-number-input'
 import 'react-phone-number-input/style.css'
+import Swal from 'sweetalert2'
 
 const slides = [paymentImage, appScreenImage, ewalletImage]
 const SLIDE_DURATION = 15000
@@ -148,9 +149,14 @@ export default function Register() {
     otpRefs.current[0]?.focus()
   }
 
-  const verifyOtp = () => {
+  const verifyOtp = async () => {
     if (otp.some((digit) => digit === '')) {
       setOtpError('Enter the full 6-digit code')
+      await Swal.fire({
+        icon: 'error',
+        title: 'Incomplete code',
+        text: 'Enter the full 6-digit code to continue.',
+      })
       return
     }
     setPin('')
@@ -159,16 +165,27 @@ export default function Register() {
     setStep('pin')
   }
 
-  const handleCreateAccount = () => {
+  const handleCreateAccount = async () => {
     if (pin.length !== PIN_LENGTH) {
-      setPinError(`PIN must be ${PIN_LENGTH} digits`)
+      const message = `PIN must be ${PIN_LENGTH} digits`
+      setPinError(message)
+      await Swal.fire({ icon: 'error', title: 'Invalid PIN', text: message })
       return
     }
     if (pin !== confirmPin) {
-      setPinError('PINs do not match')
+      const message = 'PINs do not match'
+      setPinError(message)
+      await Swal.fire({ icon: 'error', title: 'PIN mismatch', text: message })
       return
     }
     setPinError('')
+    await Swal.fire({
+      icon: 'success',
+      title: 'Account Created',
+      text: "You're all set — welcome to WalletPesa.",
+      timer: 1500,
+      showConfirmButton: false,
+    })
     setStep('success')
   }
 
