@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { Formik, Form, Field, ErrorMessage } from 'formik'
+import * as Yup from 'yup'
 import {
   Search,
   ShieldCheck,
@@ -70,6 +72,30 @@ const formatDateTime = (iso: string) => {
 const subjectOf = (run: ReconciliationRun) =>
   run.scope === 'Company' ? 'Company Wallet' : getCashierName(run.cashierId)
 
+interface NewRunValues {
+  scope: ReconciliationScope
+  cashierId: string
+  statementAmount: string
+  performedBy: string
+}
+
+const newRunSchema = Yup.object({
+  scope: Yup.mixed<ReconciliationScope>().oneOf(['Company', 'Cashier']).required(),
+  cashierId: Yup.string().when('scope', {
+    is: 'Cashier',
+    then: (schema) => schema.required('Select a cashier'),
+    otherwise: (schema) => schema.notRequired(),
+  }),
+  statementAmount: Yup.number().typeError('Enter a valid amount').required('This field is required'),
+  performedBy: Yup.string().trim().required('Performed by is required'),
+})
+
+const getFieldClass = (hasError: boolean) =>
+  `mt-1 w-full rounded-xl border bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 transition-colors focus:border-brand ${
+    hasError ? 'border-red-400 ring-red-300' : 'border-transparent ring-line'
+  }`
+const errorClass = 'mt-1 text-xs font-medium text-red-600'
+
 export default function Reconciliation() {
   const [runs, setRuns] = useState<ReconciliationRun[]>(initialRuns)
   const [scopeFilter, setScopeFilter] = useState<ReconciliationScope | 'All'>('All')
@@ -82,10 +108,13 @@ export default function Reconciliation() {
   const [draftNotes, setDraftNotes] = useState('')
 
   const [createOpen, setCreateOpen] = useState(false)
-  const [newScope, setNewScope] = useState<ReconciliationScope>('Company')
-  const [newCashierId, setNewCashierId] = useState(cashiers[0]?.id ?? '')
-  const [newStatementAmount, setNewStatementAmount] = useState('')
-  const [newPerformedBy, setNewPerformedBy] = useState('')
+  const blankNewRun: NewRunValues = {
+    scope: 'Company',
+    cashierId: cashiers[0]?.id ?? '',
+    statementAmount: '',
+    performedBy: '',
+  }
+  const [newRunInitialValues, setNewRunInitialValues] = useState<NewRunValues>(blankNewRun)
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase()
@@ -144,22 +173,17 @@ export default function Reconciliation() {
   }
 
   const openCreate = () => {
-    setNewScope('Company')
-    setNewCashierId(cashiers[0]?.id ?? '')
-    setNewStatementAmount('')
-    setNewPerformedBy('')
+    setNewRunInitialValues(blankNewRun)
     setCreateOpen(true)
   }
 
-  const submitCreate = () => {
-    const amount = Number(newStatementAmount)
-    if (!Number.isFinite(amount) || !newPerformedBy.trim()) return
+  const submitCreate = (values: NewRunValues) => {
     const run = buildReconciliationRun({
       id: nextRunId(),
-      scope: newScope,
-      cashierId: newScope === 'Cashier' ? newCashierId : undefined,
-      statementAmount: amount,
-      performedBy: newPerformedBy,
+      scope: values.scope,
+      cashierId: values.scope === 'Cashier' ? values.cashierId : undefined,
+      statementAmount: Number(values.statementAmount),
+      performedBy: values.performedBy,
     })
     setRuns((prev) => [run, ...prev])
     setCreateOpen(false)
@@ -442,98 +466,108 @@ export default function Reconciliation() {
         )}
       </Drawer>
 
-      <Modal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        title={
-          <>
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand">
-              <Plus size={16} />
-            </span>
-            New Reconciliation
-          </>
-        }
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setCreateOpen(false)}
-              className="flex-1 rounded-full border border-line py-2.5 text-sm font-semibold text-ink transition-colors hover:border-red-600 hover:text-red-600"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={submitCreate}
-              className="flex-1 rounded-full bg-brand py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand/90"
-            >
-              Run Reconciliation
-            </button>
-          </>
-        }
+      <Formik<NewRunValues>
+        enableReinitialize
+        initialValues={newRunInitialValues}
+        validationSchema={newRunSchema}
+        onSubmit={(values, { setSubmitting }) => {
+          submitCreate(values)
+          setSubmitting(false)
+        }}
       >
-        <div className="space-y-4">
-          <div>
-            <label className="text-xs font-medium text-muted">Scope</label>
-            <select
-              value={newScope}
-              onChange={(event) => setNewScope(event.target.value as ReconciliationScope)}
-              className="mt-1 w-full rounded-xl border border-transparent bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 ring-line focus:border-brand"
-            >
-              <option value="Company">Company (trust account)</option>
-              <option value="Cashier">Cashier (float cash count)</option>
-            </select>
-          </div>
+        {({ values, errors, touched, isSubmitting, submitForm }) => (
+          <Modal
+            open={createOpen}
+            onClose={() => setCreateOpen(false)}
+            title={
+              <>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand">
+                  <Plus size={16} />
+                </span>
+                New Reconciliation
+              </>
+            }
+            footer={
+              <>
+                <button
+                  type="button"
+                  onClick={() => setCreateOpen(false)}
+                  className="flex-1 rounded-full border border-line py-2.5 text-sm font-semibold text-ink transition-colors hover:border-red-600 hover:text-red-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => submitForm()}
+                  className="flex-1 rounded-full bg-brand py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Run Reconciliation
+                </button>
+              </>
+            }
+          >
+            <Form className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-muted">Scope</label>
+                <Field as="select" name="scope" className={getFieldClass(false)}>
+                  <option value="Company">Company (trust account)</option>
+                  <option value="Cashier">Cashier (float cash count)</option>
+                </Field>
+              </div>
 
-          {newScope === 'Cashier' && (
-            <div>
-              <label className="text-xs font-medium text-muted">Cashier</label>
-              <select
-                value={newCashierId}
-                onChange={(event) => setNewCashierId(event.target.value)}
-                className="mt-1 w-full rounded-xl border border-transparent bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 ring-line focus:border-brand"
-              >
-                {cashiers.map((cashier) => (
-                  <option key={cashier.id} value={cashier.id}>
-                    {cashier.name} ({cashier.id})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+              {values.scope === 'Cashier' && (
+                <div>
+                  <label className="text-xs font-medium text-muted">Cashier</label>
+                  <Field
+                    as="select"
+                    name="cashierId"
+                    className={getFieldClass(Boolean(touched.cashierId && errors.cashierId))}
+                  >
+                    {cashiers.map((cashier) => (
+                      <option key={cashier.id} value={cashier.id}>
+                        {cashier.name} ({cashier.id})
+                      </option>
+                    ))}
+                  </Field>
+                  <ErrorMessage name="cashierId" component="p" className={errorClass} />
+                </div>
+              )}
 
-          <div>
-            <label className="text-xs font-medium text-muted">
-              {newScope === 'Company' ? 'Bank statement amount' : 'Cash counted'}{' '}
-              <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              value={newStatementAmount}
-              onChange={(event) => setNewStatementAmount(event.target.value)}
-              placeholder="e.g. 795966.75"
-              className="mt-1 w-full rounded-xl border border-transparent bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 ring-line focus:border-brand"
-            />
-            <p className="mt-1 text-xs text-muted">
-              The ledger amount is captured automatically from live data when you submit.
-            </p>
-          </div>
+              <div>
+                <label className="text-xs font-medium text-muted">
+                  {values.scope === 'Company' ? 'Bank statement amount' : 'Cash counted'}{' '}
+                  <span className="text-red-500">*</span>
+                </label>
+                <Field
+                  type="number"
+                  step="0.01"
+                  name="statementAmount"
+                  placeholder="e.g. 795966.75"
+                  className={getFieldClass(Boolean(touched.statementAmount && errors.statementAmount))}
+                />
+                <ErrorMessage name="statementAmount" component="p" className={errorClass} />
+                <p className="mt-1 text-xs text-muted">
+                  The ledger amount is captured automatically from live data when you submit.
+                </p>
+              </div>
 
-          <div>
-            <label className="text-xs font-medium text-muted">
-              Performed by <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={newPerformedBy}
-              onChange={(event) => setNewPerformedBy(event.target.value)}
-              placeholder="e.g. Grace Mahundi"
-              className="mt-1 w-full rounded-xl border border-transparent bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 ring-line focus:border-brand"
-            />
-          </div>
-        </div>
-      </Modal>
+              <div>
+                <label className="text-xs font-medium text-muted">
+                  Performed by <span className="text-red-500">*</span>
+                </label>
+                <Field
+                  type="text"
+                  name="performedBy"
+                  placeholder="e.g. Grace Mahundi"
+                  className={getFieldClass(Boolean(touched.performedBy && errors.performedBy))}
+                />
+                <ErrorMessage name="performedBy" component="p" className={errorClass} />
+              </div>
+            </Form>
+          </Modal>
+        )}
+      </Formik>
     </div>
   )
 }
