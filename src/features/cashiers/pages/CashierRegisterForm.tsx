@@ -8,14 +8,9 @@ import {
   Mail,
   CalendarDays,
   MapPin,
-  Lock,
-  Hash,
-  Eye,
-  EyeOff,
   Briefcase,
   Landmark,
   Shield,
-  Info,
   CheckCircle2,
   Check,
   Plus,
@@ -54,18 +49,17 @@ const getPlainInputClass = (hasError: boolean) =>
 const errorClass = 'mt-1 text-xs font-medium text-red-600'
 
 interface CashierFormValues {
-  cashierId: string
   name: string
   phone: string
   email: string
   gender: CashierGender
   dateOfBirth: string
   address: string
-  username: string
-  password: string
   branch: string
   floatAccount: string
 }
+
+const usernameFrom = (name: string) => name.trim().toLowerCase().replace(/\s+/g, '')
 
 interface CashierRegisterFormProps {
   mode: 'create' | 'edit'
@@ -82,7 +76,6 @@ export default function CashierRegisterForm({
   onCancel,
   onSubmit,
 }: CashierRegisterFormProps) {
-  const [showPassword, setShowPassword] = useState(false)
   const terminal = initialCashier?.terminal ?? ''
   const [permissions, setPermissions] = useState<CashierPermissions>(
     initialCashier?.permissions ?? defaultPermissions,
@@ -99,32 +92,23 @@ export default function CashierRegisterForm({
       .required('Phone number is required'),
     email: Yup.string().email('Enter a valid email'),
     branch: Yup.string().required('Branch is required'),
-    cashierId: Yup.string().trim().required('Cashier ID is required'),
-    username: Yup.string().trim().required('Username is required'),
-    password:
-      mode === 'create'
-        ? Yup.string().min(6, 'Password must be at least 6 characters').required('Password is required')
-        : Yup.string(),
     floatAccount: Yup.string().trim().required('Float wallet account is required'),
   })
 
   const formik = useFormik<CashierFormValues>({
     initialValues: {
-      cashierId: initialCashier?.id ?? defaultCashierId,
       name: initialCashier?.name ?? '',
       phone: initialCashier?.phone ?? '',
       email: initialCashier?.email ?? '',
       gender: initialCashier?.gender ?? 'Female',
       dateOfBirth: initialCashier?.dateOfBirth ?? '',
       address: initialCashier?.address ?? '',
-      username: initialCashier?.username ?? '',
-      password: '',
       branch: initialCashier?.branch ?? branchOptions[0],
       floatAccount: initialCashier?.floatAccount ?? '',
     },
     validationSchema: cashierSchema,
     onSubmit: (values) => {
-      const id = values.cashierId.trim() || defaultCashierId
+      const id = initialCashier?.id ?? defaultCashierId
       const cashier: Cashier = {
         id,
         name: values.name.trim(),
@@ -133,7 +117,7 @@ export default function CashierRegisterForm({
         gender: values.gender,
         dateOfBirth: values.dateOfBirth || initialCashier?.dateOfBirth || '',
         address: values.address.trim(),
-        username: values.username.trim(),
+        username: initialCashier?.username ?? usernameFrom(values.name),
         branch: values.branch,
         terminal: terminal.trim() || initialCashier?.terminal || `TILL-${id.replace('CSH-', '')}`,
         floatAccount: values.floatAccount.trim(),
@@ -306,88 +290,6 @@ export default function CashierRegisterForm({
               />
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="bg-white p-6 ring-1 ring-line">
-        <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-            <Lock size={18} />
-          </span>
-          <div>
-            <h2 className="text-sm font-bold text-ink">Account &amp; Access</h2>
-            <p className="text-xs text-muted">Set the cashier ID and login credentials.</p>
-          </div>
-        </div>
-
-        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div>
-            <label className="text-xs font-medium text-muted">
-              Cashier ID <span className="text-red-500">*</span>
-            </label>
-            <div className="relative mt-1">
-              <Hash size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-              <input
-                type="text"
-                name="cashierId"
-                value={formik.values.cashierId}
-                readOnly={mode === 'edit'}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                className={`${getInputClass(hasError('cashierId'))} font-mono ${mode === 'edit' ? 'text-muted' : ''}`}
-              />
-            </div>
-            {hasError('cashierId') && <p className={errorClass}>{formik.errors.cashierId}</p>}
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted">
-              Username <span className="text-red-500">*</span>
-            </label>
-            <div className="relative mt-1">
-              <User size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-              <input
-                type="text"
-                name="username"
-                value={formik.values.username}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                placeholder="e.g. maryjames"
-                className={getInputClass(hasError('username'))}
-              />
-            </div>
-            {hasError('username') && <p className={errorClass}>{formik.errors.username}</p>}
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted">
-              Password {mode === 'create' && <span className="text-red-500">*</span>}
-            </label>
-            <div className="relative mt-1">
-              <Lock size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                name="password"
-                value={formik.values.password}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                placeholder={mode === 'edit' ? 'Leave blank to keep current password' : 'Enter a secure password'}
-                className={`${getInputClass(hasError('password'))} pr-10`}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink"
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-            {hasError('password') && <p className={errorClass}>{formik.errors.password}</p>}
-          </div>
-        </div>
-
-        <div className="mt-4 flex items-start gap-2 rounded-xl bg-blue-50 p-3 text-xs text-blue-800">
-          <Info size={14} className="mt-0.5 shrink-0" />
-          <p>The cashier ID is auto-generated or can be set manually. The username will be used for login.</p>
         </div>
       </div>
 
