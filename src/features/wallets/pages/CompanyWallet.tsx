@@ -188,12 +188,11 @@ export default function CompanyWallet() {
                   <td className="px-6 py-3.5 text-right text-ink/70">{currency(row.commission)}</td>
                   <td className="px-6 py-3.5 text-right text-ink/70">{currency(row.tax)}</td>
                   <td
-                    className={`px-6 py-3.5 text-right font-semibold ${
-                      row.net < 0 ? 'text-red-600' : 'text-ink'
+                    className={`px-6 py-3.5 text-right ${
+                      row.net < 0 ? 'text-red-600' : 'font-semibold text-ink'
                     }`}
                   >
                     {currency(row.net)}
-                    {row.net < 0 && <span className="ml-1 text-xs font-normal text-muted">(a cost)</span>}
                   </td>
                 </tr>
               ))}
@@ -217,8 +216,8 @@ export default function CompanyWallet() {
                   {currency(totals.tax)}
                 </td>
                 <td
-                  className={`px-6 py-3.5 text-right text-sm font-bold ${
-                    totals.net < 0 ? 'text-red-600' : 'text-ink'
+                  className={`px-6 py-3.5 text-right text-sm ${
+                    totals.net < 0 ? 'text-red-600' : 'font-bold text-ink'
                   }`}
                 >
                   {currency(totals.net)}
