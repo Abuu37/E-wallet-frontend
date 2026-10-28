@@ -1,6 +1,8 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
+import { Formik, Form, Field, ErrorMessage } from "formik";
+import * as Yup from "yup";
 import { CreditCard, Phone, Lock, Eye, EyeOff, Sparkles } from "lucide-react";
 import Button from "../../../components/ui/Button";
 import ewalletImage from "../../../assets/imgs/ewallet.webp";
@@ -13,34 +15,49 @@ const normalizePhone = (value: string) => value.replace(/\s+/g, "");
 const slides = [ewalletImage, paymentImage, appScreenImage];
 const SLIDE_DURATION = 15000;
 
-const fieldClass =
-  "w-full rounded-full border border-transparent bg-surface py-2.5 pl-11 pr-4 text-sm outline-none transition-colors focus:border-brand focus:bg-white";
-
 const PIN_LENGTH = 4;
+
+const getFieldClass = (hasError: boolean) =>
+  `w-full rounded-full border py-2.5 pl-11 text-sm outline-none transition-colors focus:bg-white ${
+    hasError
+      ? "border-red-400 bg-surface focus:border-red-500"
+      : "border-transparent bg-surface focus:border-brand"
+  }`;
+const errorClass = "mt-2 text-xs font-medium text-red-600";
+
+interface LoginValues {
+  phone: string;
+  pin: string;
+}
+
+const loginSchema = Yup.object({
+  phone: Yup.string()
+    .matches(/^\+?[0-9\s-]{7,15}$/, "Enter a valid phone number")
+    .required("Phone number is required"),
+  pin: Yup.string()
+    .matches(/^\d{4}$/, `PIN must be ${PIN_LENGTH} digits`)
+    .required("PIN is required"),
+});
 
 export default function Login() {
   const navigate = useNavigate();
   const [showPin, setShowPin] = useState(false);
-  const [pin, setPin] = useState("");
   const [activeSlide, setActiveSlide] = useState(0);
-  const [phone, setPhone] = useState("");
-  const [error, setError] = useState("");
+  const [authError, setAuthError] = useState("");
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
+  const handleLogin = (values: LoginValues) => {
     const user = mockUsers.find(
       (item) =>
-        normalizePhone(item.phone) === normalizePhone(phone) &&
-        item.pin === pin,
+        normalizePhone(item.phone) === normalizePhone(values.phone) &&
+        item.pin === values.pin,
     );
 
     if (!user) {
-      setError("Invalid phone number or PIN.");
+      setAuthError("Invalid phone number or PIN.");
       return;
     }
 
-    setError("");
+    setAuthError("");
     // Store the whole user, not just the role — ProtectedRoute reads `.role` off this.
     sessionStorage.setItem("user", JSON.stringify(user));
     navigate(getRedirectPath(user.role), { replace: true });
@@ -178,94 +195,100 @@ export default function Login() {
             </div>
 
             <div className="mt-8 rounded-3xl bg-white p-8 shadow-2xl shadow-ink/10">
-              <form className="space-y-5" onSubmit={handleSubmit}>
-                <div>
-                  <label
-                    htmlFor="phone"
-                    className="text-sm font-medium text-ink"
-                  >
-                    Phone number
-                  </label>
-                  <div className="relative mt-2">
-                    <Phone
-                      size={18}
-                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-                    />
-                    <input
-                      id="phone"
-                      name="phone"
-                      type="tel"
-                      value={phone}
-                      onChange={(event) => setPhone(event.target.value)}
-                      className={fieldClass}
-                      placeholder="+255 7XX XXX XXX"
-                    />
-                  </div>
-                </div>
+              <Formik<LoginValues>
+                initialValues={{ phone: "", pin: "" }}
+                validationSchema={loginSchema}
+                onSubmit={(values, { setSubmitting }) => {
+                  handleLogin(values);
+                  setSubmitting(false);
+                }}
+              >
+                {({ isSubmitting, errors, touched }) => (
+                  <Form className="space-y-5">
+                    <div>
+                      <label
+                        htmlFor="phone"
+                        className="text-sm font-medium text-ink"
+                      >
+                        Phone number
+                      </label>
+                      <div className="relative mt-2">
+                        <Phone
+                          size={18}
+                          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                        />
+                        <Field
+                          id="phone"
+                          name="phone"
+                          type="tel"
+                          className={`${getFieldClass(Boolean(touched.phone && errors.phone))} pr-4`}
+                          placeholder="+255 7XX XXX XXX"
+                        />
+                      </div>
+                      <ErrorMessage name="phone" component="p" className={errorClass} />
+                    </div>
 
-                <div>
-                  <label htmlFor="pin" className="text-sm font-medium text-ink">
-                    PIN
-                  </label>
-                  <div className="relative mt-2">
-                    <Lock
-                      size={18}
-                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-                    />
-                    <input
-                      id="pin"
-                      name="pin"
-                      type={showPin ? "text" : "password"}
-                      inputMode="numeric"
-                      maxLength={PIN_LENGTH}
-                      value={pin}
-                      onChange={(event) => {
-                        if (/^\d*$/.test(event.target.value))
-                          setPin(event.target.value);
-                      }}
-                      className={`${fieldClass} pr-11 tracking-[0.5em]`}
-                      placeholder="••••"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPin((prev) => !prev)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-brand"
-                      aria-label={showPin ? "Hide PIN" : "Show PIN"}
-                    >
-                      {showPin ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between">
-                    <label
-                      htmlFor="remember"
-                      className="flex items-center gap-2 text-sm text-muted"
-                    >
-                      <input
-                        id="remember"
-                        name="remember"
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-line text-brand focus:ring-brand"
-                      />
-                      Remember me
-                    </label>
-                    <Link
-                      to="/contact"
-                      className="text-xs font-medium text-brand hover:underline"
-                    >
-                      Forgot PIN?
-                    </Link>
-                  </div>
-                </div>
+                    <div>
+                      <label htmlFor="pin" className="text-sm font-medium text-ink">
+                        PIN
+                      </label>
+                      <div className="relative mt-2">
+                        <Lock
+                          size={18}
+                          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                        />
+                        <Field
+                          id="pin"
+                          name="pin"
+                          type={showPin ? "text" : "password"}
+                          inputMode="numeric"
+                          maxLength={PIN_LENGTH}
+                          className={`${getFieldClass(Boolean(touched.pin && errors.pin))} pr-11 tracking-[0.5em]`}
+                          placeholder="••••"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPin((prev) => !prev)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-brand"
+                          aria-label={showPin ? "Hide PIN" : "Show PIN"}
+                        >
+                          {showPin ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                      <ErrorMessage name="pin" component="p" className={errorClass} />
+                      <div className="mt-3 flex items-center justify-between">
+                        <label
+                          htmlFor="remember"
+                          className="flex items-center gap-2 text-sm text-muted"
+                        >
+                          <input
+                            id="remember"
+                            name="remember"
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-line text-brand focus:ring-brand"
+                          />
+                          Remember me
+                        </label>
+                        <Link
+                          to="/contact"
+                          className="text-xs font-medium text-brand hover:underline"
+                        >
+                          Forgot PIN?
+                        </Link>
+                      </div>
+                    </div>
 
-                <Button type="submit" className="w-full">
-                  Log In
-                </Button>
-                {error && (
-                  <p className="text-sm text-red-600" role="alert">
-                    {error}
-                  </p>
+                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                      Log In
+                    </Button>
+                    {authError && (
+                      <p className="text-sm text-red-600" role="alert">
+                        {authError}
+                      </p>
+                    )}
+                  </Form>
                 )}
-              </form>
+              </Formik>
             </div>
 
             <p className="mt-6 text-center text-sm text-muted">
