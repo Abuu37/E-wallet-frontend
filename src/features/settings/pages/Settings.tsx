@@ -135,20 +135,7 @@ export default function Settings() {
       <div className="mt-6 overflow-hidden rounded-2xl bg-white ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
         <div className="flex flex-col lg:flex-row">
           <aside className="shrink-0 border-b border-line p-4 lg:w-64 lg:border-b-0 lg:border-r">
-            <div className="flex items-center gap-3 border-b border-line pb-4">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white">
-                {currentUser.initials}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-bold text-ink">{currentUser.name}</p>
-                <p className="truncate text-xs text-muted">{ORGANIZATION}</p>
-              </div>
-            </div>
-            <div className="pt-2">
-              <StatusBadge status="info" label={currentUser.role} />
-            </div>
-
-            <nav className="mt-4 flex flex-row gap-1 lg:flex-col">
+            <nav className="flex flex-row gap-1 lg:flex-col">
               {sections.map((section) => (
                 <button
                   key={section.id}
@@ -170,7 +157,18 @@ export default function Settings() {
           <div className="min-w-0 flex-1">
           {activeSection === 'profile' && (
             <div className="p-8">
-              <h2 className="text-lg font-bold text-ink">Profile settings</h2>
+              <div className="flex items-center gap-3 border-b border-line pb-6">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center bg-brand text-sm font-bold text-white">
+                  {currentUser.initials}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-ink">{currentUser.name}</p>
+                  <p className="truncate text-xs text-muted">{ORGANIZATION}</p>
+                </div>
+                <StatusBadge status="info" label={currentUser.role} />
+              </div>
+
+              <h2 className="mt-6 text-lg font-bold text-ink">Profile settings</h2>
               <p className="mt-1 text-sm text-muted">Update the details shown across the dashboard.</p>
 
               <form className="mt-6 space-y-5" onSubmit={saveProfile}>
