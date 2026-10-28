@@ -77,7 +77,7 @@ export default function Login() {
         position: "top-end",
         icon: "success",
         title: "Login Successful",
-        text: "You have successfully logged in.",
+        text: "Logged in successfully.",
         timer: 1500,
         showConfirmButton: false,
       });
