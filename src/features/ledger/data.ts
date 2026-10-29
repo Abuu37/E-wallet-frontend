@@ -287,3 +287,10 @@ export const getCustomerBalance = (customer: Customer) =>
 /** A cashier's displayed float balance: their opening float plus their own ledger movement. */
 export const getCashierFloatBalance = (cashier: Cashier) =>
   cashier.openingFloatBalance + getCashierLedgerMovement(cashier.floatAccount)
+
+/** Every e-money liability the company owes through — wallets, float, commission, and tax withheld. */
+export const getEmoneyLiabilities = () =>
+  ['2000', '2005', '2010', '2020'].reduce((sum, id) => {
+    const account = chartOfAccounts.find((item) => item.id === id)
+    return sum + (account ? getAccountBalance(account) : 0)
+  }, 0)
