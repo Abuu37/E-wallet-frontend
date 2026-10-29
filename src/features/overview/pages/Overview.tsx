@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import TypeBadge from '../../../components/ui/TypeBadge'
 import {
   UserCog,
@@ -14,6 +15,7 @@ import {
   AlertTriangle,
   Download,
   Eye,
+  MoreVertical,
   User,
   CreditCard,
   Tag,
@@ -239,6 +241,22 @@ export default function Overview() {
   const openTxDetail = (id: string) => {
     setSelectedTxId(id)
     setTxDrawerOpen(true)
+  }
+
+  const [actionMenu, setActionMenu] = useState<{ id: string; top: number; left: number } | null>(null)
+  const menuButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
+
+  const closeActionMenu = () => setActionMenu(null)
+
+  const toggleActionMenu = (id: string) => {
+    if (actionMenu?.id === id) {
+      closeActionMenu()
+      return
+    }
+    const button = menuButtonRefs.current[id]
+    if (!button) return
+    const rect = button.getBoundingClientRect()
+    setActionMenu({ id, top: rect.bottom + 6, left: rect.right - 160 })
   }
 
   const transactionByType = getTransactionTypeShare(transactions).map((entry) => ({
@@ -511,7 +529,11 @@ export default function Overview() {
               {recentTransactions.map((tx, index) => {
                 const { fromName, fromAccount, toName } = getTxFlow(tx)
                 return (
-                  <tr key={tx.id}>
+                  <tr
+                    key={tx.id}
+                    onClick={() => openTxDetail(tx.id)}
+                    className="cursor-pointer transition-colors hover:bg-surface"
+                  >
                     <td className="px-6 py-3.5 text-xs text-muted">
                       {(recentPage - 1) * RECENT_TRANSACTIONS_PAGE_SIZE + index + 1}
                     </td>
@@ -532,11 +554,17 @@ export default function Overview() {
                     <td className="px-6 py-3.5 text-right">
                       <button
                         type="button"
-                        onClick={() => openTxDetail(tx.id)}
-                        aria-label="View transaction"
+                        ref={(node) => {
+                          menuButtonRefs.current[tx.id] = node
+                        }}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          toggleActionMenu(tx.id)
+                        }}
+                        aria-label="Row actions"
                         className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink/80 transition-colors hover:border-brand hover:bg-brand hover:text-white"
                       >
-                        <Eye size={16} />
+                        <MoreVertical size={16} />
                       </button>
                     </td>
                   </tr>
@@ -570,6 +598,34 @@ export default function Overview() {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {actionMenu && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={closeActionMenu} />
+            <motion.div
+              key="action-menu"
+              initial={{ opacity: 0, scale: 0.95, y: -4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -4 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="fixed z-50 w-40 origin-top-right overflow-hidden rounded-xl bg-white py-1 shadow-xl ring-1 ring-line"
+              style={{ top: actionMenu.top, left: actionMenu.left }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  openTxDetail(actionMenu.id)
+                  closeActionMenu()
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium text-ink transition-colors hover:bg-brand hover:text-white"
+              >
+                <Eye size={14} /> View
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       <Drawer
         open={txDrawerOpen}

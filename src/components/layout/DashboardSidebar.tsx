@@ -1,6 +1,6 @@
-import { NavLink, useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'motion/react'
-import type { LucideIcon } from 'lucide-react'
+import { NavLink, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "motion/react";
+import type { LucideIcon } from "lucide-react";
 import {
   CreditCard,
   LayoutDashboard,
@@ -16,62 +16,145 @@ import {
   Settings,
   LogOut,
   X,
-} from 'lucide-react'
-import { confirmLogout } from '../../features/auth/confirmLogout'
+} from "lucide-react";
+import { confirmLogout } from "../../features/auth/confirmLogout";
+import type { UserRole } from "../../features/auth/utils/mockAuth";
 
 interface NavItem {
-  to: string
-  label: string
-  icon: LucideIcon
-  end?: boolean
+  path: string;
+  label: string;
+  icon: LucideIcon;
+  end?: boolean;
+  roles: UserRole[];
 }
 
 const navGroups: Array<{ label: string | null; items: NavItem[] }> = [
   {
     label: null,
-    items: [{ to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true }],
-  },
-  {
-    label: 'Operations',
     items: [
-      { to: '/dashboard/transactions', label: 'Transactions', icon: ArrowLeftRight },
-      { to: '/dashboard/company-wallet', label: 'Company Wallet', icon: Landmark },
+      {
+        path: "/dashboard",
+        label: "Overview",
+        icon: LayoutDashboard,
+        roles: ["Admin", "Cashier"],
+        end: true,
+      },
     ],
   },
   {
-    label: 'Administration',
+    label: "Operations",
     items: [
-      { to: '/dashboard/customers', label: 'Customers', icon: Users },
-      { to: '/dashboard/cashiers', label: 'Cashiers', icon: UserCog },
+      {
+        path: "/dashboard/transactions",
+        label: "Transactions",
+        icon: ArrowLeftRight,
+        roles: ["Admin", "Cashier"],
+      },
+      {
+        path: "/dashboard/company-wallet",
+        label: "Company Wallet",
+        icon: Landmark,
+        roles: ["Admin", "Cashier"],
+      },
     ],
   },
   {
-    label: 'Management',
+    label: "Administration",
     items: [
-      { to: '/dashboard/financial', label: 'Financial', icon: Banknote },
-      { to: '/dashboard/ledger', label: 'Ledger', icon: Scale },
-      { to: '/dashboard/loans', label: 'Loans', icon: HandCoins },
-      { to: '/dashboard/fees', label: 'Fees', icon: Percent },
-      { to: '/dashboard/reconciliation', label: 'Reconciliation', icon: ShieldCheck },
-      { to: '/dashboard/settings', label: 'Settings', icon: Settings },
+      {
+        path: "/dashboard/customers",
+        label: "Customers",
+        icon: Users,
+        roles: ["Admin", "Cashier"],
+      },
+      {
+        path: "/dashboard/cashiers",
+        label: "Cashiers",
+        icon: UserCog,
+        roles: ["Admin"],
+      },
     ],
   },
-]
+  {
+    label: "Management",
+    items: [
+      {
+        path: "/dashboard/financial",
+        label: "Financial",
+        icon: Banknote,
+        roles: ["Admin"],
+      },
+      {
+        path: "/dashboard/ledger",
+        label: "Ledger",
+        icon: Scale,
+        roles: ["Admin"],
+      },
+      {
+        path: "/dashboard/loans",
+        label: "Loans",
+        icon: HandCoins,
+        roles: ["Admin"],
+      },
+      {
+        path: "/dashboard/fees",
+        label: "Fees",
+        icon: Percent,
+        roles: ["Admin"],
+      },
+      {
+        path: "/dashboard/reconciliation",
+        label: "Reconciliation",
+        icon: ShieldCheck,
+        roles: ["Admin"],
+      },
+      {
+        path: "/dashboard/settings",
+        label: "Settings",
+        icon: Settings,
+        roles: ["Admin", "Cashier"],
+      },
+    ],
+  },
+];
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-      isActive ? 'bg-brand text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'
-    }`
+      isActive
+        ? "bg-brand text-white"
+        : "text-white/70 hover:bg-white/10 hover:text-white"
+    }`;
 
   const handleLogout = async () => {
-    const confirmed = await confirmLogout()
-    if (!confirmed) return
-    sessionStorage.removeItem('user')
-    onNavigate?.()
-    navigate('/')
+    const confirmed = await confirmLogout();
+    if (!confirmed) return;
+    sessionStorage.removeItem("user");
+    onNavigate?.();
+    navigate("/");
+  }; 
+
+  const storedUser = sessionStorage.getItem("user");
+  let currentRole: UserRole | null = null;
+
+  try {
+    const user = storedUser ? JSON.parse(storedUser) : null;
+    if (user && typeof user === "object" && "role" in user) {
+      currentRole = user.role as UserRole;
+    }
+  } catch {
+    currentRole = null;
   }
+
+  const visibleGroups = navGroups.map((group) => ({
+    ...group,
+    items: group.items.filter(
+      (item) => currentRole !== null && item.roles.includes(currentRole),
+    ),
+  }))
+  .filter((group) => group.items.length > 0);
+
 
   return (
     <>
@@ -88,26 +171,31 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </NavLink>
 
       <nav className="mt-8 flex flex-1 flex-col gap-1">
-        {navGroups.map((group) => (
-          <div key={group.label ?? 'root'}>
+        {visibleGroups.map((group) => (
+          <div key={group.label ?? "root"}>
             {group.label && (
               <p className="mb-1 mt-4 px-3 text-[11px] font-bold uppercase tracking-wide text-white/35">
                 {group.label}
               </p>
             )}
             <div className="flex flex-col gap-1">
-              {group.items.map((item) => (
-                <NavLink
-                  key={item.label}
-                  to={item.to}
-                  end={item.end}
-                  className={linkClass}
-                  onClick={onNavigate}
-                >
-                  <item.icon size={18} />
-                  {item.label}
-                </NavLink>
-              ))}
+              {group.items
+                .filter(
+                  (item) =>
+                    currentRole !== null && item.roles.includes(currentRole),
+                )
+                .map((item) => (
+                  <NavLink
+                    key={item.label}
+                    to={item.path}
+                    end={item.end}
+                    className={linkClass}
+                    onClick={onNavigate}
+                  >
+                    <item.icon size={18} />
+                    {item.label}
+                  </NavLink>
+                ))}
             </div>
           </div>
         ))}
@@ -116,7 +204,8 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           <button
             type="button"
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium
+            text-white/70 transition-colors hover:bg-white/10 hover:text-white"
           >
             <LogOut size={18} />
             Logout
@@ -124,15 +213,18 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </nav>
     </>
-  )
+  );
 }
 
 interface DashboardSidebarProps {
-  open: boolean
-  onClose: () => void
+  open: boolean;
+  onClose: () => void;
 }
 
-export default function DashboardSidebar({ open, onClose }: DashboardSidebarProps) {
+export default function DashboardSidebar({
+  open,
+  onClose,
+}: DashboardSidebarProps) {
   return (
     <>
       <aside className="sticky top-0 hidden h-screen w-64 flex-col overflow-y-auto bg-ink px-4 py-6 lg:flex">
@@ -158,10 +250,10 @@ export default function DashboardSidebar({ open, onClose }: DashboardSidebarProp
           <motion.aside
             key="sidebar-panel"
             className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-ink px-4 py-6 lg:hidden"
-            initial={{ x: '-100%' }}
-            animate={{ x: '0%' }}
-            exit={{ x: '-100%' }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            initial={{ x: "-100%" }}
+            animate={{ x: "0%" }}
+            exit={{ x: "-100%" }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
           >
             <button
               type="button"
@@ -176,5 +268,5 @@ export default function DashboardSidebar({ open, onClose }: DashboardSidebarProp
         )}
       </AnimatePresence>
     </>
-  )
+  );
 }

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { Formik, Form, Field, ErrorMessage } from 'formik'
 import * as Yup from 'yup'
 import {
@@ -10,6 +11,7 @@ import {
   UserCog,
   Plus,
   Eye,
+  MoreVertical,
   CalendarClock,
   Hash,
   Landmark,
@@ -96,11 +98,20 @@ const getFieldClass = (hasError: boolean) =>
   }`
 const errorClass = 'mt-1 text-xs font-medium text-red-600'
 
+interface ActionMenuState {
+  id: string
+  top: number
+  left: number
+}
+
 export default function Reconciliation() {
   const [runs, setRuns] = useState<ReconciliationRun[]>(initialRuns)
   const [scopeFilter, setScopeFilter] = useState<ReconciliationScope | 'All'>('All')
   const [statusFilter, setStatusFilter] = useState<ReconciliationStatus | 'All'>('All')
   const [query, setQuery] = useState('')
+
+  const [actionMenu, setActionMenu] = useState<ActionMenuState | null>(null)
+  const menuButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -145,6 +156,19 @@ export default function Reconciliation() {
     setDraftStatus(run.status)
     setDraftNotes(run.notes ?? '')
     setDrawerOpen(true)
+  }
+
+  const closeActionMenu = () => setActionMenu(null)
+
+  const toggleActionMenu = (id: string) => {
+    if (actionMenu?.id === id) {
+      closeActionMenu()
+      return
+    }
+    const button = menuButtonRefs.current[id]
+    if (!button) return
+    const rect = button.getBoundingClientRect()
+    setActionMenu({ id, top: rect.bottom + 6, left: rect.right - 160 })
   }
 
   const saveResolution = () => {
@@ -309,14 +333,17 @@ export default function Reconciliation() {
                   <td className="px-6 py-3.5 text-right">
                     <button
                       type="button"
+                      ref={(node) => {
+                        menuButtonRefs.current[run.id] = node
+                      }}
                       onClick={(event) => {
                         event.stopPropagation()
-                        openDetail(run)
+                        toggleActionMenu(run.id)
                       }}
-                      aria-label="View run"
+                      aria-label="Row actions"
                       className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink/80 transition-colors hover:border-brand hover:bg-brand hover:text-white"
                     >
-                      <Eye size={16} />
+                      <MoreVertical size={16} />
                     </button>
                   </td>
                 </tr>
@@ -332,6 +359,35 @@ export default function Reconciliation() {
           </table>
         </div>
       </div>
+
+      <AnimatePresence>
+        {actionMenu && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={closeActionMenu} />
+            <motion.div
+              key="action-menu"
+              initial={{ opacity: 0, scale: 0.95, y: -4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -4 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="fixed z-50 w-40 origin-top-right overflow-hidden rounded-xl bg-white py-1 shadow-xl ring-1 ring-line"
+              style={{ top: actionMenu.top, left: actionMenu.left }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  const run = runs.find((item) => item.id === actionMenu.id)
+                  if (run) openDetail(run)
+                  closeActionMenu()
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium text-ink transition-colors hover:bg-brand hover:text-white"
+              >
+                <Eye size={14} /> View
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       <Drawer
         open={drawerOpen}

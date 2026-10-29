@@ -28,7 +28,7 @@ import CustomerLayout from './components/layout/CustomerLayout'
 import AccountOverview from './features/account/pages/AccountOverview'
 import AccountWithdraw from './features/account/pages/AccountWithdraw'
 
-import ProtectedRoute from './features/auth/components/ProtectedRoute'
+import AuthGuard from './features/auth/components/AuthGuard'
 
 
 const router = createBrowserRouter([
@@ -51,50 +51,48 @@ const router = createBrowserRouter([
     ],
   },
   {
-    element: (
-      <ProtectedRoute
-      allowedRoles={['Admin', 'Cashier']} />
-    ),
+    element: <AuthGuard allowedRoles={['Admin', 'Cashier']} />,
     children: [
       {
-    path: '/dashboard',
-    element: <DashboardLayout />,
-    children: [
-      { index: true, element: <Overview /> },
-      { path: 'transactions', element: <DashboardTransactions /> },
-      { path: 'customers', element: <DashboardCustomers /> },
-      { path: 'company-wallet', element: <DashboardCompanyWallet /> },
-      { path: 'cashiers', element: <DashboardCashiers /> },
-      { path: 'financial', element: <DashboardFinancial /> },
-      { path: 'ledger', element: <DashboardLedger /> },
-      { path: 'loans', element: <DashboardLoans /> },
-      { path: 'fees', element: <DashboardFees /> },
-      { path: 'reconciliation', element: <DashboardReconciliation /> },
-      { path: 'settings', element: <DashboardSettings /> },
+        path: '/dashboard',
+        element: <DashboardLayout />,
+        children: [
+          { index: true, element: <Overview /> },
+          { path: 'transactions', element: <DashboardTransactions /> },
+          { path: 'customers', element: <DashboardCustomers /> },
+          { path: 'company-wallet', element: <DashboardCompanyWallet /> },
+          { path: 'settings', element: <DashboardSettings /> },
+          {
+            // Admin-only pages: narrower than the Admin/Cashier guard above, so a
+            // Cashier can't reach these by typing the URL even though the sidebar
+            // already hides the links for them.
+            element: <AuthGuard allowedRoles={['Admin']} />,
+            children: [
+              { path: 'cashiers', element: <DashboardCashiers /> },
+              { path: 'financial', element: <DashboardFinancial /> },
+              { path: 'ledger', element: <DashboardLedger /> },
+              { path: 'loans', element: <DashboardLoans /> },
+              { path: 'fees', element: <DashboardFees /> },
+              { path: 'reconciliation', element: <DashboardReconciliation /> },
+            ],
+          },
+        ],
+      },
     ],
-
   },
-
-]
- },
   {
-
-    element: (
-      <ProtectedRoute
-      allowedRoles={['Customer']}
-      />
-    ),
+    element: <AuthGuard allowedRoles={['Customer']} />,
     children: [
       {
-    path: '/account',
-    element: <CustomerLayout />,
-    children: [
-      { index: true, element: <AccountOverview /> },
-      { path: 'withdraw', element: <AccountWithdraw /> },
+        path: '/account',
+        element: <CustomerLayout />,
+        children: [
+          { index: true, element: <AccountOverview /> },
+          { path: 'withdraw', element: <AccountWithdraw /> },
+        ],
+      },
     ],
   },
-],
-},
 ])
 
 function App() {

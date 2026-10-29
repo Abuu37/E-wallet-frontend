@@ -1,11 +1,11 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { getRedirectPath, type UserRole } from '../utils/mockAuth'
 
-interface ProtectedRouteProps {
+interface AuthGuardProps {
     allowedRoles: UserRole[]
 }
 
-export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
+export default function AuthGuard({ allowedRoles }: AuthGuardProps) {
 
     let role: UserRole | undefined
     const storedUser = sessionStorage.getItem('user')
@@ -13,7 +13,7 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
     if (!storedUser) {
         return <Navigate to="/login" replace />
     }
-    
+
     try {
         role = JSON.parse(storedUser).role
     } catch {

@@ -14,8 +14,11 @@ import {
   CheckCircle2,
   Check,
   Plus,
+  Upload,
+  FileCheck2,
+  X,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { branchOptions, type Cashier, type CashierGender, type CashierPermissions } from '../data'
 
 const genderOptions: CashierGender[] = ['Female', 'Male', 'Other']
@@ -57,9 +60,77 @@ interface CashierFormValues {
   address: string
   branch: string
   floatAccount: string
+  tinCertificate: File | null
+  businessLicense: File | null
+  nationalId: File | null
 }
 
 const usernameFrom = (name: string) => name.trim().toLowerCase().replace(/\s+/g, '')
+
+function FileUploadField({
+  label,
+  required,
+  file,
+  onChange,
+  placeholder,
+  caption,
+  error,
+}: {
+  label: string
+  required?: boolean
+  file: File | null
+  onChange: (file: File | null) => void
+  placeholder: string
+  caption: string
+  error?: string
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  return (
+    <div>
+      <label className="text-xs font-medium text-muted">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <div className="mt-1 flex items-center gap-2">
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*,.pdf"
+          onChange={(event) => onChange(event.target.files?.[0] ?? null)}
+          className="hidden"
+        />
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className={`flex w-full items-center gap-2 rounded-xl border border-dashed px-3.5 py-2.5 text-left text-sm transition-colors ${
+            error
+              ? 'border-red-400 bg-red-50/50 text-ink'
+              : file
+                ? 'border-brand/40 bg-brand/5 text-ink'
+                : 'border-line bg-surface text-muted hover:border-brand/40'
+          }`}
+        >
+          {file ? (
+            <FileCheck2 size={16} className="shrink-0 text-brand" />
+          ) : (
+            <Upload size={16} className="shrink-0" />
+          )}
+          <span className="min-w-0 flex-1 truncate">{file ? file.name : placeholder}</span>
+        </button>
+        {file && (
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            aria-label="Remove file"
+            className="shrink-0 text-muted transition-colors hover:text-red-600"
+          >
+            <X size={16} />
+          </button>
+        )}
+      </div>
+      {error ? <p className={errorClass}>{error}</p> : <p className="mt-1 text-[11px] text-muted">{caption}</p>}
+    </div>
+  )
+}
 
 interface CashierRegisterFormProps {
   mode: 'create' | 'edit'
@@ -91,8 +162,12 @@ export default function CashierRegisterForm({
       .matches(/^\+?[0-9\s-]{7,15}$/, 'Enter a valid phone number')
       .required('Phone number is required'),
     email: Yup.string().email('Enter a valid email'),
+    dateOfBirth: Yup.string().required('Date of birth is required'),
     branch: Yup.string().required('Branch is required'),
     floatAccount: Yup.string().trim().required('Float wallet account is required'),
+    tinCertificate: Yup.mixed().required('TIN certificate is required'),
+    businessLicense: Yup.mixed().required('Business license is required'),
+    nationalId: Yup.mixed().required('National ID (NIDA) is required'),
   })
 
   const formik = useFormik<CashierFormValues>({
@@ -105,6 +180,9 @@ export default function CashierRegisterForm({
       address: initialCashier?.address ?? '',
       branch: initialCashier?.branch ?? branchOptions[0],
       floatAccount: initialCashier?.floatAccount ?? '',
+      tinCertificate: null,
+      businessLicense: null,
+      nationalId: null,
     },
     validationSchema: cashierSchema,
     onSubmit: (values) => {
@@ -135,6 +213,7 @@ export default function CashierRegisterForm({
   })
 
   const hasError = (field: keyof CashierFormValues) => Boolean(formik.touched[field] && formik.errors[field])
+  const errorText = (field: keyof CashierFormValues) => (hasError(field) ? String(formik.errors[field]) : undefined)
 
   return (
     <form className="space-y-5" onSubmit={formik.handleSubmit}>
@@ -244,7 +323,9 @@ export default function CashierRegisterForm({
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-muted">Date of Birth</label>
+            <label className="text-xs font-medium text-muted">
+              Date of Birth <span className="text-red-500">*</span>
+            </label>
             <div className="relative mt-1">
               <CalendarDays
                 size={16}
@@ -255,9 +336,11 @@ export default function CashierRegisterForm({
                 name="dateOfBirth"
                 value={formik.values.dateOfBirth}
                 onChange={formik.handleChange}
-                className={getInputClass(false)}
+                onBlur={formik.handleBlur}
+                className={getInputClass(hasError('dateOfBirth'))}
               />
             </div>
+            {hasError('dateOfBirth') && <p className={errorClass}>{formik.errors.dateOfBirth}</p>}
           </div>
           <div>
             <label className="text-xs font-medium text-muted">
@@ -284,12 +367,39 @@ export default function CashierRegisterForm({
                 name="address"
                 value={formik.values.address}
                 onChange={formik.handleChange}
-                rows={2}
+                rows={1}
                 placeholder="e.g. 123 Msimbazi Street, Dar es Salaam"
                 className={`${getInputClass(false)} resize-none pt-2.5`}
               />
             </div>
           </div>
+          <FileUploadField
+            label="TIN Certificate"
+            required
+            file={formik.values.tinCertificate}
+            onChange={(file) => formik.setFieldValue('tinCertificate', file)}
+            placeholder="Upload TIN certificate"
+            caption="Accepted formats: JPG, PNG, or PDF."
+            error={errorText('tinCertificate')}
+          />
+          <FileUploadField
+            label="Business License"
+            required
+            file={formik.values.businessLicense}
+            onChange={(file) => formik.setFieldValue('businessLicense', file)}
+            placeholder="Upload business license"
+            caption="Accepted formats: JPG, PNG, or PDF."
+            error={errorText('businessLicense')}
+          />
+          <FileUploadField
+            label="National ID (NIDA)"
+            required
+            file={formik.values.nationalId}
+            onChange={(file) => formik.setFieldValue('nationalId', file)}
+            placeholder="Upload National ID (NIDA)"
+            caption="Accepted formats: JPG, PNG, or PDF."
+            error={errorText('nationalId')}
+          />
         </div>
       </div>
 

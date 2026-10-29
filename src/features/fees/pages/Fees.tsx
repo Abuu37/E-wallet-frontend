@@ -1,4 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
+import Swal from 'sweetalert2'
 import { Formik, Form, Field, ErrorMessage } from 'formik'
 import * as Yup from 'yup'
 import {
@@ -11,6 +13,7 @@ import {
   Hash,
   Settings,
   CheckCircle2,
+  MoreVertical,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import TypeBadge from '../../../components/ui/TypeBadge'
@@ -170,35 +173,75 @@ export default function Fees() {
     setEditId(null)
   }
 
-  const saveForm = (values: FeeFormValues) => {
-    if (formMode === 'edit' && editId) {
-      setFeeTiers((prev) =>
-        prev.map((tier) =>
-          tier.id === editId
-            ? {
-                ...tier,
-                type: values.type,
-                transactionType: values.transactionType,
-                rangeMin: Number(values.rangeMin),
-                rangeMax: Number(values.rangeMax),
-                customerFee: Number(values.customerFee),
-              }
-            : tier,
-        ),
-      )
-    } else if (formMode === 'create') {
-      const newTier: FeeTier = {
-        id: nextTierId(),
-        type: values.type,
-        transactionType: values.transactionType,
-        rangeMin: Number(values.rangeMin),
-        rangeMax: Number(values.rangeMax),
-        customerFee: Number(values.customerFee),
-      }
-      setFeeTiers((prev) => [newTier, ...prev])
-      resetToFirstPage()
+  const [actionMenu, setActionMenu] = useState<{ id: string; top: number; left: number } | null>(null)
+  const menuButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
+
+  const closeActionMenu = () => setActionMenu(null)
+
+  const toggleActionMenu = (id: string) => {
+    if (actionMenu?.id === id) {
+      closeActionMenu()
+      return
     }
-    closeForm()
+    const button = menuButtonRefs.current[id]
+    if (!button) return
+    const rect = button.getBoundingClientRect()
+    setActionMenu({ id, top: rect.bottom + 6, left: rect.right - 160 })
+  }
+
+  const saveForm = (values: FeeFormValues) => {
+    try {
+      if (formMode === 'edit' && editId) {
+        setFeeTiers((prev) =>
+          prev.map((tier) =>
+            tier.id === editId
+              ? {
+                  ...tier,
+                  type: values.type,
+                  transactionType: values.transactionType,
+                  rangeMin: Number(values.rangeMin),
+                  rangeMax: Number(values.rangeMax),
+                  customerFee: Number(values.customerFee),
+                }
+              : tier,
+          ),
+        )
+        closeForm()
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'success',
+          title: 'Fee Updated',
+          text: 'Updated successfully.',
+          showConfirmButton: false,
+          timer: 1500,
+        })
+      } else if (formMode === 'create') {
+        const newTier: FeeTier = {
+          id: nextTierId(),
+          type: values.type,
+          transactionType: values.transactionType,
+          rangeMin: Number(values.rangeMin),
+          rangeMax: Number(values.rangeMax),
+          customerFee: Number(values.customerFee),
+        }
+        setFeeTiers((prev) => [newTier, ...prev])
+        resetToFirstPage()
+        closeForm()
+      } else {
+        closeForm()
+      }
+    } catch (error) {
+      console.error('Fee form submit error:', error)
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'error',
+        title: 'Fee Update Failed',
+        text: 'An error occurred while updating the fee tier. Please try again.',
+        showConfirmButton: false,
+      })
+    }
   }
 
   return (
@@ -306,7 +349,11 @@ export default function Fees() {
                 // there's no agent to split the fee with (see rolePermissions.ts).
                 const isCashierServed = isCashIn || tier.transactionType === 'Cash Out'
                 return (
-                  <tr key={tier.id}>
+                  <tr
+                    key={tier.id}
+                    onClick={() => openEdit(tier)}
+                    className="cursor-pointer transition-colors hover:bg-surface"
+                  >
                     <td className="px-6 py-3.5 text-xs text-muted">
                       {(page - 1) * PAGE_SIZE + index + 1}
                     </td>
@@ -342,11 +389,17 @@ export default function Fees() {
                     <td className="px-6 py-3.5 text-right">
                       <button
                         type="button"
-                        onClick={() => openEdit(tier)}
-                        aria-label="Edit fee tier"
+                        ref={(node) => {
+                          menuButtonRefs.current[tier.id] = node
+                        }}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          toggleActionMenu(tier.id)
+                        }}
+                        aria-label="Row actions"
                         className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink/80 transition-colors hover:border-brand hover:bg-brand hover:text-white"
                       >
-                        <Pencil size={16} />
+                        <MoreVertical size={16} />
                       </button>
                     </td>
                   </tr>
@@ -387,6 +440,35 @@ export default function Fees() {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {actionMenu && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={closeActionMenu} />
+            <motion.div
+              key="action-menu"
+              initial={{ opacity: 0, scale: 0.95, y: -4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -4 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="fixed z-50 w-40 origin-top-right overflow-hidden rounded-xl bg-white py-1 shadow-xl ring-1 ring-line"
+              style={{ top: actionMenu.top, left: actionMenu.left }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  const tier = feeTiers.find((item) => item.id === actionMenu.id)
+                  if (tier) openEdit(tier)
+                  closeActionMenu()
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium text-ink transition-colors hover:bg-brand hover:text-white"
+              >
+                <Pencil size={14} /> Edit
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       <Formik<FeeFormValues>
         enableReinitialize

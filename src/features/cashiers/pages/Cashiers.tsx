@@ -1,5 +1,6 @@
 ﻿import { useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
+import Swal from 'sweetalert2'
 import {
   Search,
   Users,
@@ -254,12 +255,40 @@ export default function Cashiers() {
   }
 
   const handleFormSubmit = (cashier: Cashier) => {
-    if (formMode === 'edit') {
-      setCashiers((prev) => prev.map((item) => (item.id === cashier.id ? cashier : item)))
-    } else {
-      setCashiers((prev) => [cashier, ...prev])
+    try {
+      if (formMode === 'edit') {
+        setCashiers((prev) => prev.map((item) => (item.id === cashier.id ? cashier : item)))
+      } else {
+        setCashiers((prev) => [cashier, ...prev])
+      }
+      setView('list')
+
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: formMode === 'create' ? 'Cashier Created' : 'Cashier Updated',
+        text:
+          formMode === 'create'
+            ? `${cashier.name} has been registered successfully.`
+            : `${cashier.name}'s details have been updated successfully.`,
+        showConfirmButton: false,
+        timer: 1500,
+      })
+    } catch (error) {
+      console.error('Cashier form submit error:', error)
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'error',
+        title: formMode === 'create' ? 'Cashier Creation Failed' : 'Cashier Update Failed',
+        text:
+          formMode === 'create'
+            ? 'An error occurred while creating the cashier. Please try again.'
+            : 'An error occurred while updating the cashier. Please try again.',
+        showConfirmButton: false,
+      })
     }
-    setView('list')
   }
 
   const requestReportToggle = (id: string) => {
