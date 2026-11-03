@@ -10,8 +10,8 @@ import BecomeAnAgent from './pages/services/BecomeAnAgent'
 import Fees from './pages/Fees/Fees'
 import Faq from './pages/Faq/Faq'
 import Contact from './pages/Contact/Contact'
-import Login from './features/auth/pages/Login'
-import Register from './features/auth/pages/Register'
+import LoginForm from './features/auth/pages/LoginForm'
+import CustomerOnboarding from './features/auth/pages/CustomerOnboarding'
 import DashboardLayout from './components/layout/DashboardLayout'
 import Overview from './features/overview/pages/Overview'
 import DashboardTransactions from './features/transactions/pages/Transactions'
@@ -46,8 +46,8 @@ const router = createBrowserRouter([
       { path: 'fees', element: <Fees /> },
       { path: 'faq', element: <Faq /> },
       { path: 'contact', element: <Contact /> },
-      { path: 'login', element: <Login /> },
-      { path: 'register', element: <Register /> },
+      { path: 'login', element: <LoginForm /> },
+      { path: 'register', element: <CustomerOnboarding /> },
     ],
   },
   {

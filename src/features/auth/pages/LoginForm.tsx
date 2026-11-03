@@ -42,27 +42,26 @@ const loginSchema = Yup.object({
     .required("PIN is required"),
 });
 
-export default function Login() {
+export default function LoginForm() {
   const navigate = useNavigate();
   const [showPin, setShowPin] = useState(false);
   const [activeSlide, setActiveSlide] = useState(0);
   const [country, setCountry] = useState<Country>("TZ");
 
   const handleLogin = async (values: LoginValues) => {
-
-    try{
-
-      const user = mockUsers.find(
-        (item) => normalizePhone(item.phone) === normalizePhone(values.phone) && item.pin === values.pin
+    try {
+      const normalizedPhone = normalizePhone(values.phone);
+      const matchedUser = mockUsers.find(
+        (user) => normalizePhone(user.phone) === normalizedPhone && user.pin === values.pin,
       );
 
-      if (!user) {
+      if (!matchedUser) {
         await Swal.fire({
           toast: true,
           position: "top-end",
           icon: "error",
-          title: "Login Failed",
-          text: "Invalid phone number or PIN. Please try again.",
+          title: "Login failed",
+          text: "Invalid phone number or PIN.",
           showConfirmButton: false,
           timer: 3000,
           timerProgressBar: true,
@@ -70,34 +69,21 @@ export default function Login() {
         return;
       }
 
-      sessionStorage.setItem("user", JSON.stringify(user));
-
-      await Swal.fire({
-        toast: true,
-        position: "top-end",
-        icon: "success",
-        title: "Login Successful",
-        text: "Logged in successfully.",
-        timer: 1500,
-        showConfirmButton: false,
-      });
-
-      navigate(getRedirectPath(user.role), { replace: true });
-
+      sessionStorage.setItem("user", JSON.stringify(matchedUser));
+      navigate(getRedirectPath(matchedUser.role));
     } catch (error) {
       console.error("Login error:", error);
       await Swal.fire({
         toast: true,
         position: "top-end",
         icon: "error",
-        title: "Login Failed",
-        text: "An error occurred while trying to log in. Please try again.",
+        title: "Login failed",
+        text: "An error occurred while logging in. Please try again.",
         showConfirmButton: false,
         timer: 3000,
         timerProgressBar: true,
       });
     }
-   
   };
 
   useEffect(() => {
@@ -232,8 +218,12 @@ export default function Login() {
             </div>
 
             <div className="mt-8 rounded-3xl bg-white p-8 shadow-2xl shadow-ink/10">
+
               <Formik<LoginValues>
-                initialValues={{ phone: "", pin: "" }}
+                initialValues={{
+                  phone: "",
+                  pin: "",
+                }}
                 validationSchema={loginSchema}
                 onSubmit={async (values, { setSubmitting }) => {
                   await handleLogin(values);
@@ -330,6 +320,7 @@ export default function Login() {
                     <Button type="submit" className="w-full" disabled={isSubmitting}>
                       Log In
                     </Button>
+
                   </Form>
                 )}
               </Formik>
