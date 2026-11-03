@@ -25,6 +25,7 @@ import {
   Receipt,
   HandCoins,
   Plus,
+  CirclePlus,
 } from 'lucide-react'
 import StatCard from '../../../components/ui/StatCard'
 import StatusBadge from '../../../components/ui/StatusBadge'
@@ -33,10 +34,11 @@ import Modal from '../../../components/ui/Modal'
 import TransactionHistoryView from '../../../components/ui/TransactionHistoryView'
 import SortIcon, { type SortDirection } from '../../../components/ui/SortIcon'
 import CashierRegisterForm from './CashierRegisterForm'
+import CashierTopUpForm from '../components/CashierTopUpForm'
 import { cashiers as initialCashiers, type Cashier, type CashierStatus } from '../data'
 import { daysSince, getCashierStatus, getLastActiveDate } from '../status'
 import { transactions } from '../../transactions/data'
-import { getCashierFloatBalance } from '../../ledger/data'
+import { getCashierFloatBalance, TRUST_ACCOUNT_BALANCE, getEmoneyLiabilities } from '../../ledger/data'
 
 const statusVariant = {
   Active: 'positive',
@@ -121,6 +123,10 @@ export default function Cashiers() {
     null,
   )
   const [deleteTarget, setDeleteTarget] = useState<Cashier | null>(null)
+  const [companyWalletBalance, setCompanyWalletBalance] = useState(
+    () => TRUST_ACCOUNT_BALANCE - getEmoneyLiabilities(),
+  )
+  const [topUpTarget, setTopUpTarget] = useState<Cashier | null>(null)
 
   const filtered = useMemo(() => {
     const digitsQuery = query.replace(/\D/g, '')
@@ -324,6 +330,49 @@ export default function Cashiers() {
       setDrawerOpen(false)
     }
     setDeleteTarget(null)
+  }
+
+  const openTopUp = (id: string) => {
+    const cashier = cashiers.find((item) => item.id === id)
+    if (!cashier) return
+    setTopUpTarget(cashier)
+    closeActionMenu()
+  }
+
+  const handleTopUpSubmit = (amount: number) => {
+    if (!topUpTarget) return
+    try {
+      const targetId = topUpTarget.id
+      const name = topUpTarget.name
+      setCashiers((prev) =>
+        prev.map((cashier) =>
+          cashier.id === targetId
+            ? { ...cashier, openingFloatBalance: cashier.openingFloatBalance + amount }
+            : cashier,
+        ),
+      )
+      setCompanyWalletBalance((prev) => prev - amount)
+      setTopUpTarget(null)
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'Float Top-Up Successful',
+        text: `TSh ${amount.toLocaleString()} added to ${name}'s float.`,
+        showConfirmButton: false,
+        timer: 1500,
+      })
+    } catch (error) {
+      console.error('Cashier top-up error:', error)
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'error',
+        title: 'Float Top-Up Failed',
+        text: 'An error occurred while transferring the float. Please try again.',
+        showConfirmButton: false,
+      })
+    }
   }
 
   if (view === 'history' && selected) {
@@ -692,6 +741,13 @@ export default function Cashiers() {
               </button>
               <button
                 type="button"
+                onClick={() => openTopUp(actionMenu.id)}
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium text-ink transition-colors hover:bg-brand hover:text-white"
+              >
+                <CirclePlus size={14} /> Top Up Float
+              </button>
+              <button
+                type="button"
                 onClick={() => openEdit(actionMenu.id)}
                 className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium text-ink transition-colors hover:bg-brand hover:text-white"
               >
@@ -749,9 +805,18 @@ export default function Cashiers() {
             </div>
 
             <div className="rounded-xl bg-surface p-4 ring-1 ring-line">
-              <p className="flex items-center gap-1.5 text-xs font-medium text-muted">
-                <Landmark size={14} /> Assigned Float
-              </p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-muted">
+                  <Landmark size={14} /> Assigned Float
+                </p>
+                <button
+                  type="button"
+                  onClick={() => openTopUp(selected.id)}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-brand/10 px-3 py-1.5 text-xs font-semibold text-brand transition-colors hover:bg-brand hover:text-white"
+                >
+                  <CirclePlus size={14} /> Top Up Float
+                </button>
+              </div>
               <p className="mt-1 text-3xl font-extrabold text-ink">{formatAmount(getCashierFloatBalance(selected))}</p>
             </div>
 
@@ -959,6 +1024,28 @@ export default function Cashiers() {
           <span className="font-semibold text-ink">{deleteTarget?.name}</span>? This will permanently
           remove the cashier and their float wallet assignment. This action cannot be undone.
         </p>
+      </Modal>
+
+      <Modal
+        open={!!topUpTarget}
+        onClose={() => setTopUpTarget(null)}
+        title={
+          <>
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand">
+              <CirclePlus size={16} />
+            </span>
+            Top Up Float
+          </>
+        }
+      >
+        {topUpTarget && (
+          <CashierTopUpForm
+            cashier={topUpTarget}
+            companyWalletBalance={companyWalletBalance}
+            onSubmit={handleTopUpSubmit}
+            onCancel={() => setTopUpTarget(null)}
+          />
+        )}
       </Modal>
     </div>
   )
