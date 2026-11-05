@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useFormik } from 'formik'
 import * as Yup from 'yup'
+import type { LucideIcon } from 'lucide-react'
 import {
   ArrowLeft,
   HandCoins,
@@ -28,7 +29,6 @@ import {
   Hash,
   UserCheck,
 } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
 import Modal from '../../../components/ui/Modal'
 
 interface LoanTier {
@@ -71,9 +71,31 @@ const loanTiers: LoanTier[] = [
   },
 ]
 
+export interface LoanApplicationResult {
+  fullName: string
+  phone: string
+  email: string
+  dateOfBirth: string
+  jobIdDocument: File | null
+  localGovernmentLetter: File | null
+  guarantorLetter: File | null
+  live: string
+  incomeSource: string
+  emergencyContact: {
+    name: string
+    relationship: string
+    phone: string
+  }
+  disbursement:
+    | { method: 'mobile'; provider: string; number: string }
+    | { method: 'bank'; bankName: string; accountNumber: string; accountHolder: string }
+  tier: LoanTier
+}
+
 const formatAmount = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
 
-const lifespanLabel = (months: number) => (months === 12 ? '1 year' : months === 1 ? '1 month' : `${months} months`)
+const lifespanLabel = (months: number) =>
+  months === 12 ? '1 year' : months === 1 ? '1 month' : `${months} months`
 
 const getInputClass = (hasError: boolean) =>
   `w-full rounded-xl border bg-surface py-2.5 pl-10 pr-3.5 text-sm outline-none ring-1 transition-colors focus:border-brand ${
@@ -85,12 +107,9 @@ const getSelectClass = (hasError: boolean) =>
   }`
 const errorClass = 'mt-1 text-[11px] text-red-600'
 
-const mobileProviders = ['Tigo Pesa', 'M-Pesa', 'Airtel Money'] as const
+const mobileProviders = ['Tigo Pesa', 'M-Pesa', 'Airtel Money']
 
-type MobileProvider = (typeof mobileProviders)[number]
-type DisbursementMethod = 'mobile' | 'bank'
-
-function calculateAge(dateOfBirth: string): number | null {
+function calculateAge(dateOfBirth: string) {
   if (!dateOfBirth) return null
   const birthDate = new Date(dateOfBirth)
   if (Number.isNaN(birthDate.getTime())) return null
@@ -109,6 +128,16 @@ const maxDateOfBirth = (() => {
   return date.toISOString().slice(0, 10)
 })()
 
+interface FileUploadFieldProps {
+  label: string
+  required?: boolean
+  file: File | null
+  onChange: (file: File | null) => void
+  placeholder: string
+  caption: string
+  error?: string
+}
+
 function FileUploadField({
   label,
   required,
@@ -117,15 +146,7 @@ function FileUploadField({
   placeholder,
   caption,
   error,
-}: {
-  label: string
-  required?: boolean
-  file: File | null
-  onChange: (file: File | null) => void
-  placeholder: string
-  caption: string
-  error?: string
-}) {
+}: FileUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   return (
     <div>
@@ -169,58 +190,13 @@ function FileUploadField({
           </button>
         )}
       </div>
-      {error ? <p className={errorClass}>{error}</p> : <p className="mt-1 text-[11px] text-muted">{caption}</p>}
+      {error ? (
+        <p className={errorClass}>{error}</p>
+      ) : (
+        <p className="mt-1 text-[11px] text-muted">{caption}</p>
+      )}
     </div>
   )
-}
-
-export interface LoanApplicationResult {
-  fullName: string
-  phone: string
-  email: string
-  dateOfBirth: string
-  jobIdDocument: File | null
-  localGovernmentLetter: File | null
-  guarantorLetter: File | null
-  live: string
-  incomeSource: string
-  emergencyContact: {
-    name: string
-    relationship: string
-    phone: string
-  }
-  disbursement:
-    | { method: 'mobile'; provider: MobileProvider; number: string }
-    | { method: 'bank'; bankName: string; accountNumber: string; accountHolder: string }
-  tier: LoanTier
-}
-
-interface LoanApplicationFormProps {
-  onCancel: () => void
-  onSubmit: (application: LoanApplicationResult) => void
-}
-
-interface LoanFormValues {
-  fullName: string
-  phone: string
-  email: string
-  dateOfBirth: string
-  jobIdDocument: File | null
-  localGovernmentLetter: File | null
-  guarantorLetter: File | null
-  live: string
-  incomeSource: string
-  emergencyName: string
-  emergencyRelationship: string
-  emergencyPhone: string
-  tierKey: LoanTier['key']
-  disbursementMethod: DisbursementMethod
-  mobileProvider: MobileProvider
-  mobileNumber: string
-  bankName: string
-  bankAccountNumber: string
-  bankAccountHolder: string
-  termsAccepted: boolean
 }
 
 const loanSchema = Yup.object({
@@ -267,26 +243,31 @@ const loanSchema = Yup.object({
   termsAccepted: Yup.boolean().oneOf([true], 'You must agree to the Terms and Conditions'),
 })
 
+interface LoanApplicationFormProps {
+  onCancel: () => void
+  onSubmit: (application: LoanApplicationResult) => void
+}
+
 export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicationFormProps) {
   const [mobileNumberTouched, setMobileNumberTouched] = useState(false)
   const [termsOpen, setTermsOpen] = useState(false)
 
-  const formik = useFormik<LoanFormValues>({
+  const formik = useFormik({
     initialValues: {
       fullName: '',
       phone: '',
       email: '',
       dateOfBirth: '',
-      jobIdDocument: null,
-      localGovernmentLetter: null,
-      guarantorLetter: null,
+      jobIdDocument: null as File | null,
+      localGovernmentLetter: null as File | null,
+      guarantorLetter: null as File | null,
       live: '',
       incomeSource: '',
       emergencyName: '',
       emergencyRelationship: '',
       emergencyPhone: '',
-      tierKey: 'short',
-      disbursementMethod: 'mobile',
+      tierKey: 'short' as LoanTier['key'],
+      disbursementMethod: 'mobile' as 'mobile' | 'bank',
       mobileProvider: mobileProviders[0],
       mobileNumber: '',
       bankName: '',
@@ -314,7 +295,11 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
         },
         disbursement:
           values.disbursementMethod === 'mobile'
-            ? { method: 'mobile', provider: values.mobileProvider, number: values.mobileNumber.trim() }
+            ? {
+                method: 'mobile',
+                provider: values.mobileProvider,
+                number: values.mobileNumber.trim(),
+              }
             : {
                 method: 'bank',
                 bankName: values.bankName.trim(),
@@ -337,8 +322,10 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
   const applicantAge = calculateAge(formik.values.dateOfBirth)
   const isUnderage = applicantAge !== null && applicantAge < 18
 
-  const hasError = (field: keyof LoanFormValues) => Boolean(formik.touched[field] && formik.errors[field])
-  const errorText = (field: keyof LoanFormValues) => (hasError(field) ? String(formik.errors[field]) : undefined)
+  const hasError = (field: keyof typeof formik.values) =>
+    Boolean(formik.touched[field] && formik.errors[field])
+  const errorText = (field: keyof typeof formik.values) =>
+    hasError(field) ? String(formik.errors[field]) : undefined
 
   return (
     <form className="space-y-5" onSubmit={formik.handleSubmit}>
@@ -373,7 +360,9 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
           </span>
           <div>
             <h2 className="text-sm font-bold text-ink">Personal Information</h2>
-            <p className="text-xs text-muted">Enter the applicant&apos;s personal and employment details.</p>
+            <p className="text-xs text-muted">
+              Enter the applicant&apos;s personal and employment details.
+            </p>
           </div>
         </div>
 
@@ -383,7 +372,10 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
               Full Name <span className="text-red-500">*</span>
             </label>
             <div className="relative mt-1">
-              <User size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+              <User
+                size={16}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+              />
               <input
                 type="text"
                 name="fullName"
@@ -401,7 +393,10 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
               Phone Number <span className="text-red-500">*</span>
             </label>
             <div className="relative mt-1">
-              <Phone size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+              <Phone
+                size={16}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+              />
               <input
                 type="text"
                 name="phone"
@@ -438,7 +433,10 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
           <div>
             <label className="text-xs font-medium text-muted">Email Address</label>
             <div className="relative mt-1">
-              <Mail size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+              <Mail
+                size={16}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+              />
               <input
                 type="email"
                 name="email"
@@ -463,7 +461,10 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
           <div>
             <label className="text-xs font-medium text-muted">Place of Residence</label>
             <div className="relative mt-1">
-              <MapPin size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+              <MapPin
+                size={16}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+              />
               <input
                 type="text"
                 name="live"
@@ -479,7 +480,10 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
               Source of Income <span className="text-red-500">*</span>
             </label>
             <div className="relative mt-1">
-              <Wallet size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+              <Wallet
+                size={16}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+              />
               <input
                 type="text"
                 name="incomeSource"
@@ -523,7 +527,10 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
               Name <span className="text-red-500">*</span>
             </label>
             <div className="relative mt-1">
-              <User size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+              <User
+                size={16}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+              />
               <input
                 type="text"
                 name="emergencyName"
@@ -534,14 +541,19 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
                 className={getInputClass(hasError('emergencyName'))}
               />
             </div>
-            {hasError('emergencyName') && <p className={errorClass}>{formik.errors.emergencyName}</p>}
+            {hasError('emergencyName') && (
+              <p className={errorClass}>{formik.errors.emergencyName}</p>
+            )}
           </div>
           <div>
             <label className="text-xs font-medium text-muted">
               Relationship <span className="text-red-500">*</span>
             </label>
             <div className="relative mt-1">
-              <Users size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+              <Users
+                size={16}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+              />
               <input
                 type="text"
                 name="emergencyRelationship"
@@ -561,7 +573,10 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
               Phone Number <span className="text-red-500">*</span>
             </label>
             <div className="relative mt-1">
-              <Phone size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+              <Phone
+                size={16}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+              />
               <input
                 type="text"
                 name="emergencyPhone"
@@ -572,7 +587,9 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
                 className={getInputClass(hasError('emergencyPhone'))}
               />
             </div>
-            {hasError('emergencyPhone') && <p className={errorClass}>{formik.errors.emergencyPhone}</p>}
+            {hasError('emergencyPhone') && (
+              <p className={errorClass}>{formik.errors.emergencyPhone}</p>
+            )}
           </div>
           <FileUploadField
             label="Guarantor Letter"
@@ -593,7 +610,9 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
           </span>
           <div>
             <h2 className="text-sm font-bold text-ink">Loan Type</h2>
-            <p className="text-xs text-muted">Select the loan tier that fits the applicant&apos;s needs.</p>
+            <p className="text-xs text-muted">
+              Select the loan tier that fits the applicant&apos;s needs.
+            </p>
           </div>
         </div>
 
@@ -616,7 +635,9 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
                 >
                   {checked && <Check size={12} />}
                 </span>
-                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tier.tone}`}>
+                <span
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tier.tone}`}
+                >
                   <tier.icon size={18} />
                 </span>
                 <p className="text-sm font-bold text-ink">{tier.label}</p>
@@ -631,7 +652,9 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
                     <span className="flex items-center gap-1.5">
                       <Clock size={12} /> Life span
                     </span>
-                    <span className="font-semibold text-ink">{lifespanLabel(tier.lifespanMonths)}</span>
+                    <span className="font-semibold text-ink">
+                      {lifespanLabel(tier.lifespanMonths)}
+                    </span>
                   </p>
                   <p className="flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
@@ -649,7 +672,8 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
           <Info size={14} className="mt-0.5 shrink-0" />
           <p>
             The loan will be disbursed today for {formatAmount(selectedTier.amount)} at{' '}
-            {selectedTier.interestRate}% interest, due in {lifespanLabel(selectedTier.lifespanMonths)}.
+            {selectedTier.interestRate}% interest, due in{' '}
+            {lifespanLabel(selectedTier.lifespanMonths)}.
           </p>
         </div>
       </div>
@@ -668,9 +692,9 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
         <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {(
             [
-              { key: 'mobile' as const, label: 'Mobile Money', icon: Smartphone },
-              { key: 'bank' as const, label: 'Bank Account', icon: Landmark },
-            ]
+              { key: 'mobile', label: 'Mobile Money', icon: Smartphone },
+              { key: 'bank', label: 'Bank Account', icon: Landmark },
+            ] as const
           ).map((method) => {
             const checked = method.key === formik.values.disbursementMethod
             return (
@@ -742,7 +766,9 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
               {hasError('mobileNumber') ? (
                 <p className={errorClass}>{formik.errors.mobileNumber}</p>
               ) : (
-                <p className="mt-1 text-[11px] text-muted">Defaults to the applicant&apos;s phone number.</p>
+                <p className="mt-1 text-[11px] text-muted">
+                  Defaults to the applicant&apos;s phone number.
+                </p>
               )}
             </div>
           </div>
@@ -774,7 +800,10 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
                 Account Number <span className="text-red-500">*</span>
               </label>
               <div className="relative mt-1">
-                <Hash size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+                <Hash
+                  size={16}
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+                />
                 <input
                   type="text"
                   name="bankAccountNumber"
@@ -785,7 +814,9 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
                   className={getInputClass(hasError('bankAccountNumber'))}
                 />
               </div>
-              {hasError('bankAccountNumber') && <p className={errorClass}>{formik.errors.bankAccountNumber}</p>}
+              {hasError('bankAccountNumber') && (
+                <p className={errorClass}>{formik.errors.bankAccountNumber}</p>
+              )}
             </div>
             <div>
               <label className="text-xs font-medium text-muted">
@@ -806,7 +837,9 @@ export default function LoanApplicationForm({ onCancel, onSubmit }: LoanApplicat
                   className={getInputClass(hasError('bankAccountHolder'))}
                 />
               </div>
-              {hasError('bankAccountHolder') && <p className={errorClass}>{formik.errors.bankAccountHolder}</p>}
+              {hasError('bankAccountHolder') && (
+                <p className={errorClass}>{formik.errors.bankAccountHolder}</p>
+              )}
             </div>
           </div>
         )}

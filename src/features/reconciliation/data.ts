@@ -1,5 +1,6 @@
 import { chartOfAccounts, getAccountBalance, getCashierFloatBalance } from '../ledger/data'
-import { cashiers, type Cashier } from '../cashiers/data'
+import { cashiers } from '../cashiers/data'
+import type { Cashier } from '../cashiers/data'
 
 export type ReconciliationScope = 'Company' | 'Cashier'
 export type ReconciliationStatus = 'Balanced' | 'Open' | 'Investigating' | 'Resolved' | 'Written Off'
@@ -7,18 +8,15 @@ export type ReconciliationStatus = 'Balanced' | 'Open' | 'Investigating' | 'Reso
 export interface ReconciliationRun {
   id: string
   scope: ReconciliationScope
-  /** Set only when scope is 'Cashier'. */
   cashierId?: string
   asOf: string
-  /** The real bank statement amount (Company scope) or physically counted cash (Cashier scope) — entered by whoever performed the run. */
   statementAmount: number
-  /** Captured from the live ledger at the moment the run was created — a historical record, not recomputed later. */
   ledgerAmount: number
   difference: number
   status: ReconciliationStatus
+  performedBy: string
   notes?: string
   resolvedAt?: string
-  performedBy: string
 }
 
 const round2 = (value: number) => Math.round(value * 100) / 100
@@ -46,17 +44,21 @@ export const getCashierLedgerAmount = (cashier: Cashier) => round2(getCashierFlo
 export const getCashierName = (cashierId?: string) =>
   (cashierId && cashiers.find((c) => c.id === cashierId)?.name) || '—'
 
-/** Builds a new run from user input, capturing today's live ledger amount as a frozen snapshot. */
-export const buildReconciliationRun = (params: {
+interface BuildReconciliationRunParams {
   id: string
   scope: ReconciliationScope
   cashierId?: string
   statementAmount: number
   performedBy: string
-}): ReconciliationRun => {
+}
+
+/** Builds a new run from user input, capturing today's live ledger amount as a frozen snapshot. */
+export const buildReconciliationRun = (params: BuildReconciliationRunParams): ReconciliationRun => {
   const cashier = params.cashierId ? cashiers.find((c) => c.id === params.cashierId) : undefined
   const ledgerAmount =
-    params.scope === 'Cashier' && cashier ? getCashierLedgerAmount(cashier) : getCompanyLedgerAmount()
+    params.scope === 'Cashier' && cashier
+      ? getCashierLedgerAmount(cashier)
+      : getCompanyLedgerAmount()
   const statementAmount = round2(params.statementAmount)
   const difference = round2(statementAmount - ledgerAmount)
   return {

@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
+import type { LucideIcon } from 'lucide-react'
 import {
   Search,
   ArrowLeftRight,
@@ -32,7 +33,7 @@ import TypeBadge from '../../../components/ui/TypeBadge'
 import Drawer from '../../../components/ui/Drawer'
 import Modal from '../../../components/ui/Modal'
 import DateFilter from '../../../components/ui/DateFilter'
-import SortIcon, { type SortDirection } from '../../../components/ui/SortIcon'
+import SortIcon from '../../../components/ui/SortIcon'
 import {
   transactions as initialTransactions,
   getAmountTone,
@@ -43,48 +44,45 @@ import {
   getRecognizedFee,
   getCommission,
   getNetRevenue,
-  type Transaction,
-  type TxStatus,
-  type TxType,
-  type TxChannel,
 } from '../data'
+import type { Transaction, TransactionType } from '../data'
 import { maskAccount } from '../../../utils/mask'
 
-const statusVariant = {
+const statusVariant: Record<string, string> = {
   Successful: 'positive',
   Pending: 'warning',
   Failed: 'negative',
-} as const
+}
 
-const typeTone = {
+const typeTone: Record<TransactionType, string> = {
   W2W: 'blue',
   'Cash In': 'green',
   'Cash Out': 'rose',
   W2B: 'rose',
   'Loan Disbursement': 'orange',
   'Loan Repayment': 'amber',
-} as const
+}
 
-const txTypeIcon = {
+const txTypeIcon: Record<TransactionType, LucideIcon> = {
   W2W: Send,
   'Cash In': ArrowDownRight,
   'Cash Out': ArrowUpRight,
   W2B: Landmark,
   'Loan Disbursement': HandCoins,
   'Loan Repayment': HandCoins,
-} as const
+}
 
-const recipientLabel = {
+const recipientLabel: Record<TransactionType, string> = {
   W2W: 'Recipient wallet',
   'Cash In': 'Served by (cashier)',
   'Cash Out': 'Served by (cashier)',
   W2B: 'Bank account',
   'Loan Disbursement': 'Loan account',
   'Loan Repayment': 'Loan account',
-} as const
+}
 
-const statusOptions: Array<TxStatus | 'All'> = ['All', 'Successful', 'Pending', 'Failed']
-const typeOptions: Array<TxType | 'All'> = [
+const statusOptions = ['All', 'Successful', 'Pending', 'Failed']
+const typeOptions = [
   'All',
   'W2W',
   'Cash In',
@@ -93,13 +91,13 @@ const typeOptions: Array<TxType | 'All'> = [
   'Loan Disbursement',
   'Loan Repayment',
 ]
-const channelOptions: Array<TxChannel | 'All'> = ['All', 'Web App', 'USSD', 'Agent']
-
-type TxSortKey = 'type' | 'status' | 'amount'
+const channelOptions = ['All', 'Web App', 'USSD', 'Agent']
 
 const PAGE_SIZE = 10
 
 const formatAmount = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
+
+type SortKey = 'type' | 'status' | 'amount'
 
 interface ActionMenuState {
   id: string
@@ -110,12 +108,12 @@ interface ActionMenuState {
 export default function Transactions() {
   const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions)
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<TxStatus | 'All'>('All')
-  const [type, setType] = useState<TxType | 'All'>('All')
-  const [channel, setChannel] = useState<TxChannel | 'All'>('All')
+  const [status, setStatus] = useState('All')
+  const [type, setType] = useState('All')
+  const [channel, setChannel] = useState('All')
   const [date, setDate] = useState('')
-  const [sortKey, setSortKey] = useState<TxSortKey | null>(null)
-  const [sortDir, setSortDir] = useState<SortDirection>(null)
+  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null)
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -141,10 +139,12 @@ export default function Transactions() {
   const sorted = useMemo(() => {
     if (!sortKey || !sortDir) {
       // Default: most recent transaction first.
-      return [...filtered].sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`))
+      return [...filtered].sort((a, b) =>
+        `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`),
+      )
     }
     const direction = sortDir === 'asc' ? 1 : -1
-    const compare: Record<TxSortKey, (a: Transaction, b: Transaction) => number> = {
+    const compare: Record<SortKey, (a: Transaction, b: Transaction) => number> = {
       type: (a, b) => a.type.localeCompare(b.type),
       status: (a, b) => a.status.localeCompare(b.status),
       amount: (a, b) => a.amount - b.amount,
@@ -152,7 +152,7 @@ export default function Transactions() {
     return [...filtered].sort((a, b) => compare[sortKey](a, b) * direction)
   }, [filtered, sortKey, sortDir])
 
-  const toggleSort = (key: TxSortKey) => {
+  const toggleSort = (key: SortKey) => {
     if (sortKey !== key) {
       setSortKey(key)
       setSortDir('asc')
@@ -168,7 +168,7 @@ export default function Transactions() {
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
   const pageItems = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  const selected: Transaction | null = transactions.find((tx) => tx.id === selectedId) ?? null
+  const selected = transactions.find((tx) => tx.id === selectedId) ?? null
 
   const successfulCount = transactions.filter((tx) => tx.status === 'Successful').length
   const pendingCount = transactions.filter((tx) => tx.status === 'Pending').length
@@ -273,7 +273,7 @@ export default function Transactions() {
           <select
             value={status}
             onChange={(event) => {
-              setStatus(event.target.value as TxStatus | 'All')
+              setStatus(event.target.value)
               resetToFirstPage()
             }}
             className="rounded-full border border-transparent bg-white px-4 py-2.5 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
@@ -288,7 +288,7 @@ export default function Transactions() {
           <select
             value={type}
             onChange={(event) => {
-              setType(event.target.value as TxType | 'All')
+              setType(event.target.value)
               resetToFirstPage()
             }}
             className="rounded-full border border-transparent bg-white px-4 py-2.5 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
@@ -303,7 +303,7 @@ export default function Transactions() {
           <select
             value={channel}
             onChange={(event) => {
-              setChannel(event.target.value as TxChannel | 'All')
+              setChannel(event.target.value)
               resetToFirstPage()
             }}
             className="rounded-full border border-transparent bg-white px-4 py-2.5 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
@@ -530,7 +530,9 @@ export default function Transactions() {
                     </span>
                     <p className="text-xs text-muted">Customer</p>
                   </div>
-                  <p className="min-w-0 truncate text-sm font-semibold text-ink">{selected.customer}</p>
+                  <p className="min-w-0 truncate text-sm font-semibold text-ink">
+                    {selected.customer}
+                  </p>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -567,8 +569,12 @@ export default function Transactions() {
                           <p className="text-xs text-muted">{recipientLabel[selected.type]}</p>
                         </div>
                         <div className="min-w-0 shrink-0 text-right">
-                          <p className="truncate text-sm font-semibold text-ink">{selected.recipientName}</p>
-                          <p className="truncate font-mono text-xs text-muted">{selected.recipientAccount}</p>
+                          <p className="truncate text-sm font-semibold text-ink">
+                            {selected.recipientName}
+                          </p>
+                          <p className="truncate font-mono text-xs text-muted">
+                            {selected.recipientAccount}
+                          </p>
                         </div>
                       </div>
                     )
@@ -661,7 +667,9 @@ export default function Transactions() {
                     </span>
                     <p className="text-xs text-muted">Date &amp; Time</p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold text-ink">{formatTxDateTime(selected)}</p>
+                  <p className="shrink-0 text-sm font-semibold text-ink">
+                    {formatTxDateTime(selected)}
+                  </p>
                 </div>
               </div>
             </div>
@@ -701,8 +709,8 @@ export default function Transactions() {
       >
         <p className="text-sm text-ink/80">
           Are you sure you want to delete transaction{' '}
-          <span className="font-mono font-semibold text-ink">{deleteTarget?.id}</span>? This action cannot be
-          undone.
+          <span className="font-mono font-semibold text-ink">{deleteTarget?.id}</span>? This action
+          cannot be undone.
         </p>
       </Modal>
     </div>

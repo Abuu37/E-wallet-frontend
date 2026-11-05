@@ -5,17 +5,18 @@ import TypeBadge from '../../../components/ui/TypeBadge'
 import { getLoggedInCustomer } from '../currentCustomer'
 import { getCustomerBalance } from '../../ledger/data'
 import { getCustomerTransactions } from '../../customers/status'
-import { formatTxDateTime, type TxType } from '../../transactions/data'
+import { formatTxDateTime } from '../../transactions/data'
+import type { TransactionType } from '../../transactions/data'
 
 const currency = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
 
-const txStatusVariant = {
+const txStatusVariant: Record<string, string> = {
   Successful: 'positive',
   Pending: 'warning',
   Failed: 'negative',
-} as const
+}
 
-const txTypeTone: Record<TxType, 'blue' | 'green' | 'rose' | 'orange' | 'amber'> = {
+const txTypeTone: Record<TransactionType, string> = {
   W2W: 'blue',
   'Cash In': 'green',
   'Cash Out': 'rose',
@@ -24,7 +25,7 @@ const txTypeTone: Record<TxType, 'blue' | 'green' | 'rose' | 'orange' | 'amber'>
   'Loan Repayment': 'amber',
 }
 
-const txTypeIcon: Record<TxType, typeof Send> = {
+const txTypeIcon: Record<TransactionType, typeof Send> = {
   W2W: Send,
   'Cash In': ArrowDownRight,
   'Cash Out': ArrowUpRight,
@@ -33,7 +34,7 @@ const txTypeIcon: Record<TxType, typeof Send> = {
   'Loan Repayment': Landmark,
 }
 
-const txIconBg: Record<TxType, string> = {
+const txIconBg: Record<TransactionType, string> = {
   W2W: 'bg-blue-50 text-blue-600',
   'Cash In': 'bg-green-50 text-green-600',
   'Cash Out': 'bg-rose-50 text-rose-600',

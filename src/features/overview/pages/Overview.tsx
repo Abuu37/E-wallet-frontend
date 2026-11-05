@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import TypeBadge from '../../../components/ui/TypeBadge'
+import type { LucideIcon } from 'lucide-react'
 import {
   UserCog,
   Users,
@@ -28,7 +29,6 @@ import {
   ArrowDownRight,
   ArrowUpRight,
 } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
 import {
   AreaChart,
   Area,
@@ -44,19 +44,15 @@ import {
 import StatCard from '../../../components/ui/StatCard'
 import StatusBadge from '../../../components/ui/StatusBadge'
 import Drawer from '../../../components/ui/Drawer'
-import {
-  volumeByRange,
-  volume30Day,
-  transactionTypeColor,
-  loanOverview,
-  type VolumeRange,
-} from '../data'
+import { volumeByRange, volume30Day, transactionTypeColor, loanOverview } from '../data'
+import type { VolumePoint } from '../data'
 import {
   transactions,
   getAmountTone,
   formatTxDateTime,
   getTransactionTypeShare,
 } from '../../transactions/data'
+import type { Transaction, TransactionType } from '../../transactions/data'
 import {
   chartOfAccounts,
   getAccountBalance,
@@ -69,15 +65,17 @@ import { customers } from '../../customers/data'
 import { cashiers } from '../../cashiers/data'
 import { maskAccount } from '../../../utils/mask'
 
-const txStatusVariant = {
+const txStatusVariant: Record<string, string> = {
   Successful: 'positive',
   Pending: 'warning',
   Failed: 'negative',
-} as const
+}
 
 const RECENT_TRANSACTIONS_PAGE_SIZE = 10
 
-const rangeOptions: { value: VolumeRange | 'custom'; label: string }[] = [
+type RangeKey = 'today' | 'week' | '30day' | 'custom'
+
+const rangeOptions: Array<{ value: RangeKey; label: string }> = [
   { value: 'today', label: 'Today' },
   { value: 'week', label: 'Week' },
   { value: '30day', label: '30-day' },
@@ -92,7 +90,7 @@ function number(value: number) {
   return value.toLocaleString()
 }
 
-function escapeCsvCell(value: string | number) {
+function escapeCsvCell(value: unknown) {
   const text = String(value)
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
 }
@@ -106,9 +104,9 @@ function displayAccount(value: string) {
 
 // Types where the recorded counterparty is actually the source of funds (money flows
 // INTO the customer's wallet), so the usual customer→recipient direction is reversed.
-const incomingTypes = new Set(['Cash In', 'Loan Disbursement'])
+const incomingTypes = new Set<TransactionType>(['Cash In', 'Loan Disbursement'])
 
-function getTxFlow(tx: (typeof transactions)[number]) {
+function getTxFlow(tx: Transaction) {
   if (incomingTypes.has(tx.type)) {
     return {
       fromName: tx.recipientName ?? tx.customer,
@@ -123,40 +121,49 @@ function getTxFlow(tx: (typeof transactions)[number]) {
   }
 }
 
-const typeTone = {
+const typeTone: Record<TransactionType, string> = {
   W2W: 'blue',
   'Cash In': 'green',
   'Cash Out': 'rose',
   W2B: 'rose',
   'Loan Disbursement': 'orange',
   'Loan Repayment': 'amber',
-} as const
+}
 
-const txTypeIcon = {
+const txTypeIcon: Record<TransactionType, LucideIcon> = {
   W2W: Send,
   'Cash In': ArrowDownRight,
   'Cash Out': ArrowUpRight,
   W2B: Landmark,
   'Loan Disbursement': HandCoins,
   'Loan Repayment': HandCoins,
-} as const
+}
 
-const recipientLabel = {
+const recipientLabel: Record<TransactionType, string> = {
   W2W: 'Recipient wallet',
   'Cash In': 'Served by (cashier)',
   'Cash Out': 'Served by (cashier)',
   W2B: 'Bank account',
   'Loan Disbursement': 'Loan account',
   'Loan Repayment': 'Loan account',
-} as const
+}
 
-function exportTransactionsCsv(rows: typeof transactions) {
+function exportTransactionsCsv(rows: Transaction[]) {
   const header = ['Transaction ID', 'From', 'Account', 'Type', 'To', 'Amount', 'Status', 'Date']
   const lines = [
     header,
     ...rows.map((row) => {
       const { fromName, fromAccount, toName } = getTxFlow(row)
-      return [row.id, fromName, fromAccount, row.type, toName, row.amount.toFixed(2), row.status, row.date]
+      return [
+        row.id,
+        fromName,
+        fromAccount,
+        row.type,
+        toName,
+        row.amount.toFixed(2),
+        row.status,
+        row.date,
+      ]
     }),
   ]
   const csv = lines.map((line) => line.map(escapeCsvCell).join(',')).join('\n')
@@ -169,13 +176,7 @@ function exportTransactionsCsv(rows: typeof transactions) {
   URL.revokeObjectURL(url)
 }
 
-function RangeTabs({
-  value,
-  onChange,
-}: {
-  value: VolumeRange | 'custom'
-  onChange: (next: VolumeRange | 'custom') => void
-}) {
+function RangeTabs({ value, onChange }: { value: RangeKey; onChange: (value: RangeKey) => void }) {
   return (
     <div className="inline-flex items-center gap-1 rounded-xl bg-surface p-1 ring-1 ring-line">
       {rangeOptions.map((option) => (
@@ -196,13 +197,7 @@ function RangeTabs({
   )
 }
 
-interface PanelRowProps {
-  icon: LucideIcon
-  label: string
-  value: string
-}
-
-function PanelRow({ icon: Icon, label, value }: PanelRowProps) {
+function PanelRow({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
     <div className="flex items-center gap-3 py-3">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand">
@@ -214,21 +209,32 @@ function PanelRow({ icon: Icon, label, value }: PanelRowProps) {
   )
 }
 
+interface ActionMenuState {
+  id: string
+  top: number
+  left: number
+}
+
 export default function Overview() {
-  const [range, setRange] = useState<VolumeRange | 'custom'>('30day')
+  const [range, setRange] = useState<RangeKey>('30day')
   const [customStart, setCustomStart] = useState(volume30Day[0].date)
   const [customEnd, setCustomEnd] = useState(volume30Day[volume30Day.length - 1].date)
 
-  const volumeData = useMemo(() => {
+  const volumeData: VolumePoint[] = useMemo(() => {
     if (range === 'custom') {
-      const filtered = volume30Day.filter((point) => point.date >= customStart && point.date <= customEnd)
+      const filtered = volume30Day.filter(
+        (point) => point.date >= customStart && point.date <= customEnd,
+      )
       return filtered.length >= 2 ? filtered : volume30Day
     }
     return volumeByRange[range]
   }, [range, customStart, customEnd])
 
   const [recentPage, setRecentPage] = useState(1)
-  const recentTotalPages = Math.max(1, Math.ceil(transactions.length / RECENT_TRANSACTIONS_PAGE_SIZE))
+  const recentTotalPages = Math.max(
+    1,
+    Math.ceil(transactions.length / RECENT_TRANSACTIONS_PAGE_SIZE),
+  )
   const recentTransactions = transactions.slice(
     (recentPage - 1) * RECENT_TRANSACTIONS_PAGE_SIZE,
     recentPage * RECENT_TRANSACTIONS_PAGE_SIZE,
@@ -243,7 +249,7 @@ export default function Overview() {
     setTxDrawerOpen(true)
   }
 
-  const [actionMenu, setActionMenu] = useState<{ id: string; top: number; left: number } | null>(null)
+  const [actionMenu, setActionMenu] = useState<ActionMenuState | null>(null)
   const menuButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
 
   const closeActionMenu = () => setActionMenu(null)
@@ -539,7 +545,9 @@ export default function Overview() {
                     </td>
                     <td className="px-6 py-3.5 font-mono text-xs text-muted">{tx.id}</td>
                     <td className="px-6 py-3.5 font-medium text-ink">{fromName}</td>
-                    <td className="px-6 py-3.5 font-mono text-ink/70">{displayAccount(fromAccount)}</td>
+                    <td className="px-6 py-3.5 font-mono text-ink/70">
+                      {displayAccount(fromAccount)}
+                    </td>
                     <td className="px-6 py-3.5">
                       <TypeBadge tone={typeTone[tx.type]} label={tx.type} />
                     </td>
@@ -673,7 +681,9 @@ export default function Overview() {
                     </span>
                     <p className="text-xs text-muted">Customer</p>
                   </div>
-                  <p className="min-w-0 truncate text-sm font-semibold text-ink">{selectedTx.customer}</p>
+                  <p className="min-w-0 truncate text-sm font-semibold text-ink">
+                    {selectedTx.customer}
+                  </p>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -755,7 +765,9 @@ export default function Overview() {
                     </span>
                     <p className="text-xs text-muted">Date &amp; Time</p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold text-ink">{formatTxDateTime(selectedTx)}</p>
+                  <p className="shrink-0 text-sm font-semibold text-ink">
+                    {formatTxDateTime(selectedTx)}
+                  </p>
                 </div>
               </div>
             </div>

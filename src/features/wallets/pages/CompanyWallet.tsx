@@ -10,17 +10,20 @@ import {
   TRUST_ACCOUNT_BALANCE,
   RECONCILED_AT,
 } from '../../ledger/data'
-import {
-  transactions,
-  getRecognizedFee,
-  getCommission,
-  type TxType,
-} from '../../transactions/data'
+import { transactions, getRecognizedFee, getCommission } from '../../transactions/data'
+import type { TransactionType } from '../../transactions/data'
 import { reconciliationRuns } from '../../reconciliation/data'
 
-const typeOrder: TxType[] = ['Cash In', 'Cash Out', 'W2B', 'W2W', 'Loan Disbursement', 'Loan Repayment']
+const typeOrder: TransactionType[] = [
+  'Cash In',
+  'Cash Out',
+  'W2B',
+  'W2W',
+  'Loan Disbursement',
+  'Loan Repayment',
+]
 
-const typeTone: Record<TxType, 'green' | 'rose' | 'blue' | 'orange' | 'amber'> = {
+const typeTone: Record<TransactionType, string> = {
   'Cash In': 'green',
   'Cash Out': 'rose',
   W2B: 'rose',
@@ -32,13 +35,13 @@ const typeTone: Record<TxType, 'green' | 'rose' | 'blue' | 'orange' | 'amber'> =
 const currency = (value: number) =>
   `${value < 0 ? '−' : ''}TSh ${Math.round(Math.abs(value)).toLocaleString()}`
 
-const reconciliationStatusVariant = {
+const reconciliationStatusVariant: Record<string, string> = {
   Balanced: 'positive',
   Open: 'negative',
   Investigating: 'warning',
   Resolved: 'info',
   'Written Off': 'neutral',
-} as const
+}
 
 const balanceOf = (accountId: string) => {
   const account = chartOfAccounts.find((item) => item.id === accountId)
@@ -140,7 +143,9 @@ export default function CompanyWallet() {
             <p className="text-sm font-semibold text-ink/80">Last Reconciliation</p>
             {lastReconciliation ? (
               <div className="mt-1 flex items-center gap-2">
-                <span className="text-sm font-bold text-ink">{currency(lastReconciliation.difference)}</span>
+                <span className="text-sm font-bold text-ink">
+                  {currency(lastReconciliation.difference)}
+                </span>
                 <StatusBadge
                   status={reconciliationStatusVariant[lastReconciliation.status]}
                   label={lastReconciliation.status}
@@ -202,7 +207,9 @@ export default function CompanyWallet() {
                 <td className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wide text-muted">
                   Total
                 </td>
-                <td className="px-6 py-3.5 text-right text-sm font-bold text-ink">{totals.count}</td>
+                <td className="px-6 py-3.5 text-right text-sm font-bold text-ink">
+                  {totals.count}
+                </td>
                 <td className="px-6 py-3.5 text-right text-sm font-bold text-ink">
                   {currency(totals.volume)}
                 </td>

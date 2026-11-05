@@ -1,6 +1,6 @@
 import { transactions } from '../transactions/data'
 import { getCustomerBalance } from '../ledger/data'
-import type { Customer, CustomerStatus } from './data'
+import type { Customer } from './data'
 
 export const daysSince = (value: string) => {
   const diffMs = Date.now() - new Date(`${value}T00:00:00`).getTime()
@@ -13,13 +13,17 @@ export const getCustomerTransactions = (customer: Customer) =>
 export const getLastActiveDate = (customer: Customer) => {
   const customerTx = getCustomerTransactions(customer)
   if (customerTx.length === 0) return customer.joined
-  return customerTx.reduce((latest, tx) => (tx.date > latest ? tx.date : latest), customerTx[0].date)
+  return customerTx.reduce(
+    (latest, tx) => (tx.date > latest ? tx.date : latest),
+    customerTx[0].date,
+  )
 }
 
 const DORMANT_THRESHOLD_DAYS = 60
 
-export const getCustomerStatus = (customer: Customer): CustomerStatus => {
-  if (getCustomerBalance(customer) === 0 && getCustomerTransactions(customer).length === 0) return 'Inactive'
+export const getCustomerStatus = (customer: Customer) => {
+  if (getCustomerBalance(customer) === 0 && getCustomerTransactions(customer).length === 0)
+    return 'Inactive'
   const days = daysSince(getLastActiveDate(customer))
   if (days > DORMANT_THRESHOLD_DAYS) return 'Dormant'
   return 'Active'

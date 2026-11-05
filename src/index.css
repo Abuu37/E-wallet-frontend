@@ -25,6 +25,8 @@
 
   --animate-card-float: card-float 5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   --animate-gradient-pan: gradient-pan 8s ease-in-out infinite;
+  --animate-otp-shine: otp-shine 2.2s ease-in-out infinite;
+  --animate-otp-shake: otp-shake 0.4s ease-in-out;
 }
 
 @keyframes card-float {
@@ -44,6 +46,30 @@
   }
   50% {
     background-position: 100% 50%;
+  }
+}
+
+@keyframes otp-shine {
+  0% {
+    background-position: -150% 0;
+  }
+  100% {
+    background-position: 250% 0;
+  }
+}
+
+@keyframes otp-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
   }
 }
 

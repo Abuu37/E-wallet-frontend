@@ -19,13 +19,22 @@ import {
   X,
 } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { branchOptions, type Cashier, type CashierGender, type CashierPermissions } from '../data'
+import { branchOptions } from '../data'
+import type { Cashier, CashierPermissions } from '../data'
 
-const genderOptions: CashierGender[] = ['Female', 'Male', 'Other']
+const genderOptions = ['Female', 'Male', 'Other']
 
 const permissionItems: Array<{ key: keyof CashierPermissions; label: string; description: string }> = [
-  { key: 'customerDeposits', label: 'Customer Deposits', description: 'Allow customer deposit operations' },
-  { key: 'internalTransfers', label: 'Internal Transfers', description: 'Allow transfers between wallets' },
+  {
+    key: 'customerDeposits',
+    label: 'Customer Deposits',
+    description: 'Allow customer deposit operations',
+  },
+  {
+    key: 'internalTransfers',
+    label: 'Internal Transfers',
+    description: 'Allow transfers between wallets',
+  },
   {
     key: 'customerWithdrawals',
     label: 'Customer Withdrawals',
@@ -51,21 +60,17 @@ const getPlainInputClass = (hasError: boolean) =>
   }`
 const errorClass = 'mt-1 text-xs font-medium text-red-600'
 
-interface CashierFormValues {
-  name: string
-  phone: string
-  email: string
-  gender: CashierGender
-  dateOfBirth: string
-  address: string
-  branch: string
-  floatAccount: string
-  tinCertificate: File | null
-  businessLicense: File | null
-  nationalId: File | null
-}
-
 const usernameFrom = (name: string) => name.trim().toLowerCase().replace(/\s+/g, '')
+
+interface FileUploadFieldProps {
+  label: string
+  required?: boolean
+  file: File | null
+  onChange: (file: File | null) => void
+  placeholder: string
+  caption: string
+  error?: string
+}
 
 function FileUploadField({
   label,
@@ -75,15 +80,7 @@ function FileUploadField({
   placeholder,
   caption,
   error,
-}: {
-  label: string
-  required?: boolean
-  file: File | null
-  onChange: (file: File | null) => void
-  placeholder: string
-  caption: string
-  error?: string
-}) {
+}: FileUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   return (
     <div>
@@ -127,7 +124,11 @@ function FileUploadField({
           </button>
         )}
       </div>
-      {error ? <p className={errorClass}>{error}</p> : <p className="mt-1 text-[11px] text-muted">{caption}</p>}
+      {error ? (
+        <p className={errorClass}>{error}</p>
+      ) : (
+        <p className="mt-1 text-[11px] text-muted">{caption}</p>
+      )}
     </div>
   )
 }
@@ -170,7 +171,7 @@ export default function CashierRegisterForm({
     nationalId: Yup.mixed().required('National ID (NIDA) is required'),
   })
 
-  const formik = useFormik<CashierFormValues>({
+  const formik = useFormik({
     initialValues: {
       name: initialCashier?.name ?? '',
       phone: initialCashier?.phone ?? '',
@@ -180,9 +181,9 @@ export default function CashierRegisterForm({
       address: initialCashier?.address ?? '',
       branch: initialCashier?.branch ?? branchOptions[0],
       floatAccount: initialCashier?.floatAccount ?? '',
-      tinCertificate: null,
-      businessLicense: null,
-      nationalId: null,
+      tinCertificate: null as File | null,
+      businessLicense: null as File | null,
+      nationalId: null as File | null,
     },
     validationSchema: cashierSchema,
     onSubmit: (values) => {
@@ -192,7 +193,7 @@ export default function CashierRegisterForm({
         name: values.name.trim(),
         phone: values.phone.trim(),
         email: values.email.trim(),
-        gender: values.gender,
+        gender: values.gender as Cashier['gender'],
         dateOfBirth: values.dateOfBirth || initialCashier?.dateOfBirth || '',
         address: values.address.trim(),
         username: initialCashier?.username ?? usernameFrom(values.name),
@@ -212,8 +213,10 @@ export default function CashierRegisterForm({
     },
   })
 
-  const hasError = (field: keyof CashierFormValues) => Boolean(formik.touched[field] && formik.errors[field])
-  const errorText = (field: keyof CashierFormValues) => (hasError(field) ? String(formik.errors[field]) : undefined)
+  const hasError = (field: keyof typeof formik.values) =>
+    Boolean(formik.touched[field] && formik.errors[field])
+  const errorText = (field: keyof typeof formik.values) =>
+    hasError(field) ? String(formik.errors[field]) : undefined
 
   return (
     <form className="space-y-5" onSubmit={formik.handleSubmit}>
@@ -234,7 +237,9 @@ export default function CashierRegisterForm({
           <Users size={20} />
         </span>
         <div>
-          <h1 className="text-xl font-extrabold text-ink">{mode === 'create' ? 'Add Cashier' : 'Edit Cashier'}</h1>
+          <h1 className="text-xl font-extrabold text-ink">
+            {mode === 'create' ? 'Add Cashier' : 'Edit Cashier'}
+          </h1>
           <p className="text-sm text-muted">
             {mode === 'create'
               ? 'Register a new cashier and assign their float wallet to enable them to perform transactions.'
@@ -260,7 +265,10 @@ export default function CashierRegisterForm({
               Full Name <span className="text-red-500">*</span>
             </label>
             <div className="relative mt-1">
-              <User size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+              <User
+                size={16}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+              />
               <input
                 type="text"
                 name="name"
@@ -278,7 +286,10 @@ export default function CashierRegisterForm({
               Phone Number <span className="text-red-500">*</span>
             </label>
             <div className="relative mt-1">
-              <Phone size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+              <Phone
+                size={16}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+              />
               <input
                 type="text"
                 name="phone"
@@ -294,7 +305,10 @@ export default function CashierRegisterForm({
           <div>
             <label className="text-xs font-medium text-muted">Email Address</label>
             <div className="relative mt-1">
-              <Mail size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+              <Mail
+                size={16}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+              />
               <input
                 type="email"
                 name="email"
@@ -362,7 +376,10 @@ export default function CashierRegisterForm({
           <div className="sm:col-span-3">
             <label className="text-xs font-medium text-muted">Address</label>
             <div className="relative mt-1">
-              <MapPin size={16} className="pointer-events-none absolute left-3.5 top-3 text-muted" />
+              <MapPin
+                size={16}
+                className="pointer-events-none absolute left-3.5 top-3 text-muted"
+              />
               <textarea
                 name="address"
                 value={formik.values.address}
@@ -410,7 +427,9 @@ export default function CashierRegisterForm({
           </span>
           <div>
             <h2 className="text-sm font-bold text-ink">Float Wallet Assignment</h2>
-            <p className="text-xs text-muted">Assign a float wallet to this cashier for daily operations.</p>
+            <p className="text-xs text-muted">
+              Assign a float wallet to this cashier for daily operations.
+            </p>
           </div>
         </div>
 
@@ -420,7 +439,10 @@ export default function CashierRegisterForm({
               Float Wallet Account <span className="text-red-500">*</span>
             </label>
             <div className="relative mt-1">
-              <Landmark size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+              <Landmark
+                size={16}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+              />
               <input
                 type="text"
                 name="floatAccount"

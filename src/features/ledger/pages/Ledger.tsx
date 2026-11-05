@@ -14,23 +14,16 @@ import StatCard from '../../../components/ui/StatCard'
 import StatusBadge from '../../../components/ui/StatusBadge'
 import TypeBadge from '../../../components/ui/TypeBadge'
 import DateFilter from '../../../components/ui/DateFilter'
-import SortIcon, { type SortDirection } from '../../../components/ui/SortIcon'
-import {
-  journalEntries,
-  chartOfAccounts,
-  getEntryTotals,
-  getAccountBalance,
-  type JournalEntry,
-  type PostingStatus,
-  type AccountCategory,
-} from '../data'
+import SortIcon from '../../../components/ui/SortIcon'
+import { journalEntries, chartOfAccounts, getEntryTotals, getAccountBalance } from '../data'
+import type { JournalEntry } from '../data'
 
-const statusVariant: Record<PostingStatus, 'positive' | 'warning'> = {
+const statusVariant: Record<string, string> = {
   Posted: 'positive',
   Pending: 'warning',
 }
 
-const categoryTone: Record<AccountCategory, 'blue' | 'rose' | 'purple' | 'green' | 'amber'> = {
+const categoryTone: Record<string, string> = {
   Asset: 'blue',
   Liability: 'rose',
   Equity: 'purple',
@@ -38,25 +31,25 @@ const categoryTone: Record<AccountCategory, 'blue' | 'rose' | 'purple' | 'green'
   Expense: 'amber',
 }
 
-const categoryOrder: AccountCategory[] = ['Asset', 'Liability', 'Equity', 'Revenue', 'Expense']
+const categoryOrder = ['Asset', 'Liability', 'Equity', 'Revenue', 'Expense']
 
-const statusOptions: Array<PostingStatus | 'All'> = ['All', 'Posted', 'Pending']
-
-type SortKey = 'debit' | 'credit' | 'status'
+const statusOptions = ['All', 'Posted', 'Pending']
 
 const PAGE_SIZE = 10
 
 const formatAmount = (value: number) =>
   `${value < 0 ? '−' : ''}TSh ${Math.round(Math.abs(value)).toLocaleString()}`
 
+type SortKey = 'debit' | 'credit' | 'status'
+
 export default function Ledger() {
   const [tab, setTab] = useState<'journal' | 'coa'>('journal')
 
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<PostingStatus | 'All'>('All')
+  const [status, setStatus] = useState('All')
   const [date, setDate] = useState('')
   const [sortKey, setSortKey] = useState<SortKey | null>(null)
-  const [sortDir, setSortDir] = useState<SortDirection>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null)
   const [page, setPage] = useState(1)
 
   const [view, setView] = useState<'list' | 'detail'>('list')
@@ -104,7 +97,7 @@ export default function Ledger() {
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
   const pageItems = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  const selected: JournalEntry | null = journalEntries.find((entry) => entry.id === selectedId) ?? null
+  const selected = journalEntries.find((entry) => entry.id === selectedId) ?? null
   const selectedTotals = selected ? getEntryTotals(selected) : null
 
   const openEntry = (id: string) => {
@@ -141,7 +134,10 @@ export default function Ledger() {
                 aria-label="Back to ledger"
                 className="group flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand text-white transition-colors hover:bg-brand/90"
               >
-                <ArrowLeft size={18} className="transition-transform duration-200 group-hover:-translate-x-0.5" />
+                <ArrowLeft
+                  size={18}
+                  className="transition-transform duration-200 group-hover:-translate-x-0.5"
+                />
               </button>
               <div>
                 <h2 className="text-base font-bold text-ink">Journal Entry Detail</h2>
@@ -172,7 +168,9 @@ export default function Ledger() {
                   </span>
                   <p className="text-xs text-muted">UTC Timestamp</p>
                 </div>
-                <p className="shrink-0 font-mono text-sm font-semibold text-ink">{selected.timestamp}</p>
+                <p className="shrink-0 font-mono text-sm font-semibold text-ink">
+                  {selected.timestamp}
+                </p>
               </div>
               <div className="flex items-center justify-between gap-3 p-3">
                 <div className="flex min-w-0 items-center gap-3">
@@ -279,7 +277,9 @@ export default function Ledger() {
           type="button"
           onClick={() => setTab('journal')}
           className={`border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
-            tab === 'journal' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'
+            tab === 'journal'
+              ? 'border-brand text-brand'
+              : 'border-transparent text-muted hover:text-ink'
           }`}
         >
           Journal Entries
@@ -288,7 +288,9 @@ export default function Ledger() {
           type="button"
           onClick={() => setTab('coa')}
           className={`border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
-            tab === 'coa' ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'
+            tab === 'coa'
+              ? 'border-brand text-brand'
+              : 'border-transparent text-muted hover:text-ink'
           }`}
         >
           Chart of Accounts
@@ -319,7 +321,7 @@ export default function Ledger() {
               <select
                 value={status}
                 onChange={(event) => {
-                  setStatus(event.target.value as PostingStatus | 'All')
+                  setStatus(event.target.value)
                   resetToFirstPage()
                 }}
                 className="rounded-full border border-transparent bg-white px-4 py-2.5 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
@@ -333,7 +335,7 @@ export default function Ledger() {
 
               <DateFilter
                 value={date}
-                onChange={(value) => {
+                onChange={(value: string) => {
                   setDate(value)
                   resetToFirstPage()
                 }}
@@ -395,9 +397,15 @@ export default function Ledger() {
                         <td className="px-6 py-3.5 text-xs text-muted">
                           {(page - 1) * PAGE_SIZE + index + 1}
                         </td>
-                        <td className="px-6 py-3.5 font-mono text-xs font-bold text-ink">{entry.id}</td>
-                        <td className="px-6 py-3.5 font-mono text-xs text-brand">{entry.referenceTxnId}</td>
-                        <td className="px-6 py-3.5 text-ink/70">{entry.timestamp.replace('T', ' ')}</td>
+                        <td className="px-6 py-3.5 font-mono text-xs font-bold text-ink">
+                          {entry.id}
+                        </td>
+                        <td className="px-6 py-3.5 font-mono text-xs text-brand">
+                          {entry.referenceTxnId}
+                        </td>
+                        <td className="px-6 py-3.5 text-ink/70">
+                          {entry.timestamp.replace('T', ' ')}
+                        </td>
                         <td
                           className="max-w-xs truncate px-6 py-3.5 text-ink/80"
                           title={entry.description}
@@ -473,7 +481,10 @@ export default function Ledger() {
                         <td className="px-6 py-3.5 font-mono text-xs text-muted">{account.id}</td>
                         <td className="px-6 py-3.5 font-medium text-ink">{account.name}</td>
                         <td className="px-6 py-3.5">
-                          <TypeBadge tone={categoryTone[account.category]} label={account.category} />
+                          <TypeBadge
+                            tone={categoryTone[account.category]}
+                            label={account.category}
+                          />
                         </td>
                         <td className="px-6 py-3.5 text-right font-semibold text-ink">
                           {formatAmount(getAccountBalance(account))}

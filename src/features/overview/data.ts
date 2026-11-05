@@ -1,12 +1,19 @@
-export type VolumeRange = 'today' | 'week' | '30day'
+import type { TransactionType } from '../transactions/data'
 
-export interface VolumePoint {
-  label: string
-  date: string
-  volume: number
+export interface OverviewStats {
+  totalCashiers: number
+  totalCashiersDelta: number
+  totalCustomers: number
+  totalCustomersDelta: number
+  totalWalletBalance: number
+  totalWalletBalanceDelta: number
+  totalTransactions: number
+  totalTransactionsDelta: number
+  todaysTransactions: number
+  todaysTransactionsDelta: number
 }
 
-export const overviewStats = {
+export const overviewStats: OverviewStats = {
   totalCashiers: 48,
   totalCashiersDelta: 4.0,
   totalCustomers: 12480,
@@ -17,6 +24,12 @@ export const overviewStats = {
   totalTransactionsDelta: 6.4,
   todaysTransactions: 1284,
   todaysTransactionsDelta: -2.1,
+}
+
+export interface VolumePoint {
+  label: string
+  date: string
+  volume: number
 }
 
 // "Today": hourly buckets
@@ -80,22 +93,16 @@ export const volume30Day: VolumePoint[] = [
   { label: 'Oct 8', date: '2026-10-08', volume: 1284 },
 ]
 
-export const volumeByRange: Record<VolumeRange, VolumePoint[]> = {
+export const volumeByRange: Record<'today' | 'week' | '30day', VolumePoint[]> = {
   today: volumeToday,
   week: volumeWeek,
   '30day': volume30Day,
 }
 
-export interface TransactionTypeShare {
-  type: string
-  value: number
-  color: string
-}
-
 // Fixed categorical order, validated adjacency (incl. circular pie wrap). Never reassign hues.
 // Values (percentage shares) are computed live from real transactions — see
 // getTransactionTypeShare in features/transactions/data.ts; this only fixes each type's color.
-export const transactionTypeColor: Record<string, string> = {
+export const transactionTypeColor: Record<TransactionType, string> = {
   W2W: '#2563eb',
   'Cash Out': 'var(--color-chart-orange)',
   W2B: 'var(--color-chart-red)',
@@ -104,7 +111,16 @@ export const transactionTypeColor: Record<string, string> = {
   'Loan Repayment': 'var(--color-chart-green)',
 }
 
-export const walletOverview = {
+export interface WalletOverview {
+  activeWallets: number
+  activeWalletsDelta: number
+  cashierFloat: number
+  cashierFloatDelta: number
+  newWallets: number
+  newWalletsDelta: number
+}
+
+export const walletOverview: WalletOverview = {
   activeWallets: 9342,
   activeWalletsDelta: 5.1,
   cashierFloat: 128500.0,
@@ -113,7 +129,18 @@ export const walletOverview = {
   newWalletsDelta: 14.0,
 }
 
-export const loanOverview = {
+export interface LoanOverview {
+  activeLoans: number
+  activeLoansDelta: number
+  repaymentLoans: number
+  repaymentLoansDelta: number
+  overdueLoans: number
+  overdueLoansDelta: number
+  disbursed: number
+  disbursedDelta: number
+}
+
+export const loanOverview: LoanOverview = {
   activeLoans: 1204,
   activeLoansDelta: 3.4,
   repaymentLoans: 960,
@@ -123,4 +150,3 @@ export const loanOverview = {
   disbursed: 312400.0,
   disbursedDelta: 11.5,
 }
-

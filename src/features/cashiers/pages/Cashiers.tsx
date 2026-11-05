@@ -1,4 +1,4 @@
-﻿import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import Swal from 'sweetalert2'
 import {
@@ -32,41 +32,45 @@ import StatusBadge from '../../../components/ui/StatusBadge'
 import Drawer from '../../../components/ui/Drawer'
 import Modal from '../../../components/ui/Modal'
 import TransactionHistoryView from '../../../components/ui/TransactionHistoryView'
-import SortIcon, { type SortDirection } from '../../../components/ui/SortIcon'
+import SortIcon from '../../../components/ui/SortIcon'
 import CashierRegisterForm from './CashierRegisterForm'
 import CashierTopUpForm from '../components/CashierTopUpForm'
-import { cashiers as initialCashiers, type Cashier, type CashierStatus } from '../data'
+import { cashiers as initialCashiers } from '../data'
+import type { Cashier } from '../data'
 import { daysSince, getCashierStatus, getLastActiveDate } from '../status'
 import { transactions } from '../../transactions/data'
-import { getCashierFloatBalance, TRUST_ACCOUNT_BALANCE, getEmoneyLiabilities } from '../../ledger/data'
+import {
+  getCashierFloatBalance,
+  TRUST_ACCOUNT_BALANCE,
+  getEmoneyLiabilities,
+} from '../../ledger/data'
 
-const statusVariant = {
+const statusVariant: Record<string, string> = {
   Active: 'positive',
   Pending: 'warning',
   Idle: 'neutral',
   Dormant: 'info',
   Blocked: 'negative',
-} as const
+}
 
-const statusIconTone = {
+const statusIconTone: Record<string, string> = {
   Active: 'bg-green-50 text-green-700',
   Pending: 'bg-amber-50 text-amber-700',
   Idle: 'bg-slate-100 text-slate-600',
   Dormant: 'bg-purple-50 text-purple-700',
   Blocked: 'bg-red-100 text-red-800',
-} as const
+}
 
-const statusIcon = {
+const statusIcon: Record<string, typeof UserCheck> = {
   Active: UserCheck,
   Pending: Clock,
   Idle: PauseCircle,
   Dormant: Moon,
   Blocked: Ban,
-} as const
+}
 
-const statusOptions: Array<CashierStatus | 'All'> = ['All', 'Active', 'Idle', 'Dormant', 'Pending', 'Blocked']
-type FloatHealthLabel = 'Healthy' | 'Low' | 'Critical'
-const floatHealthOptions: Array<FloatHealthLabel | 'All'> = ['All', 'Healthy', 'Low', 'Critical']
+const statusOptions = ['All', 'Active', 'Idle', 'Dormant', 'Pending', 'Blocked']
+const floatHealthOptions = ['All', 'Healthy', 'Low', 'Critical']
 
 const LOW_FLOAT_THRESHOLD = 50000
 
@@ -75,9 +79,9 @@ const PAGE_SIZE = 10
 const formatAmount = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
 
 const getFloatHealth = (floatBalance: number) => {
-  if (floatBalance <= 0) return { label: 'Critical', variant: 'negative' } as const
-  if (floatBalance < LOW_FLOAT_THRESHOLD) return { label: 'Low', variant: 'warning' } as const
-  return { label: 'Healthy', variant: 'positive' } as const
+  if (floatBalance <= 0) return { label: 'Critical', variant: 'negative' }
+  if (floatBalance < LOW_FLOAT_THRESHOLD) return { label: 'Low', variant: 'warning' }
+  return { label: 'Healthy', variant: 'positive' }
 }
 
 const formatLastActive = (dateValue: string) => {
@@ -87,13 +91,7 @@ const formatLastActive = (dateValue: string) => {
   return `${days} days ago`
 }
 
-interface ActionMenuState {
-  id: string
-  top: number
-  left: number
-}
-
-type CashierSortKey =
+type SortKey =
   | 'id'
   | 'name'
   | 'floatBalance'
@@ -103,13 +101,25 @@ type CashierSortKey =
   | 'lastActive'
   | 'status'
 
+interface ActionMenuState {
+  id: string
+  top: number
+  left: number
+}
+
+interface ConfirmReportState {
+  id: string
+  name: string
+  report: boolean
+}
+
 export default function Cashiers() {
   const [cashiers, setCashiers] = useState<Cashier[]>(initialCashiers)
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<CashierStatus | 'All'>('All')
-  const [floatHealthFilter, setFloatHealthFilter] = useState<FloatHealthLabel | 'All'>('All')
-  const [sortKey, setSortKey] = useState<CashierSortKey | null>(null)
-  const [sortDir, setSortDir] = useState<SortDirection>(null)
+  const [status, setStatus] = useState('All')
+  const [floatHealthFilter, setFloatHealthFilter] = useState('All')
+  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null)
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -119,9 +129,7 @@ export default function Cashiers() {
 
   const [actionMenu, setActionMenu] = useState<ActionMenuState | null>(null)
   const menuButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
-  const [confirmReport, setConfirmReport] = useState<{ id: string; name: string; report: boolean } | null>(
-    null,
-  )
+  const [confirmReport, setConfirmReport] = useState<ConfirmReportState | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Cashier | null>(null)
   const [companyWalletBalance, setCompanyWalletBalance] = useState(
     () => TRUST_ACCOUNT_BALANCE - getEmoneyLiabilities(),
@@ -137,7 +145,8 @@ export default function Cashiers() {
         (digitsQuery.length > 0 && cashier.phone.replace(/\D/g, '').includes(digitsQuery))
       const matchesStatus = status === 'All' || getCashierStatus(cashier) === status
       const matchesFloatHealth =
-        floatHealthFilter === 'All' || getFloatHealth(getCashierFloatBalance(cashier)).label === floatHealthFilter
+        floatHealthFilter === 'All' ||
+        getFloatHealth(getCashierFloatBalance(cashier)).label === floatHealthFilter
       return matchesQuery && matchesStatus && matchesFloatHealth
     })
   }, [cashiers, query, status, floatHealthFilter])
@@ -175,7 +184,7 @@ export default function Cashiers() {
     })
   }, [filtered, sortKey, sortDir])
 
-  const toggleSort = (key: CashierSortKey) => {
+  const toggleSort = (key: SortKey) => {
     if (sortKey !== key) {
       setSortKey(key)
       setSortDir('asc')
@@ -191,8 +200,8 @@ export default function Cashiers() {
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
   const pageItems = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  const selected: Cashier | null = cashiers.find((cashier) => cashier.id === selectedId) ?? null
-  const selectedStatus: CashierStatus | null = selected ? getCashierStatus(selected) : null
+  const selected = cashiers.find((cashier) => cashier.id === selectedId) ?? null
+  const selectedStatus = selected ? getCashierStatus(selected) : null
 
   const selectedTransactions = useMemo(
     () => (selected ? transactions.filter((tx) => tx.recipientName === selected.name) : []),
@@ -205,7 +214,9 @@ export default function Cashiers() {
   const idleCount = cashiers.filter((cashier) => getCashierStatus(cashier) === 'Idle').length
   const dormantCount = cashiers.filter((cashier) => getCashierStatus(cashier) === 'Dormant').length
   const blockedCount = cashiers.filter((cashier) => getCashierStatus(cashier) === 'Blocked').length
-  const lowFloatCount = cashiers.filter((cashier) => getCashierFloatBalance(cashier) < LOW_FLOAT_THRESHOLD).length
+  const lowFloatCount = cashiers.filter(
+    (cashier) => getCashierFloatBalance(cashier) < LOW_FLOAT_THRESHOLD,
+  ).length
   const totalFloat = cashiers.reduce((sum, cashier) => sum + getCashierFloatBalance(cashier), 0)
   const totalCommission = cashiers.reduce((sum, cashier) => sum + cashier.commissionPayable, 0)
 
@@ -380,7 +391,9 @@ export default function Cashiers() {
       <TransactionHistoryView
         subjectName={selected.name}
         subjectPhone={selected.phone}
-        statusBadge={selectedStatus ? { variant: statusVariant[selectedStatus], label: selectedStatus } : null}
+        statusBadge={
+          selectedStatus ? { variant: statusVariant[selectedStatus], label: selectedStatus } : null
+        }
         onBack={backToList}
         backAriaLabel="Back to cashiers"
         transactions={selectedTransactions}
@@ -393,7 +406,7 @@ export default function Cashiers() {
     return (
       <CashierRegisterForm
         mode={formMode}
-        initialCashier={formMode === 'edit' ? selected ?? undefined : undefined}
+        initialCashier={formMode === 'edit' ? (selected ?? undefined) : undefined}
         defaultCashierId={nextCashierId()}
         onCancel={backToList}
         onSubmit={handleFormSubmit}
@@ -421,12 +434,7 @@ export default function Cashiers() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          icon={Users}
-          tone="brand"
-          label="Total Cashiers"
-          value={String(totalCashiers)}
-        />
+        <StatCard icon={Users} tone="brand" label="Total Cashiers" value={String(totalCashiers)} />
         <StatCard
           icon={UserCheck}
           tone="positive"
@@ -495,7 +503,7 @@ export default function Cashiers() {
           <select
             value={status}
             onChange={(event) => {
-              setStatus(event.target.value as CashierStatus | 'All')
+              setStatus(event.target.value)
               resetToFirstPage()
             }}
             className="rounded-full border border-transparent bg-white px-4 py-2.5 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
@@ -510,7 +518,7 @@ export default function Cashiers() {
           <select
             value={floatHealthFilter}
             onChange={(event) => {
-              setFloatHealthFilter(event.target.value as FloatHealthLabel | 'All')
+              setFloatHealthFilter(event.target.value)
               resetToFirstPage()
             }}
             className="rounded-full border border-transparent bg-white px-4 py-2.5 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
@@ -617,7 +625,9 @@ export default function Cashiers() {
             <tbody className="divide-y divide-line">
               {pageItems.map((cashier, index) => {
                 const floatHealth = getFloatHealth(getCashierFloatBalance(cashier))
-                const txCount = transactions.filter((tx) => tx.recipientName === cashier.name).length
+                const txCount = transactions.filter(
+                  (tx) => tx.recipientName === cashier.name,
+                ).length
                 const cashierStatus = getCashierStatus(cashier)
                 const lastActiveDate = getLastActiveDate(cashier)
                 return (
@@ -632,8 +642,12 @@ export default function Cashiers() {
                     <td className="whitespace-nowrap px-4 py-3.5 font-mono text-xs text-muted">
                       {cashier.id}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3.5 font-medium text-ink">{cashier.name}</td>
-                    <td className="whitespace-nowrap px-4 py-3.5 font-mono text-ink/70">{cashier.phone}</td>
+                    <td className="whitespace-nowrap px-4 py-3.5 font-medium text-ink">
+                      {cashier.name}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5 font-mono text-ink/70">
+                      {cashier.phone}
+                    </td>
                     <td className="whitespace-nowrap px-4 py-3.5 text-right font-semibold text-ink">
                       {formatAmount(getCashierFloatBalance(cashier))}
                     </td>
@@ -801,7 +815,9 @@ export default function Cashiers() {
                 <p className="truncate text-base font-bold text-ink">{selected.name}</p>
                 <p className="truncate font-mono text-xs text-muted">{selected.id}</p>
               </div>
-              {selectedStatus && <StatusBadge status={statusVariant[selectedStatus]} label={selectedStatus} />}
+              {selectedStatus && (
+                <StatusBadge status={statusVariant[selectedStatus]} label={selectedStatus} />
+              )}
             </div>
 
             <div className="rounded-xl bg-surface p-4 ring-1 ring-line">
@@ -817,7 +833,9 @@ export default function Cashiers() {
                   <CirclePlus size={14} /> Top Up Float
                 </button>
               </div>
-              <p className="mt-1 text-3xl font-extrabold text-ink">{formatAmount(getCashierFloatBalance(selected))}</p>
+              <p className="mt-1 text-3xl font-extrabold text-ink">
+                {formatAmount(getCashierFloatBalance(selected))}
+              </p>
             </div>
 
             <div>
@@ -825,113 +843,116 @@ export default function Cashiers() {
                 Cashier Information
               </p>
               <div className="mt-3 divide-y divide-line rounded-xl ring-1 ring-line">
-                  <div className="flex items-center justify-between gap-3 p-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                        <Hash size={16} />
-                      </span>
-                      <p className="text-xs text-muted">Cashier ID</p>
-                    </div>
-                    <p className="shrink-0 truncate font-mono text-sm font-semibold text-ink">
-                      {selected.id}
-                    </p>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <Hash size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Cashier ID</p>
                   </div>
-                  <div className="flex items-center justify-between gap-3 p-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                        <Phone size={16} />
-                      </span>
-                      <p className="text-xs text-muted">Phone Number</p>
-                    </div>
-                    <p className="shrink-0 truncate font-mono text-sm font-semibold text-ink">
-                      {selected.phone}
-                    </p>
+                  <p className="shrink-0 truncate font-mono text-sm font-semibold text-ink">
+                    {selected.id}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <Phone size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Phone Number</p>
                   </div>
-                  <div className="flex items-center justify-between gap-3 p-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                        <MapPin size={16} />
-                      </span>
-                      <p className="text-xs text-muted">Branch</p>
-                    </div>
-                    <p className="shrink-0 truncate text-sm font-semibold text-ink">{selected.branch}</p>
+                  <p className="shrink-0 truncate font-mono text-sm font-semibold text-ink">
+                    {selected.phone}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <MapPin size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Branch</p>
                   </div>
-                  <div className="flex items-center justify-between gap-3 p-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                        <HandCoins size={16} />
-                      </span>
-                      <p className="text-xs text-muted">Commission Account</p>
-                    </div>
-                    <p className="shrink-0 font-mono text-sm font-semibold text-ink">
-                      {selected.commissionAccount}
-                    </p>
+                  <p className="shrink-0 truncate text-sm font-semibold text-ink">
+                    {selected.branch}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <HandCoins size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Commission Account</p>
                   </div>
-                  <div className="flex items-center justify-between gap-3 p-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                        <Landmark size={16} />
-                      </span>
-                      <p className="text-xs text-muted">Float Account</p>
-                    </div>
-                    <p className="shrink-0 font-mono text-sm font-semibold text-ink">
-                      {selected.floatAccount}
-                    </p>
+                  <p className="shrink-0 font-mono text-sm font-semibold text-ink">
+                    {selected.commissionAccount}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <Landmark size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Float Account</p>
                   </div>
-                  <div className="flex items-center justify-between gap-3 p-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                        <CalendarDays size={16} />
-                      </span>
-                      <p className="text-xs text-muted">Joined</p>
-                    </div>
-                    <p className="shrink-0 text-sm font-semibold text-ink">{selected.joined}</p>
+                  <p className="shrink-0 font-mono text-sm font-semibold text-ink">
+                    {selected.floatAccount}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <CalendarDays size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Joined</p>
                   </div>
-                  <div className="flex items-center justify-between gap-3 p-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                        <Clock size={16} />
-                      </span>
-                      <p className="text-xs text-muted">Last activity</p>
-                    </div>
-                    <p className="shrink-0 text-sm font-semibold text-ink">
-                      {formatLastActive(getLastActiveDate(selected))}
-                    </p>
+                  <p className="shrink-0 text-sm font-semibold text-ink">{selected.joined}</p>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <Clock size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Last activity</p>
                   </div>
-                  <div className="flex items-center justify-between gap-3 p-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                          selectedStatus ? statusIconTone[selectedStatus] : ''
-                        }`}
-                      >
-                        {selectedStatus &&
-                          (() => {
-                            const Icon = statusIcon[selectedStatus]
-                            return <Icon size={16} />
-                          })()}
-                      </span>
-                      <p className="text-xs text-muted">Status</p>
-                    </div>
-                    <p className="shrink-0 text-sm font-semibold text-ink">{selectedStatus}</p>
-                  </div>
-                  <div className="flex items-center justify-between gap-3 p-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                        <Receipt size={16} />
-                      </span>
-                      <p className="text-xs text-muted">Total Transactions</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => openTransactions(selected.id)}
-                      className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
+                  <p className="shrink-0 text-sm font-semibold text-ink">
+                    {formatLastActive(getLastActiveDate(selected))}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                        selectedStatus ? statusIconTone[selectedStatus] : ''
+                      }`}
                     >
-                      {selectedTransactions.length} transaction{selectedTransactions.length === 1 ? '' : 's'}
-                    </button>
+                      {selectedStatus &&
+                        (() => {
+                          const Icon = statusIcon[selectedStatus]
+                          return <Icon size={16} />
+                        })()}
+                    </span>
+                    <p className="text-xs text-muted">Status</p>
                   </div>
+                  <p className="shrink-0 text-sm font-semibold text-ink">{selectedStatus}</p>
+                </div>
+                <div className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      <Receipt size={16} />
+                    </span>
+                    <p className="text-xs text-muted">Total Transactions</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openTransactions(selected.id)}
+                    className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
+                  >
+                    {selectedTransactions.length} transaction
+                    {selectedTransactions.length === 1 ? '' : 's'}
+                  </button>
                 </div>
               </div>
+            </div>
           </div>
         )}
       </Drawer>
@@ -964,7 +985,9 @@ export default function Cashiers() {
               type="button"
               onClick={confirmReportToggle}
               className={`flex-1 rounded-full py-2.5 text-sm font-semibold text-white transition-colors ${
-                confirmReport?.report ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
+                confirmReport?.report
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : 'bg-green-600 hover:bg-green-700'
               }`}
             >
               {confirmReport?.report ? 'Block' : 'Unblock'}
@@ -982,8 +1005,8 @@ export default function Cashiers() {
           ) : (
             <>
               Are you sure you want to unblock{' '}
-              <span className="font-semibold text-ink">{confirmReport?.name}</span>? They will regain
-              terminal access immediately.
+              <span className="font-semibold text-ink">{confirmReport?.name}</span>? They will
+              regain terminal access immediately.
             </>
           )}
         </p>
@@ -1021,8 +1044,9 @@ export default function Cashiers() {
       >
         <p className="text-sm text-ink/80">
           Are you sure you want to delete{' '}
-          <span className="font-semibold text-ink">{deleteTarget?.name}</span>? This will permanently
-          remove the cashier and their float wallet assignment. This action cannot be undone.
+          <span className="font-semibold text-ink">{deleteTarget?.name}</span>? This will
+          permanently remove the cashier and their float wallet assignment. This action cannot be
+          undone.
         </p>
       </Modal>
 

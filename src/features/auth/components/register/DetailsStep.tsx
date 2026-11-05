@@ -4,12 +4,22 @@ import * as Yup from 'yup'
 import { User, Mail } from 'lucide-react'
 import Swal from 'sweetalert2'
 import Button from '../../../../components/ui/Button'
-import PhoneInput, { isValidPhoneNumber, type Country, type Value } from 'react-phone-number-input'
+import PhoneInput, { isValidPhoneNumber, type Country } from 'react-phone-number-input'
 import 'react-phone-number-input/style.css'
-import { registerCustomer } from '../../api/onboarding'
-import { ApiRequestError } from '../../../../lib/api/client'
 import { getFieldClass, errorClass, RequiredMark } from './shared'
-import type { DetailsValues } from './types'
+import type { RegisterCustomerValues } from './types'
+
+interface DetailsStepProps {
+  initialValues: RegisterCustomerValues | null
+  country: Country
+  onCountryChange: (country: Country) => void
+  onSubmit: (values: RegisterCustomerValues) => void
+}
+
+interface RegistrationErrorResponse {
+  message: string
+  errors: Partial<Record<keyof RegisterCustomerValues, string>> | null
+}
 
 const detailsSchema = Yup.object({
   firstName: Yup.string().trim().required('First name is required'),
@@ -18,17 +28,17 @@ const detailsSchema = Yup.object({
   email: Yup.string().email('Enter a valid email').required('Email is required'),
   phone: Yup.string()
     .required('Phone number is required')
-    .test('is-valid-phone', 'Enter a valid phone number', (value) => Boolean(value && isValidPhoneNumber(value))),
+    .test('is-valid-phone', 'Enter a valid phone number', (value) =>
+      Boolean(value && isValidPhoneNumber(value)),
+    ),
 })
 
-interface DetailsStepProps {
-  initialValues: DetailsValues | null
-  country: Country
-  onCountryChange: (country: Country) => void
-  onSubmit: (values: DetailsValues) => void
-}
-
-export default function DetailsStep({ initialValues, country, onCountryChange, onSubmit }: DetailsStepProps) {
+export default function DetailsStep({
+  initialValues,
+  country,
+  onCountryChange,
+  onSubmit,
+}: DetailsStepProps) {
   return (
     <motion.div
       key="details"
@@ -37,8 +47,7 @@ export default function DetailsStep({ initialValues, country, onCountryChange, o
       exit={{ opacity: 0, x: -16 }}
       transition={{ duration: 0.25 }}
     >
-
-      <Formik<DetailsValues>
+      <Formik<RegisterCustomerValues>
         initialValues={
           initialValues ?? {
             firstName: '',
@@ -48,34 +57,63 @@ export default function DetailsStep({ initialValues, country, onCountryChange, o
             phone: '',
           }
         }
-
         validationSchema={detailsSchema}
+        onSubmit={async (values, { setSubmitting, setErrors }) => {
+          const payload: Record<string, string> = {
+            firstName: values.firstName.trim(),
+            lastName: values.lastName.trim(),
+            email: values.email.trim(),
+            // the API expects a bare phone number ("255..."), PhoneInput produces "+255..."
+            phone: values.phone.replace(/^\+/, ''),
+          }
+          if (values.middleName?.trim()) {
+            payload.middleName = values.middleName.trim()
+          }
 
-        onSubmit={ async (values, { setSubmitting, setFieldError }) => {
+          let response: Response
           try {
-            await registerCustomer(values) 
-            onSubmit(values)
-          } catch (error) {
+            response = await fetch(
+              `${import.meta.env.VITE_API_BASE_URL}/auth/customer-registration`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+              },
+            )
+          } catch {
+            Swal.fire({
+              toast: true,
+              position: 'top-end',
+              icon: 'error',
+              title: 'Network Error',
+              text: 'Could not reach the server. Check your connection and try again.',
+              showConfirmButton: false,
+              timer: 3000,
+            })
+            setSubmitting(false)
+            return
+          }
 
-            if (error instanceof ApiRequestError) {
-              if (error.fieldErrors) {
-                Object.entries(error.fieldErrors).forEach(([field, message]) => {
-                  setFieldError(field, message)
-                })
+          try {
+            if (!response.ok) {
+              const body: RegistrationErrorResponse = await response.json()
+
+              if (body.errors) {
+                setErrors(body.errors)
               } else {
-                await Swal.fire({
+                Swal.fire({
                   toast: true,
                   position: 'top-end',
                   icon: 'error',
-                  title: 'Registration failed',
-                  text: error.message,
+                  text: body.message ?? 'Could not register',
                   showConfirmButton: false,
                   timer: 3000,
-                  timerProgressBar: true,
                 })
               }
+              return
             }
 
+            onSubmit(values)
           } finally {
             setSubmitting(false)
           }
@@ -180,7 +218,7 @@ export default function DetailsStep({ initialValues, country, onCountryChange, o
                   id="phone"
                   international
                   defaultCountry={country}
-                  value={values.phone as Value}
+                  value={values.phone}
                   onChange={(value) => setFieldValue('phone', value ?? '')}
                   onCountryChange={(value) => {
                     if (value) onCountryChange(value)
@@ -194,8 +232,8 @@ export default function DetailsStep({ initialValues, country, onCountryChange, o
               <ErrorMessage name="phone" component="p" className={errorClass} />
             </div>
 
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? 'Submitting…' : 'Continue'}
+            <Button type="submit" className="w-full" disabled={isSubmitting} loading={isSubmitting}>
+              Continue
             </Button>
           </Form>
         )}

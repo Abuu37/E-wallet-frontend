@@ -1,8 +1,6 @@
 import { CalendarDays } from 'lucide-react'
 
-type DateFilterVariant = 'white' | 'surface'
-
-const variantBg: Record<DateFilterVariant, string> = {
+const variantBg = {
   white: 'bg-white',
   surface: 'bg-surface',
 }
@@ -10,7 +8,7 @@ const variantBg: Record<DateFilterVariant, string> = {
 interface DateFilterProps {
   value: string
   onChange: (value: string) => void
-  variant?: DateFilterVariant
+  variant?: keyof typeof variantBg
   min?: string
   max?: string
   className?: string

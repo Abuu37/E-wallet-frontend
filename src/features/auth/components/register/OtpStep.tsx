@@ -1,11 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import type { KeyboardEvent } from 'react'
 import { motion } from 'motion/react'
-import { ArrowLeft, RefreshCw, Smartphone } from 'lucide-react'
-import { formatPhoneNumberIntl } from 'react-phone-number-input'
+import { ArrowLeft, Mail, RefreshCw } from 'lucide-react'
+import Swal from 'sweetalert2'
 import Button from '../../../../components/ui/Button'
-import { resendOtp, verifyOtp as verifyOtpRequest } from '../../api/onboarding'
-import { ApiRequestError } from '../../../../lib/api/client'
 import { errorClass } from './shared'
 
 const OTP_LENGTH = 6
@@ -13,17 +10,19 @@ const RESEND_SECONDS = 30
 
 interface OtpStepProps {
   email?: string
-  phone?: string
   onVerified: () => void
   onBack: () => void
 }
 
-export default function OtpStep({ email, phone, onVerified, onBack }: OtpStepProps) {
-  const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''))
+interface ErrorResponse {
+  message: string
+}
+
+export default function OtpStep({ email, onVerified, onBack }: OtpStepProps) {
+  const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(''))
   const [otpError, setOtpError] = useState('')
+  const [verifying, setVerifying] = useState(false)
   const [resendCountdown, setResendCountdown] = useState(RESEND_SECONDS)
-  const [isVerifying, setIsVerifying] = useState(false)
-  const [isResending, setIsResending] = useState(false)
   const otpRefs = useRef<Array<HTMLInputElement | null>>([])
 
   useEffect(() => {
@@ -45,25 +44,64 @@ export default function OtpStep({ email, phone, onVerified, onBack }: OtpStepPro
     }
   }
 
-  const handleOtpKeyDown = (index: number, event: KeyboardEvent<HTMLInputElement>) => {
+  const handleOtpKeyDown = (index: number, event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Backspace' && !otp[index] && index > 0) {
       otpRefs.current[index - 1]?.focus()
     }
   }
 
   const handleResend = async () => {
-    if (!email || isResending) return
-    setIsResending(true)
-    setOtpError('')
+    let response: Response
     try {
-      await resendOtp(email)
+      response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/otp/resend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+    } catch {
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'error',
+        title: 'Network Error',
+        text: 'Could not reach the server. Check your connection and try again.',
+        showConfirmButton: false,
+        timer: 3000,
+      })
+      return
+    }
+
+    try {
+      const body: ErrorResponse = await response.json()
+
+      if (!response.ok) {
+        throw new Error(body.message ?? 'Could not resend code')
+      }
+
       setOtp(Array(OTP_LENGTH).fill(''))
+      setOtpError('')
       setResendCountdown(RESEND_SECONDS)
       otpRefs.current[0]?.focus()
+
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'Code Resent',
+        text: 'A new code has been sent to your email.',
+        showConfirmButton: false,
+        timer: 1500,
+      })
     } catch (error) {
-      setOtpError(error instanceof ApiRequestError ? error.message : 'Could not resend the code.')
-    } finally {
-      setIsResending(false)
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'error',
+        title: 'Resend Failed',
+        text: error instanceof Error ? error.message : 'Could not resend code',
+        showConfirmButton: false,
+        timer: 3000,
+      })
     }
   }
 
@@ -72,16 +110,36 @@ export default function OtpStep({ email, phone, onVerified, onBack }: OtpStepPro
       setOtpError('Enter the full 6-digit code')
       return
     }
-    if (!email) return
-    setIsVerifying(true)
-    setOtpError('')
+
+    const code = otp.join('')
+    setVerifying(true)
+
+    let response: Response
     try {
-      await verifyOtpRequest(email, otp.join(''))
+      response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/otp/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp: code }),
+      })
+    } catch {
+      setOtpError('Could not reach the server. Check your connection and try again.')
+      setVerifying(false)
+      return
+    }
+
+    try {
+      const body: ErrorResponse = await response.json()
+
+      if (!response.ok) {
+        throw new Error(body.message ?? 'Invalid code')
+      }
+
+      setOtpError('')
       onVerified()
     } catch (error) {
-      setOtpError(error instanceof ApiRequestError ? error.message : 'Verification failed.')
+      setOtpError(error instanceof Error ? error.message : 'Invalid code')
     } finally {
-      setIsVerifying(false)
+      setVerifying(false)
     }
   }
 
@@ -107,12 +165,11 @@ export default function OtpStep({ email, phone, onVerified, onBack }: OtpStepPro
 
       <div className="mt-4 flex flex-col items-center text-center">
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand/10 text-brand">
-          <Smartphone size={22} />
+          <Mail size={22} />
         </span>
-        <h3 className="mt-4 text-lg font-bold text-ink">Verify your phone number</h3>
+        <h3 className="mt-4 text-lg font-bold text-ink">Check your email</h3>
         <p className="mt-2 text-sm text-muted">
-          Enter the 6-digit code we sent to{' '}
-          <span className="font-semibold text-ink">{phone ? formatPhoneNumberIntl(phone) : ''}</span>
+          Enter the 6-digit code we sent to <span className="font-semibold text-ink">{email}</span>
         </p>
       </div>
 
@@ -146,17 +203,16 @@ export default function OtpStep({ email, phone, onVerified, onBack }: OtpStepPro
           <button
             type="button"
             onClick={handleResend}
-            disabled={isResending}
             className="inline-flex items-center gap-1.5 font-semibold text-brand hover:underline disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshCw size={14} />
-            {isResending ? 'Resending…' : 'Resend code'}
+            Resend code
           </button>
         )}
       </div>
 
-      <Button type="button" className="mt-6 w-full" onClick={handleVerify} disabled={isVerifying}>
-        {isVerifying ? 'Verifying…' : 'Verify & Continue'}
+      <Button type="button" className="mt-6 w-full" onClick={handleVerify} disabled={verifying} loading={verifying}>
+        Verify & Continue
       </Button>
     </motion.div>
   )

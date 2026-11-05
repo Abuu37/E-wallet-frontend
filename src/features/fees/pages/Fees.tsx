@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import Swal from 'sweetalert2'
 import { Formik, Form, Field, ErrorMessage } from 'formik'
 import * as Yup from 'yup'
+import type { LucideIcon } from 'lucide-react'
 import {
   Pencil,
   Search,
@@ -15,20 +16,13 @@ import {
   CheckCircle2,
   MoreVertical,
 } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
 import TypeBadge from '../../../components/ui/TypeBadge'
 import Modal from '../../../components/ui/Modal'
-import {
-  feeTiers as initialFeeTiers,
-  feeOverviewStats,
-  type FeeTier,
-  type FeeApplyType,
-  type TransactionType,
-} from '../data'
+import { feeTiers as initialFeeTiers, feeOverviewStats } from '../data'
+import type { FeeTier } from '../data'
+import type { TransactionType } from '../../transactions/data'
 
-type TileTone = 'brand' | 'positive' | 'accent' | 'warning'
-
-const tileToneStyles: Record<TileTone, string> = {
+const tileToneStyles = {
   brand: 'bg-brand/10 text-brand',
   accent: 'bg-accent/10 text-accent',
   positive: 'bg-positive/10 text-positive',
@@ -37,7 +31,7 @@ const tileToneStyles: Record<TileTone, string> = {
 
 interface StatTileProps {
   icon: LucideIcon
-  tone: TileTone
+  tone: keyof typeof tileToneStyles
   label: string
   value: string
   statusIcon: LucideIcon
@@ -48,7 +42,9 @@ function StatTile({ icon: Icon, tone, label, value, statusIcon: StatusIcon, stat
   return (
     <div className="rounded-2xl bg-white p-6 ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
       <div className="flex items-center gap-3">
-        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tileToneStyles[tone]}`}>
+        <span
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tileToneStyles[tone]}`}
+        >
           <Icon size={18} />
         </span>
         <p className="truncate text-sm font-semibold text-ink/80">{label}</p>
@@ -62,15 +58,15 @@ function StatTile({ icon: Icon, tone, label, value, statusIcon: StatusIcon, stat
   )
 }
 
-const transactionTypeTone = {
+const transactionTypeTone: Partial<Record<TransactionType, string>> = {
   'Cash In': 'green',
   'Cash Out': 'rose',
   W2W: 'blue',
   W2B: 'rose',
-} as const
+}
 
 const transactionTypeOptions: TransactionType[] = ['Cash In', 'Cash Out', 'W2W', 'W2B']
-const transactionTypeFilterOptions: Array<TransactionType | 'All'> = ['All', ...transactionTypeOptions]
+const transactionTypeFilterOptions = ['All', ...transactionTypeOptions]
 
 const formatAmount = (value: number) =>
   `${value < 0 ? '−' : ''}TSh ${Math.round(Math.abs(value)).toLocaleString()}`
@@ -80,7 +76,7 @@ const SHARE_RATE = 0.5
 const PAGE_SIZE = 10
 
 interface FeeFormValues {
-  type: FeeApplyType
+  type: 'Flat'
   transactionType: TransactionType
   rangeMin: string
   rangeMax: string
@@ -96,7 +92,7 @@ const blankFeeForm: FeeFormValues = {
 }
 
 const feeFormSchema = Yup.object({
-  transactionType: Yup.mixed<TransactionType>().oneOf(transactionTypeOptions).required(),
+  transactionType: Yup.mixed().oneOf(transactionTypeOptions).required(),
   rangeMin: Yup.number()
     .typeError('Enter a valid number')
     .min(0, 'Must be 0 or more')
@@ -105,7 +101,10 @@ const feeFormSchema = Yup.object({
     .typeError('Enter a valid number')
     .moreThan(Yup.ref('rangeMin'), 'Range Max must be greater than Range Min')
     .required('Range Max is required'),
-  customerFee: Yup.number().typeError('Enter a valid number').min(0, 'Must be 0 or more').required('Required'),
+  customerFee: Yup.number()
+    .typeError('Enter a valid number')
+    .min(0, 'Must be 0 or more')
+    .required('Required'),
 })
 
 const getFieldClass = (hasError: boolean) =>
@@ -114,10 +113,16 @@ const getFieldClass = (hasError: boolean) =>
   }`
 const errorClass = 'mt-1 text-xs font-medium text-red-600'
 
+interface ActionMenuState {
+  id: string
+  top: number
+  left: number
+}
+
 export default function Fees() {
   const [feeTiers, setFeeTiers] = useState<FeeTier[]>(initialFeeTiers)
   const [query, setQuery] = useState('')
-  const [transactionTypeFilter, setTransactionTypeFilter] = useState<TransactionType | 'All'>('All')
+  const [transactionTypeFilter, setTransactionTypeFilter] = useState('All')
   const [page, setPage] = useState(1)
 
   const [formMode, setFormMode] = useState<'create' | 'edit' | null>(null)
@@ -146,7 +151,8 @@ export default function Fees() {
     : 0
 
   const nextTierId = () => {
-    const nextNumber = Math.max(0, ...feeTiers.map((tier) => Number(tier.id.replace('TIER-', '')) || 0)) + 1
+    const nextNumber =
+      Math.max(0, ...feeTiers.map((tier) => Number(tier.id.replace('TIER-', '')) || 0)) + 1
     return `TIER-${nextNumber}`
   }
 
@@ -173,7 +179,7 @@ export default function Fees() {
     setEditId(null)
   }
 
-  const [actionMenu, setActionMenu] = useState<{ id: string; top: number; left: number } | null>(null)
+  const [actionMenu, setActionMenu] = useState<ActionMenuState | null>(null)
   const menuButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
 
   const closeActionMenu = () => setActionMenu(null)
@@ -250,7 +256,8 @@ export default function Fees() {
         <div>
           <h1 className="text-2xl font-extrabold text-ink">Fees</h1>
           <p className="mt-1 text-sm text-muted">
-            Configure the flat fee schedule charged to customers by transaction type and amount range.
+            Configure the flat fee schedule charged to customers by transaction type and amount
+            range.
           </p>
         </div>
         <button
@@ -311,7 +318,7 @@ export default function Fees() {
         <select
           value={transactionTypeFilter}
           onChange={(event) => {
-            setTransactionTypeFilter(event.target.value as TransactionType | 'All')
+            setTransactionTypeFilter(event.target.value)
             resetToFirstPage()
           }}
           className="rounded-full border border-transparent bg-white px-4 py-2.5 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
@@ -358,7 +365,10 @@ export default function Fees() {
                       {(page - 1) * PAGE_SIZE + index + 1}
                     </td>
                     <td className="px-6 py-3.5">
-                      <TypeBadge tone={transactionTypeTone[tier.transactionType]} label={tier.transactionType} />
+                      <TypeBadge
+                        tone={transactionTypeTone[tier.transactionType]}
+                        label={tier.transactionType}
+                      />
                     </td>
                     <td className="px-6 py-3.5 tabular-nums text-ink/70">
                       {formatRange(tier.rangeMin, tier.rangeMax)}
@@ -367,12 +377,16 @@ export default function Fees() {
                       {isCashIn ? (
                         <span className="text-muted">Free</span>
                       ) : (
-                        <span className="font-semibold text-ink">{formatAmount(tier.customerFee)}</span>
+                        <span className="font-semibold text-ink">
+                          {formatAmount(tier.customerFee)}
+                        </span>
                       )}
                     </td>
                     <td className="px-6 py-3.5 text-right tabular-nums text-ink/70">
                       {isCashIn && <>{formatAmount(tier.customerFee)}</>}
-                      {!isCashIn && isCashierServed && <>{formatAmount(tier.customerFee * SHARE_RATE)}</>}
+                      {!isCashIn && isCashierServed && (
+                        <>{formatAmount(tier.customerFee * SHARE_RATE)}</>
+                      )}
                       {!isCashierServed && <span className="text-muted">No agent</span>}
                     </td>
                     <td

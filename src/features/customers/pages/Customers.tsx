@@ -24,26 +24,27 @@ import StatusBadge from '../../../components/ui/StatusBadge'
 import Drawer from '../../../components/ui/Drawer'
 import Modal from '../../../components/ui/Modal'
 import TransactionHistoryView from '../../../components/ui/TransactionHistoryView'
-import SortIcon, { type SortDirection } from '../../../components/ui/SortIcon'
-import { customers as initialCustomers, type Customer, type CustomerStatus } from '../data'
+import SortIcon from '../../../components/ui/SortIcon'
+import { customers as initialCustomers } from '../data'
+import type { Customer } from '../data'
 import { daysSince, getCustomerStatus, getLastActiveDate } from '../status'
 import { transactions, formatTxDateTime } from '../../transactions/data'
 import { getCustomerBalance } from '../../ledger/data'
 import { maskAccount } from '../../../utils/mask'
 
-const statusVariant = {
+const statusVariant: Record<string, string> = {
   Active: 'positive',
   Dormant: 'info',
   Inactive: 'warning',
-} as const
+}
 
-const statusIconTone = {
+const statusIconTone: Record<string, string> = {
   Active: 'bg-green-50 text-green-700',
   Dormant: 'bg-purple-50 text-purple-700',
   Inactive: 'bg-amber-50 text-amber-700',
-} as const
+}
 
-const statusOptions: Array<CustomerStatus | 'All'> = ['All', 'Active', 'Dormant', 'Inactive']
+const statusOptions = ['All', 'Active', 'Dormant', 'Inactive']
 
 const PAGE_SIZE = 10
 
@@ -62,20 +63,20 @@ const initials = (name: string) =>
     .map((part) => part[0])
     .join('')
 
+type SortKey = 'name' | 'balance' | 'transactions' | 'lastActive' | 'status'
+
 interface ActionMenuState {
   id: string
   top: number
   left: number
 }
 
-type CustomerSortKey = 'name' | 'balance' | 'transactions' | 'lastActive' | 'status'
-
 export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers)
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<CustomerStatus | 'All'>('All')
-  const [sortKey, setSortKey] = useState<CustomerSortKey | null>(null)
-  const [sortDir, setSortDir] = useState<SortDirection>(null)
+  const [status, setStatus] = useState('All')
+  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null)
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -123,7 +124,7 @@ export default function Customers() {
     })
   }, [filtered, sortKey, sortDir])
 
-  const toggleSort = (key: CustomerSortKey) => {
+  const toggleSort = (key: SortKey) => {
     if (sortKey !== key) {
       setSortKey(key)
       setSortDir('asc')
@@ -139,8 +140,8 @@ export default function Customers() {
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
   const pageItems = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  const selected: Customer | null = customers.find((customer) => customer.id === selectedId) ?? null
-  const selectedStatus: CustomerStatus | null = selected ? getCustomerStatus(selected) : null
+  const selected = customers.find((customer) => customer.id === selectedId) ?? null
+  const selectedStatus = selected ? getCustomerStatus(selected) : null
 
   const selectedTransactions = useMemo(
     () => (selected ? transactions.filter((tx) => tx.customer === selected.name) : []),
@@ -159,9 +160,15 @@ export default function Customers() {
 
   const totalCustomers = customers.length
   const totalBalance = customers.reduce((sum, customer) => sum + getCustomerBalance(customer), 0)
-  const activeCount = customers.filter((customer) => getCustomerStatus(customer) === 'Active').length
-  const inactiveCount = customers.filter((customer) => getCustomerStatus(customer) === 'Inactive').length
-  const dormantCount = customers.filter((customer) => getCustomerStatus(customer) === 'Dormant').length
+  const activeCount = customers.filter(
+    (customer) => getCustomerStatus(customer) === 'Active',
+  ).length
+  const inactiveCount = customers.filter(
+    (customer) => getCustomerStatus(customer) === 'Inactive',
+  ).length
+  const dormantCount = customers.filter(
+    (customer) => getCustomerStatus(customer) === 'Dormant',
+  ).length
 
   const resetToFirstPage = () => setPage(1)
 
@@ -226,7 +233,9 @@ export default function Customers() {
       <TransactionHistoryView
         subjectName={selected.name}
         subjectPhone={selected.phone}
-        statusBadge={selectedStatus ? { variant: statusVariant[selectedStatus], label: selectedStatus } : null}
+        statusBadge={
+          selectedStatus ? { variant: statusVariant[selectedStatus], label: selectedStatus } : null
+        }
         onBack={backToList}
         backAriaLabel="Back to customers"
         transactions={selectedTransactions}
@@ -246,12 +255,7 @@ export default function Customers() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <StatCard
-          icon={Users}
-          tone="brand"
-          label="Total Customer"
-          value={String(totalCustomers)}
-        />
+        <StatCard icon={Users} tone="brand" label="Total Customer" value={String(totalCustomers)} />
         <StatCard
           icon={Landmark}
           tone="accent"
@@ -264,12 +268,7 @@ export default function Customers() {
           label="Active Wallet"
           value={String(activeCount)}
         />
-        <StatCard
-          icon={Clock}
-          tone="warning"
-          label="Dormant Wallet"
-          value={String(dormantCount)}
-        />
+        <StatCard icon={Clock} tone="warning" label="Dormant Wallet" value={String(dormantCount)} />
         <StatCard
           icon={UserX}
           tone="negative"
@@ -299,7 +298,7 @@ export default function Customers() {
         <select
           value={status}
           onChange={(event) => {
-            setStatus(event.target.value as CustomerStatus | 'All')
+            setStatus(event.target.value)
             resetToFirstPage()
           }}
           className="rounded-full border border-transparent bg-white px-4 py-2.5 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
@@ -386,7 +385,9 @@ export default function Customers() {
                       {(page - 1) * PAGE_SIZE + index + 1}
                     </td>
                     <td className="px-6 py-3.5 font-medium text-ink">{customer.name}</td>
-                    <td className="px-6 py-3.5 font-mono text-ink/70">{maskAccount(customer.phone)}</td>
+                    <td className="px-6 py-3.5 font-mono text-ink/70">
+                      {maskAccount(customer.phone)}
+                    </td>
                     <td className="px-6 py-3.5 text-right font-semibold text-ink">
                       {formatAmount(getCustomerBalance(customer))}
                     </td>
@@ -522,7 +523,9 @@ export default function Customers() {
               <p className="flex items-center gap-1.5 text-xs font-medium text-muted">
                 <Wallet size={14} /> Wallet Balance
               </p>
-              <p className="mt-1 text-3xl font-extrabold text-ink">{formatAmount(getCustomerBalance(selected))}</p>
+              <p className="mt-1 text-3xl font-extrabold text-ink">
+                {formatAmount(getCustomerBalance(selected))}
+              </p>
             </div>
 
             <div>
@@ -546,7 +549,9 @@ export default function Customers() {
                     </span>
                     <p className="text-xs text-muted">Email</p>
                   </div>
-                  <p className="min-w-0 truncate text-sm font-semibold text-ink">{selected.email}</p>
+                  <p className="min-w-0 truncate text-sm font-semibold text-ink">
+                    {selected.email}
+                  </p>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -572,7 +577,7 @@ export default function Customers() {
                   <div className="flex min-w-0 items-center gap-3">
                     <span
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                        statusIconTone[selectedStatus!]
+                        selectedStatus ? statusIconTone[selectedStatus] : ''
                       }`}
                     >
                       {selectedStatus === 'Active' ? (
@@ -585,7 +590,9 @@ export default function Customers() {
                     </span>
                     <p className="text-xs text-muted">Account status</p>
                   </div>
-                  <StatusBadge status={statusVariant[selectedStatus!]} label={selectedStatus!} />
+                  {selectedStatus && (
+                    <StatusBadge status={statusVariant[selectedStatus]} label={selectedStatus} />
+                  )}
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -599,7 +606,8 @@ export default function Customers() {
                     onClick={() => openTransactions(selected.id)}
                     className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
                   >
-                    {selectedTransactions.length} transaction{selectedTransactions.length === 1 ? '' : 's'}
+                    {selectedTransactions.length} transaction
+                    {selectedTransactions.length === 1 ? '' : 's'}
                     <ArrowUpRight size={14} />
                   </button>
                 </div>
@@ -607,7 +615,6 @@ export default function Customers() {
             </div>
           </div>
         )}
-
       </Drawer>
 
       <Modal

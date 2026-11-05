@@ -1,5 +1,5 @@
 import { transactions } from '../transactions/data'
-import type { Cashier, CashierStatus } from './data'
+import type { Cashier } from './data'
 
 export const daysSince = (value: string) => {
   const datePart = value.slice(0, 10)
@@ -16,7 +16,7 @@ export const getLastActiveDate = (cashier: Cashier) => {
   return cashierTx.reduce((latest, tx) => (tx.date > latest ? tx.date : latest), cashierTx[0].date)
 }
 
-export const getCashierStatus = (cashier: Cashier): CashierStatus => {
+export const getCashierStatus = (cashier: Cashier) => {
   if (cashier.unauthorizedReported) return 'Blocked'
   if (getCashierTransactions(cashier).length === 0) return 'Pending'
   const days = daysSince(getLastActiveDate(cashier))

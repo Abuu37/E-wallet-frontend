@@ -1,65 +1,48 @@
-import { cashiers } from '../cashiers/data'
-import type { UserRole } from './utils/mockAuth'
+import { useAuth } from '../../components/context/AuthContext'
+import { decodeAccessToken } from './decodeAccessToken'
 
-export interface StaffIdentity {
+interface StaffIdentity {
   name: string
   initials: string
   email: string
   phone: string
-  role: UserRole
+  role: 'ADMIN' | 'CASHIER'
 }
 
 const defaultIdentity: StaffIdentity = {
-  name: 'Code Abuu',
-  initials: 'CA',
+  name: 'Staff',
+  initials: 'ST',
   email: '',
   phone: '',
-  role: 'Admin',
+  role: 'ADMIN',
 }
 
 const initialsOf = (name: string) =>
   name
-    .split(' ')
+    .split(/[.\s_-]+/)
+    .filter(Boolean)
     .map((part) => part[0])
     .join('')
     .toUpperCase()
+    .slice(0, 2)
 
 /**
- * Resolves to whoever's actually logged in — the real cashier's record for a Cashier session,
- * or Admin's own stored details for an Admin session — falling back to the generic placeholder
- * if there's no session at all. Called fresh on every render (not module scope) so it reflects
- * whoever actually just logged in, not whatever sessionStorage held when this module first
- * loaded.
+ * Resolves the logged-in staff member's display identity from the session's JWT.
+ * The backend has no "get my profile" endpoint yet, so `name` is derived from the
+ * JWT's email claim (the only identity data available) rather than a real display name.
  */
-export function getCurrentStaffUser(): StaffIdentity {
-  try {
-    const stored = sessionStorage.getItem('user')
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      if (parsed.role === 'Cashier' && parsed.cashierId) {
-        const cashier = cashiers.find((item) => item.id === parsed.cashierId)
-        if (cashier) {
-          return {
-            name: cashier.name,
-            initials: initialsOf(cashier.name),
-            email: cashier.email,
-            phone: cashier.phone,
-            role: 'Cashier',
-          }
-        }
-      }
-      if (parsed.role === 'Admin' && parsed.name) {
-        return {
-          name: parsed.name,
-          initials: initialsOf(parsed.name),
-          email: parsed.email ?? '',
-          phone: parsed.phone ?? '',
-          role: 'Admin',
-        }
-      }
-    }
-  } catch {
-    // malformed session value — fall through to the default below
+export function useCurrentStaffUser(): StaffIdentity {
+  const { user } = useAuth()
+  if (!user) return defaultIdentity
+
+  const email = decodeAccessToken(user.accessToken)?.email ?? ''
+  const name = email ? email.split('@')[0] : defaultIdentity.name
+
+  return {
+    name,
+    initials: email ? initialsOf(name) : defaultIdentity.initials,
+    email,
+    phone: '',
+    role: user.roles.includes('CASHIER') ? 'CASHIER' : 'ADMIN',
   }
-  return defaultIdentity
 }

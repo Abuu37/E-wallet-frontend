@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { Formik, Form, Field, ErrorMessage } from 'formik'
+import { Formik, Form, Field, ErrorMessage, type FormikHelpers } from 'formik'
 import * as Yup from 'yup'
 import { UserCog, Landmark, CheckCircle2, AlertCircle, Wallet, CreditCard } from 'lucide-react'
 import StatusBadge from '../../../components/ui/StatusBadge'
 import { getLoggedInCustomer } from '../currentCustomer'
 import { getCustomerBalance } from '../../ledger/data'
-import type { Transaction } from '../../transactions/data'
 
 const currency = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
 
@@ -23,11 +22,27 @@ interface WithdrawValues {
   accountNumber: string
 }
 
+interface WithdrawRequest {
+  id: string
+  customer: string
+  phone: string
+  type: 'W2B'
+  channel: 'Web App'
+  amount: number
+  fee: number
+  status: 'Pending'
+  date: string
+  time: string
+  recipientName: string
+  recipientAccount: string
+  customerId: string
+}
+
 export default function AccountWithdraw() {
   const customer = getLoggedInCustomer()
   const balance = getCustomerBalance(customer)
 
-  const [submitted, setSubmitted] = useState<Transaction[]>([])
+  const [submitted, setSubmitted] = useState<WithdrawRequest[]>([])
 
   const withdrawSchema = Yup.object({
     amount: Yup.number()
@@ -39,8 +54,8 @@ export default function AccountWithdraw() {
     accountNumber: Yup.string().trim().required('Enter the destination bank account number.'),
   })
 
-  const submitWithdrawal = (values: WithdrawValues, resetForm: () => void) => {
-    const request: Transaction = {
+  const submitWithdrawal = (values: WithdrawValues, resetForm: FormikHelpers<WithdrawValues>['resetForm']) => {
+    const request: WithdrawRequest = {
       id: `TXN-REQ-${submitted.length + 1}`,
       customer: customer.name,
       phone: customer.phone,
@@ -141,7 +156,10 @@ export default function AccountWithdraw() {
                   Account Number <span className="text-red-500">*</span>
                 </label>
                 <div className="relative mt-1">
-                  <CreditCard size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+                  <CreditCard
+                    size={16}
+                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+                  />
                   <Field
                     type="text"
                     name="accountNumber"

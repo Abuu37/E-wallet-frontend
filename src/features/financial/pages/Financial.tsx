@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Link } from 'react-router-dom'
+import type { LucideIcon } from 'lucide-react'
 import {
   Banknote,
   HandCoins,
@@ -26,7 +27,6 @@ import {
   FileText,
   Landmark,
 } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
 import StatCard from '../../../components/ui/StatCard'
 import StatusBadge from '../../../components/ui/StatusBadge'
 import TypeBadge from '../../../components/ui/TypeBadge'
@@ -40,59 +40,82 @@ import {
   getNetAdjustment,
   getTotalWalletBalance,
 } from '../../transactions/data'
-import { chartOfAccounts, getAccountBalance, getCustomerBalance, getCashierFloatBalance } from '../../ledger/data'
+import type { Transaction, TransactionType } from '../../transactions/data'
+import {
+  chartOfAccounts,
+  getAccountBalance,
+  getCustomerBalance,
+  getCashierFloatBalance,
+} from '../../ledger/data'
 import { customers } from '../../customers/data'
 import { cashiers } from '../../cashiers/data'
 import { maskAccount } from '../../../utils/mask'
 
-const txStatusVariant = {
+const txStatusVariant: Record<string, string> = {
   Successful: 'positive',
   Pending: 'warning',
   Failed: 'negative',
-} as const
+}
 
-const typeTone = {
+const typeTone: Record<TransactionType, string> = {
   W2W: 'blue',
   'Cash In': 'green',
   'Cash Out': 'rose',
   W2B: 'rose',
   'Loan Disbursement': 'orange',
   'Loan Repayment': 'amber',
-} as const
+}
 
-const txTypeIcon = {
+const txTypeIcon: Record<TransactionType, LucideIcon> = {
   W2W: Send,
   'Cash In': ArrowDownRight,
   'Cash Out': ArrowUpRight,
   W2B: Landmark,
   'Loan Disbursement': HandCoins,
   'Loan Repayment': HandCoins,
-} as const
+}
 
-const recipientLabel = {
+const recipientLabel: Record<TransactionType, string> = {
   W2W: 'Recipient wallet',
   'Cash In': 'Served by (cashier)',
   'Cash Out': 'Served by (cashier)',
   W2B: 'Bank account',
   'Loan Disbursement': 'Loan account',
   'Loan Repayment': 'Loan account',
-} as const
+}
 
 // Types where the recorded counterparty is actually the source of funds (money flows
 // INTO the customer's wallet), so the usual customer→recipient direction is reversed.
-const incomingTypes = new Set(['Cash In', 'Loan Disbursement'])
+const incomingTypes = new Set<TransactionType>(['Cash In', 'Loan Disbursement'])
 
-const quickActions = [
-  { label: 'Top-Up Cashier Float', icon: CirclePlus, tone: 'bg-green-100 text-green-600', to: '/dashboard/cashiers' },
-  { label: 'Loan Management', icon: HandCoins, tone: 'bg-orange-100 text-orange-600', to: '/dashboard/loans' },
+interface QuickAction {
+  label: string
+  icon: LucideIcon
+  tone: string
+  to: string | null
+}
+
+const quickActions: QuickAction[] = [
+  {
+    label: 'Top-Up Cashier Float',
+    icon: CirclePlus,
+    tone: 'bg-green-100 text-green-600',
+    to: '/dashboard/cashiers',
+  },
+  {
+    label: 'Loan Management',
+    icon: HandCoins,
+    tone: 'bg-orange-100 text-orange-600',
+    to: '/dashboard/loans',
+  },
   { label: 'View Reports', icon: FileText, tone: 'bg-ink text-white', to: null },
-] as const
+]
 
-const floatIcon = {
+const floatIcon: Record<string, LucideIcon> = {
   'Company Equity': Banknote,
   'Customer Wallet': Wallet,
   'Cashier Float': UserCog,
-} as const
+}
 
 const RECENT_TRANSACTIONS_PAGE_SIZE = 10
 
@@ -100,7 +123,7 @@ function currency(value: number) {
   return `TSh ${Math.round(value).toLocaleString()}`
 }
 
-function escapeCsvCell(value: string | number) {
+function escapeCsvCell(value: unknown) {
   const text = String(value)
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
 }
@@ -112,7 +135,7 @@ function displayAccount(value: string) {
   return value.startsWith('+') ? maskAccount(value) : value
 }
 
-function getTxFlow(tx: (typeof transactions)[number]) {
+function getTxFlow(tx: Transaction) {
   if (incomingTypes.has(tx.type)) {
     return {
       fromName: tx.recipientName ?? tx.customer,
@@ -127,7 +150,7 @@ function getTxFlow(tx: (typeof transactions)[number]) {
   }
 }
 
-function exportTransactionsCsv(rows: typeof transactions) {
+function exportTransactionsCsv(rows: Transaction[]) {
   const header = [
     'Transaction ID',
     'From',
@@ -168,19 +191,12 @@ function exportTransactionsCsv(rows: typeof transactions) {
   URL.revokeObjectURL(url)
 }
 
-interface QuickActionProps {
-  action: {
-    label: string
-    icon: LucideIcon
-    tone: string
-    to: string | null
-  }
-}
-
-function ActionRow({ action }: QuickActionProps) {
+function ActionRow({ action }: { action: QuickAction }) {
   const content = (
     <>
-      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${action.tone}`}>
+      <span
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${action.tone}`}
+      >
         <action.icon size={18} />
       </span>
       <span className="min-w-0 flex-1 text-sm font-semibold text-ink">{action.label}</span>
@@ -209,6 +225,12 @@ function ActionRow({ action }: QuickActionProps) {
   )
 }
 
+interface ActionMenuState {
+  id: string
+  top: number
+  left: number
+}
+
 export default function Financial() {
   const successfulTransactions = transactions.filter((tx) => tx.status === 'Successful')
 
@@ -225,13 +247,16 @@ export default function Financial() {
   const cashierFloatBalance = cashiers.reduce((sum, c) => sum + getCashierFloatBalance(c), 0)
 
   const floatRows = [
-    { label: 'Company Equity' as const, value: companyEquityBalance },
-    { label: 'Customer Wallet' as const, value: customerWalletBalance },
-    { label: 'Cashier Float' as const, value: cashierFloatBalance },
+    { label: 'Company Equity', value: companyEquityBalance },
+    { label: 'Customer Wallet', value: customerWalletBalance },
+    { label: 'Cashier Float', value: cashierFloatBalance },
   ]
 
   const [recentPage, setRecentPage] = useState(1)
-  const recentTotalPages = Math.max(1, Math.ceil(successfulTransactions.length / RECENT_TRANSACTIONS_PAGE_SIZE))
+  const recentTotalPages = Math.max(
+    1,
+    Math.ceil(successfulTransactions.length / RECENT_TRANSACTIONS_PAGE_SIZE),
+  )
   const recentTransactions = successfulTransactions.slice(
     (recentPage - 1) * RECENT_TRANSACTIONS_PAGE_SIZE,
     recentPage * RECENT_TRANSACTIONS_PAGE_SIZE,
@@ -246,7 +271,7 @@ export default function Financial() {
     setTxDrawerOpen(true)
   }
 
-  const [actionMenu, setActionMenu] = useState<{ id: string; top: number; left: number } | null>(null)
+  const [actionMenu, setActionMenu] = useState<ActionMenuState | null>(null)
   const menuButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
 
   const closeActionMenu = () => setActionMenu(null)
@@ -371,7 +396,9 @@ export default function Financial() {
                     </td>
                     <td className="px-6 py-3.5 font-mono text-xs text-muted">{tx.id}</td>
                     <td className="px-6 py-3.5 font-medium text-ink">{fromName}</td>
-                    <td className="px-6 py-3.5 font-mono text-ink/70">{displayAccount(fromAccount)}</td>
+                    <td className="px-6 py-3.5 font-mono text-ink/70">
+                      {displayAccount(fromAccount)}
+                    </td>
                     <td className="px-6 py-3.5">
                       <TypeBadge tone={typeTone[tx.type]} label={tx.type} />
                     </td>
@@ -505,7 +532,9 @@ export default function Financial() {
                     </span>
                     <p className="text-xs text-muted">Customer</p>
                   </div>
-                  <p className="min-w-0 truncate text-sm font-semibold text-ink">{selectedTx.customer}</p>
+                  <p className="min-w-0 truncate text-sm font-semibold text-ink">
+                    {selectedTx.customer}
+                  </p>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -587,7 +616,9 @@ export default function Financial() {
                     </span>
                     <p className="text-xs text-muted">Date &amp; Time</p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold text-ink">{formatTxDateTime(selectedTx)}</p>
+                  <p className="shrink-0 text-sm font-semibold text-ink">
+                    {formatTxDateTime(selectedTx)}
+                  </p>
                 </div>
               </div>
             </div>

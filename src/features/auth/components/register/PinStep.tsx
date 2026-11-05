@@ -1,18 +1,19 @@
 import { useState } from 'react'
 import { motion } from 'motion/react'
 import { ArrowLeft, Eye, EyeOff, Lock } from 'lucide-react'
-import Swal from 'sweetalert2'
 import Button from '../../../../components/ui/Button'
-import { setPin as setPinRequest } from '../../api/onboarding'
-import { ApiRequestError } from '../../../../lib/api/client'
 import { getFieldClass, errorClass, RequiredMark } from './shared'
 
 const PIN_LENGTH = 4
 
 interface PinStepProps {
-  email?: string
+  email: string
   onBack: () => void
   onSuccess: () => void
+}
+
+interface ErrorResponse {
+  message: string
 }
 
 export default function PinStep({ email, onBack, onSuccess }: PinStepProps) {
@@ -21,7 +22,7 @@ export default function PinStep({ email, onBack, onSuccess }: PinStepProps) {
   const [showPin, setShowPin] = useState(false)
   const [showConfirmPin, setShowConfirmPin] = useState(false)
   const [pinError, setPinError] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   const handleCreateAccount = async () => {
     if (pin.length !== PIN_LENGTH) {
@@ -32,42 +33,38 @@ export default function PinStep({ email, onBack, onSuccess }: PinStepProps) {
       setPinError('PINs do not match')
       return
     }
-    if (!email) return
-    setPinError('')
-    setIsSubmitting(true)
+
+    setSubmitting(true)
+
+    let response: Response
+    try {
+      response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/set-pin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, pin, confirmPin }),
+      })
+    } catch {
+      setPinError('Could not reach the server. Check your connection and try again.')
+      setSubmitting(false)
+      return
+    }
 
     try {
-      await setPinRequest(email, pin, confirmPin)
-      await Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'success',
-        title: 'Account Created',
-        text: "You're all set — welcome to WalletPesa.",
-        timer: 1500,
-        showConfirmButton: false,
-      })
+      const body: ErrorResponse = await response.json()
+
+      if (!response.ok) {
+        throw new Error(body.message ?? 'Could not create account')
+      }
+
+      setPinError('')
       onSuccess()
     } catch (error) {
-      const message =
-        error instanceof ApiRequestError
-          ? error.fieldErrors?.pin ?? error.fieldErrors?.confirmPin ?? error.message
-          : 'An error occurred while creating your account. Please try again.'
-      setPinError(message)
-      await Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'error',
-        title: 'Registration Failed',
-        text: message,
-        showConfirmButton: false,
-        timer: 3000,
-        timerProgressBar: true,
-      })
+      setPinError(error instanceof Error ? error.message : 'Could not create account')
     } finally {
-      setIsSubmitting(false)
+      setSubmitting(false)
     }
   }
+
 
   return (
     <motion.div
@@ -167,8 +164,14 @@ export default function PinStep({ email, onBack, onSuccess }: PinStepProps) {
           {pinError && <p className={errorClass}>{pinError}</p>}
         </div>
 
-        <Button type="button" className="w-full" onClick={handleCreateAccount} disabled={isSubmitting}>
-          {isSubmitting ? 'Creating account…' : 'Create Account'}
+        <Button
+          type="button"
+          className="w-full"
+          onClick={handleCreateAccount}
+          disabled={submitting}
+          loading={submitting}
+        >
+          Create Account
         </Button>
       </div>
     </motion.div>

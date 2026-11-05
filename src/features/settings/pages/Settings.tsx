@@ -1,29 +1,38 @@
 import { useState } from 'react'
 import { Formik, Form, Field, ErrorMessage, useField } from 'formik'
 import * as Yup from 'yup'
-import { User, Mail, Phone, Building2, ShieldCheck, Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import {
+  User,
+  Mail,
+  Phone,
+  Building2,
+  ShieldCheck,
+  Lock,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+} from 'lucide-react'
 import Button from '../../../components/ui/Button'
 import StatusBadge from '../../../components/ui/StatusBadge'
-import { getCurrentStaffUser } from '../../auth/currentStaffUser'
+import { useCurrentStaffUser } from '../../auth/currentStaffUser'
 
 const getFieldClass = (hasError: boolean) =>
   `w-full rounded-full border py-3.5 pl-12 pr-5 text-sm outline-none transition-colors focus:bg-white ${
-    hasError ? 'border-red-400 bg-surface focus:border-red-500' : 'border-transparent bg-surface focus:border-brand'
+    hasError
+      ? 'border-red-400 bg-surface focus:border-red-500'
+      : 'border-transparent bg-surface focus:border-brand'
   }`
 const errorClass = 'mt-2 text-xs font-medium text-red-600'
 
 const getPinFieldClass = (hasError: boolean) =>
   `w-full rounded-full border py-2.5 pl-11 pr-11 text-sm tracking-[0.3em] outline-none transition-colors focus:bg-white ${
-    hasError ? 'border-red-400 bg-surface focus:border-red-500' : 'border-transparent bg-surface focus:border-brand'
+    hasError
+      ? 'border-red-400 bg-surface focus:border-red-500'
+      : 'border-transparent bg-surface focus:border-brand'
   }`
 
 const ORGANIZATION = 'WalletPesa'
-
-interface ProfileValues {
-  name: string
-  email: string
-  phone: string
-}
 
 const profileSchema = Yup.object({
   name: Yup.string().trim().required('Full name is required'),
@@ -33,13 +42,7 @@ const profileSchema = Yup.object({
     .required('Phone number is required'),
 })
 
-interface PinValues {
-  currentPin: string
-  newPin: string
-  confirmPin: string
-}
-
-const readSessionPin = (): string | undefined => {
+const readSessionPin = () => {
   try {
     return JSON.parse(sessionStorage.getItem('user') ?? '{}').pin
   } catch {
@@ -72,7 +75,10 @@ function PinInput({ name, label }: { name: string; label: string }) {
         {label}
       </label>
       <div className="relative mt-2">
-        <Lock size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
+        <Lock
+          size={18}
+          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+        />
         <input
           id={name}
           type={visible ? 'text' : 'password'}
@@ -99,16 +105,14 @@ function PinInput({ name, label }: { name: string; label: string }) {
   )
 }
 
-type Section = 'profile' | 'security'
-
-const sections: Array<{ id: Section; label: string; icon: typeof User }> = [
+const sections: Array<{ id: 'profile' | 'security'; label: string; icon: LucideIcon }> = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'security', label: 'Security', icon: ShieldCheck },
 ]
 
 export default function Settings() {
-  const currentUser = getCurrentStaffUser()
-  const [activeSection, setActiveSection] = useState<Section>('profile')
+  const currentUser = useCurrentStaffUser()
+  const [activeSection, setActiveSection] = useState<'profile' | 'security'>('profile')
   const [profileSaved, setProfileSaved] = useState(false)
   const [pinSaved, setPinSaved] = useState(false)
 
@@ -156,10 +160,16 @@ export default function Settings() {
                 </div>
 
                 <h2 className="mt-6 text-lg font-bold text-ink">Profile settings</h2>
-                <p className="mt-1 text-sm text-muted">Update the details shown across the dashboard.</p>
+                <p className="mt-1 text-sm text-muted">
+                  Update the details shown across the dashboard.
+                </p>
 
-                <Formik<ProfileValues>
-                  initialValues={{ name: currentUser.name, email: currentUser.email, phone: currentUser.phone }}
+                <Formik
+                  initialValues={{
+                    name: currentUser.name,
+                    email: currentUser.email,
+                    phone: currentUser.phone,
+                  }}
                   validationSchema={profileSchema}
                   onSubmit={(_values, { setSubmitting }) => {
                     setProfileSaved(true)
@@ -277,17 +287,20 @@ export default function Settings() {
                   </div>
                 </div>
 
-                <Formik<PinValues>
+                <Formik
                   initialValues={{ currentPin: '', newPin: '', confirmPin: '' }}
                   validationSchema={pinSchema}
                   onSubmit={(values, { setSubmitting, resetForm }) => {
-                    let session: Record<string, unknown>
+                    let session
                     try {
                       session = JSON.parse(sessionStorage.getItem('user') ?? '{}')
                     } catch {
                       session = {}
                     }
-                    sessionStorage.setItem('user', JSON.stringify({ ...session, pin: values.newPin }))
+                    sessionStorage.setItem(
+                      'user',
+                      JSON.stringify({ ...session, pin: values.newPin }),
+                    )
                     setPinSaved(true)
                     resetForm()
                     setSubmitting(false)

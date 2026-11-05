@@ -1,10 +1,8 @@
-import type { LucideIcon } from 'lucide-react'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import AnimatedNumber from './AnimatedNumber'
 
-type StatCardTone = 'brand' | 'accent' | 'positive' | 'negative' | 'warning'
-
-const toneStyles: Record<StatCardTone, string> = {
+const toneStyles = {
   brand: 'bg-brand/10 text-brand',
   accent: 'bg-accent/10 text-accent',
   positive: 'bg-positive/10 text-positive',
@@ -15,26 +13,21 @@ const toneStyles: Record<StatCardTone, string> = {
 interface StatCardProps {
   icon: LucideIcon
   label: string
-  value: string
+  value: string | number
   delta?: number
   deltaLabel?: string
-  tone?: StatCardTone
+  tone?: keyof typeof toneStyles
 }
 
-export default function StatCard({
-  icon: Icon,
-  label,
-  value,
-  delta,
-  deltaLabel,
-  tone = 'brand',
-}: StatCardProps) {
+export default function StatCard({ icon: Icon, label, value, delta, deltaLabel, tone = 'brand' }: StatCardProps) {
   const isUp = (delta ?? 0) >= 0
 
   return (
     <div className="rounded-2xl bg-white p-6 ring-1 ring-line transition-shadow duration-200 hover:shadow-xl hover:shadow-ink/5">
       <div className="flex items-center gap-3">
-        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${toneStyles[tone]}`}>
+        <span
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${toneStyles[tone]}`}
+        >
           <Icon size={18} />
         </span>
         <p className="truncate text-sm font-semibold text-ink/80">{label}</p>

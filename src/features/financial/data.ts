@@ -1,12 +1,19 @@
-import type { VolumeRange } from '../overview/data'
-
-export interface RevenuePoint {
-  label: string
-  date: string
-  revenue: number
+export interface FinancialStats {
+  totalRevenue: number
+  totalRevenueDelta: number
+  totalDisbursed: number
+  totalDisbursedDelta: number
+  totalRepaid: number
+  totalRepaidDelta: number
+  outstanding: number
+  outstandingDelta: number
+  totalDeposits: number
+  totalDepositsDelta: number
+  totalWithdrawals: number
+  totalWithdrawalsDelta: number
 }
 
-export const financialStats = {
+export const financialStats: FinancialStats = {
   totalRevenue: 48250.75,
   totalRevenueDelta: 8.4,
   totalDisbursed: 312400.0,
@@ -64,6 +71,12 @@ export const cashFlowDaily: CashFlowPoint[] = [
   { label: '30 Oct', date: '2026-10-30', deposits: 10200, withdrawals: 8000, balance: 7900, loans: 2800 },
   { label: '31 Oct', date: '2026-10-31', deposits: 11200, withdrawals: 8800, balance: 8600, loans: 3100 },
 ]
+
+export interface RevenuePoint {
+  label: string
+  date: string
+  revenue: number
+}
 
 // "Today": hourly fee income
 export const revenueToday: RevenuePoint[] = [
@@ -126,39 +139,28 @@ export const revenue30Day: RevenuePoint[] = [
   { label: 'Oct 8', date: '2026-10-08', revenue: 1410 },
 ]
 
-export const revenueByRange: Record<VolumeRange, RevenuePoint[]> = {
+export const revenueByRange: Record<'today' | 'week' | '30day', RevenuePoint[]> = {
   today: revenueToday,
   week: revenueWeek,
   '30day': revenue30Day,
 }
 
-export interface FeeShare {
-  type: string
-  value: number
-  color: string
-}
-
 // Fixed categorical order: matches the palette used on the Overview page
-export const feeByChannel: FeeShare[] = [
+export const feeByChannel = [
   { type: 'Wallet Transfer', value: 38, color: 'var(--color-chart-blue)' },
   { type: 'Bank Transfer', value: 24, color: 'var(--color-chart-orange)' },
   { type: 'Cashier Topup', value: 22, color: 'var(--color-chart-aqua)' },
   { type: 'Withdraw', value: 16, color: 'var(--color-chart-amber)' },
 ]
 
-export type FloatAccountStatus = 'Available' | 'Processing' | 'Blocked'
-
-export interface FloatAccount {
+export const floatManagement: Array<{
   label: string
   value: number
-  status: FloatAccountStatus
+  status: 'Available' | 'Processing' | 'Blocked'
   delta?: number
-}
-
-export const floatManagement: FloatAccount[] = [
+}> = [
   { label: 'Company Wallet', value: 120450.5, status: 'Available', delta: 4.6 },
   { label: 'Cashier Floats', value: 28750.0, status: 'Available' },
   { label: 'Pending Settlements', value: 5200.0, status: 'Processing' },
   { label: 'Blocked Funds', value: 2000.0, status: 'Blocked' },
 ]
-

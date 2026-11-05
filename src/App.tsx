@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import Home from './pages/Home/Home'
 import MainService from './pages/services/MainService'
@@ -12,6 +12,7 @@ import Faq from './pages/Faq/Faq'
 import Contact from './pages/Contact/Contact'
 import LoginForm from './features/auth/pages/LoginForm'
 import CustomerOnboarding from './features/auth/pages/CustomerOnboarding'
+import ForgotPin from './features/auth/pages/ForgotPin'
 import DashboardLayout from './components/layout/DashboardLayout'
 import Overview from './features/overview/pages/Overview'
 import DashboardTransactions from './features/transactions/pages/Transactions'
@@ -28,75 +29,65 @@ import CustomerLayout from './components/layout/CustomerLayout'
 import AccountOverview from './features/account/pages/AccountOverview'
 import AccountWithdraw from './features/account/pages/AccountWithdraw'
 
-import AuthGuard from './features/auth/components/AuthGuard'
+// 🛡️ Import your Guard implementations
+import { AuthProvider } from './components/context/AuthContext';
+import { AuthGuard } from './components/Guard/AuthGuard';
+import { RoleGuard } from './components/Guard/RoleGuard';
 
+export default function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/*==========  Public Routes ============ */}
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Home />} />
+            <Route path="services" element={<MainService />} />
+            <Route path="services/send-money" element={<SendMoney />} />
+            <Route path="services/pay-bills" element={<PayBills />} />
+            <Route path="services/bank-transfers" element={<BankTransfers />} />
+            <Route path="services/airtime-data-bundles" element={<AirtimeDataBundles />} />
+            <Route path="services/become-an-agent" element={<BecomeAnAgent />} />
+            <Route path="fees" element={<Fees />} />
+            <Route path="faq" element={<Faq />} />
+            <Route path="contact" element={<Contact />} />
 
-const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <Layout />,
-    children: [
-      { index: true, element: <Home /> },
-      { path: 'services', element: <MainService /> },
-      { path: 'services/send-money', element: <SendMoney /> },
-      { path: 'services/pay-bills', element: <PayBills /> },
-      { path: 'services/bank-transfers', element: <BankTransfers /> },
-      { path: 'services/airtime-data-bundles', element: <AirtimeDataBundles /> },
-      { path: 'services/become-an-agent', element: <BecomeAnAgent /> },
-      { path: 'fees', element: <Fees /> },
-      { path: 'faq', element: <Faq /> },
-      { path: 'contact', element: <Contact /> },
-      { path: 'login', element: <LoginForm /> },
-      { path: 'register', element: <CustomerOnboarding /> },
-    ],
-  },
-  {
-    element: <AuthGuard allowedRoles={['Admin', 'Cashier']} />,
-    children: [
-      {
-        path: '/dashboard',
-        element: <DashboardLayout />,
-        children: [
-          { index: true, element: <Overview /> },
-          { path: 'transactions', element: <DashboardTransactions /> },
-          { path: 'customers', element: <DashboardCustomers /> },
-          { path: 'company-wallet', element: <DashboardCompanyWallet /> },
-          { path: 'settings', element: <DashboardSettings /> },
-          {
-            // Admin-only pages: narrower than the Admin/Cashier guard above, so a
-            // Cashier can't reach these by typing the URL even though the sidebar
-            // already hides the links for them.
-            element: <AuthGuard allowedRoles={['Admin']} />,
-            children: [
-              { path: 'cashiers', element: <DashboardCashiers /> },
-              { path: 'financial', element: <DashboardFinancial /> },
-              { path: 'ledger', element: <DashboardLedger /> },
-              { path: 'loans', element: <DashboardLoans /> },
-              { path: 'fees', element: <DashboardFees /> },
-              { path: 'reconciliation', element: <DashboardReconciliation /> },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    element: <AuthGuard allowedRoles={['Customer']} />,
-    children: [
-      {
-        path: '/account',
-        element: <CustomerLayout />,
-        children: [
-          { index: true, element: <AccountOverview /> },
-          { path: 'withdraw', element: <AccountWithdraw /> },
-        ],
-      },
-    ],
-  },
-])
+            {/*==========  Auth Routes ============== */}
+            <Route path="login" element={<LoginForm />} />
+            <Route path="register" element={<CustomerOnboarding />} />
+            <Route path="forgot-pin" element={<ForgotPin />} />
+          </Route>
 
-function App() {
-  return <RouterProvider router={router} />
+          {/* PROTECTED ROUTE ZONE (User must be logged in to see anything below) */}
+          <Route element={<AuthGuard />}>
+            
+            <Route element={<RoleGuard allowedRoles={['ADMIN', 'CASHIER']} />}>
+              <Route path="/dashboard" element={<DashboardLayout />}>
+                <Route index element={<Overview />} />
+                <Route path="transactions" element={<DashboardTransactions />} />
+                <Route path="customers" element={<DashboardCustomers />} />
+                <Route path="company-wallet" element={<DashboardCompanyWallet />} />
+                <Route path="cashiers" element={<DashboardCashiers />} />
+                <Route path="financial" element={<DashboardFinancial />} />
+                <Route path="ledger" element={<DashboardLedger />} />
+                <Route path="loans" element={<DashboardLoans />} />
+                <Route path="fees" element={<DashboardFees />} />
+                <Route path="reconciliation" element={<DashboardReconciliation />} />
+                <Route path="settings" element={<DashboardSettings />} />
+              </Route>
+            </Route>
+
+            
+            <Route element={<RoleGuard allowedRoles={['CUSTOMER']} />}>
+              <Route path="/account" element={<CustomerLayout />}>
+                <Route index element={<AccountOverview />} />
+                <Route path="withdraw" element={<AccountWithdraw />} />
+              </Route>
+            </Route>
+
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
 }
-
-export default App

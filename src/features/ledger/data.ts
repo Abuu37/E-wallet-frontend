@@ -1,15 +1,11 @@
-import {
-  transactions,
-  isCashierServed,
-  getRecognizedFee,
-  getCommission,
-  type Transaction,
-} from '../transactions/data'
-import { customers, type Customer } from '../customers/data'
-import { cashiers, type Cashier } from '../cashiers/data'
+import { transactions, isCashierServed, getRecognizedFee, getCommission } from '../transactions/data'
+import type { Transaction } from '../transactions/data'
+import { customers } from '../customers/data'
+import type { Customer } from '../customers/data'
+import { cashiers } from '../cashiers/data'
+import type { Cashier } from '../cashiers/data'
 
-export type AccountCategory = 'Asset' | 'Liability' | 'Equity' | 'Revenue' | 'Expense'
-export type PostingStatus = 'Posted' | 'Pending'
+export type AccountCategory = 'Asset' | 'Liability' | 'Revenue' | 'Expense'
 
 export interface Account {
   id: string
@@ -17,7 +13,7 @@ export interface Account {
   category: AccountCategory
 }
 
-export interface JournalLine {
+export interface LedgerLine {
   accountId: string
   accountName: string
   debit: number
@@ -28,9 +24,9 @@ export interface JournalEntry {
   id: string
   timestamp: string
   referenceTxnId: string
-  status: PostingStatus
+  status: 'Posted' | 'Pending'
   description: string
-  lines: JournalLine[]
+  lines: LedgerLine[]
 }
 
 export const chartOfAccounts: Account[] = [
@@ -56,14 +52,14 @@ export const getTax = (tx: Transaction) => round2(getRecognizedFee(tx) * TAX_RAT
 
 // Who the line belongs to (which customer, which cashier) is already explained by the
 // entry's Memo — the line itself only needs the account.
-const walletLine = (debit: number, credit: number): JournalLine => ({
+const walletLine = (debit: number, credit: number): LedgerLine => ({
   accountId: '2000',
   accountName: accountName('2000'),
   debit,
   credit,
 })
 
-const cashierFloatLine = (debit: number, credit: number): JournalLine => ({
+const cashierFloatLine = (debit: number, credit: number): LedgerLine => ({
   accountId: '2005',
   accountName: accountName('2005'),
   debit,
@@ -73,7 +69,7 @@ const cashierFloatLine = (debit: number, credit: number): JournalLine => ({
 // W2B pays out to a real external bank account, so — unlike Cash In/Out, which only ever
 // move between two internal liability wallets — it needs an actual asset account on the
 // other side of the entry: the company's own bank balance genuinely decreases.
-const bankAccountLine = (debit: number, credit: number): JournalLine => ({
+const bankAccountLine = (debit: number, credit: number): LedgerLine => ({
   accountId: '1010',
   accountName: accountName('1010'),
   debit,
@@ -81,7 +77,7 @@ const bankAccountLine = (debit: number, credit: number): JournalLine => ({
 })
 
 /** Splits a recognized fee into net Fee Income and the excise tax owed on it, as matched credit lines. */
-const feeLines = (fee: number): JournalLine[] => {
+const feeLines = (fee: number): LedgerLine[] => {
   if (fee <= 0) return []
   const tax = round2(fee * TAX_RATE)
   const netFee = fee - tax
@@ -119,8 +115,8 @@ const describe = (tx: Transaction) => {
  * so the two liability wallets move against each other rather than touching a cash/bank
  * asset account.
  */
-const buildLines = (tx: Transaction): JournalLine[] => {
-  const lines: JournalLine[] = []
+const buildLines = (tx: Transaction): LedgerLine[] => {
+  const lines: LedgerLine[] = []
   const fee = getRecognizedFee(tx)
   const commission = getCommission(tx)
 
@@ -146,18 +142,38 @@ const buildLines = (tx: Transaction): JournalLine[] => {
       lines.push(...feeLines(fee))
       break
     case 'Loan Disbursement':
-      lines.push({ accountId: '1020', accountName: accountName('1020'), debit: tx.amount, credit: 0 })
+      lines.push({
+        accountId: '1020',
+        accountName: accountName('1020'),
+        debit: tx.amount,
+        credit: 0,
+      })
       lines.push(walletLine(0, tx.amount))
       break
     case 'Loan Repayment':
       lines.push(walletLine(tx.amount, 0))
-      lines.push({ accountId: '1020', accountName: accountName('1020'), debit: 0, credit: tx.amount })
+      lines.push({
+        accountId: '1020',
+        accountName: accountName('1020'),
+        debit: 0,
+        credit: tx.amount,
+      })
       break
   }
 
   if (commission > 0 && isCashierServed(tx)) {
-    lines.push({ accountId: '5000', accountName: accountName('5000'), debit: commission, credit: 0 })
-    lines.push({ accountId: '2010', accountName: accountName('2010'), debit: 0, credit: commission })
+    lines.push({
+      accountId: '5000',
+      accountName: accountName('5000'),
+      debit: commission,
+      credit: 0,
+    })
+    lines.push({
+      accountId: '2010',
+      accountName: accountName('2010'),
+      debit: 0,
+      credit: commission,
+    })
   }
 
   return lines
@@ -175,7 +191,8 @@ const openingBalanceEntry: JournalEntry = {
   timestamp: '2026-08-31T00:00:00Z',
   referenceTxnId: 'OPENING-BALANCE',
   status: 'Posted',
-  description: 'Opening balances — trust account funding for all customer wallets and cashier floats as of go-live',
+  description:
+    'Opening balances — trust account funding for all customer wallets and cashier floats as of go-live',
   lines: [
     {
       accountId: '1010',
@@ -183,8 +200,18 @@ const openingBalanceEntry: JournalEntry = {
       debit: OPENING_CUSTOMER_WALLET_TOTAL + OPENING_CASHIER_FLOAT_TOTAL,
       credit: 0,
     },
-    { accountId: '2000', accountName: accountName('2000'), debit: 0, credit: OPENING_CUSTOMER_WALLET_TOTAL },
-    { accountId: '2005', accountName: accountName('2005'), debit: 0, credit: OPENING_CASHIER_FLOAT_TOTAL },
+    {
+      accountId: '2000',
+      accountName: accountName('2000'),
+      debit: 0,
+      credit: OPENING_CUSTOMER_WALLET_TOTAL,
+    },
+    {
+      accountId: '2005',
+      accountName: accountName('2005'),
+      debit: 0,
+      credit: OPENING_CASHIER_FLOAT_TOTAL,
+    },
   ],
 }
 
@@ -204,14 +231,16 @@ export const TRUST_ACCOUNT_BALANCE = OPENING_CUSTOMER_WALLET_TOTAL + OPENING_CAS
 /** One journal entry per transaction, plus the opening entry above. Failed transactions never post — nothing moved. */
 export const journalEntries: JournalEntry[] = [
   openingBalanceEntry,
-  ...transactions.filter((tx) => tx.status !== 'Failed').map((tx) => ({
-    id: `JE-${tx.id.replace('TXN-', '')}`,
-    timestamp: `${tx.date}T${tx.time}:00Z`,
-    referenceTxnId: tx.id,
-    status: (tx.status === 'Successful' ? 'Posted' : 'Pending') as PostingStatus,
-    description: describe(tx),
-    lines: buildLines(tx),
-  })),
+  ...transactions
+    .filter((tx) => tx.status !== 'Failed')
+    .map((tx) => ({
+      id: `JE-${tx.id.replace('TXN-', '')}`,
+      timestamp: `${tx.date}T${tx.time}:00Z`,
+      referenceTxnId: tx.id,
+      status: (tx.status === 'Successful' ? 'Posted' : 'Pending') as JournalEntry['status'],
+      description: describe(tx),
+      lines: buildLines(tx),
+    })),
 ].sort((a, b) => b.timestamp.localeCompare(a.timestamp))
 
 export const getEntryTotals = (entry: JournalEntry) => {

@@ -21,16 +21,18 @@ import StatCard from '../../../components/ui/StatCard'
 import StatusBadge from '../../../components/ui/StatusBadge'
 import Drawer from '../../../components/ui/Drawer'
 import Modal from '../../../components/ui/Modal'
-import LoanApplicationForm, { type LoanApplicationResult } from './LoanApplicationForm'
-import { loans as initialLoans, type Loan, type LoanStatus } from '../data'
+import LoanApplicationForm from './LoanApplicationForm'
+import type { LoanApplicationResult } from './LoanApplicationForm'
+import { loans as initialLoans } from '../data'
+import type { Loan } from '../data'
 
-const statusVariant = {
+const statusVariant: Record<string, string> = {
   Active: 'positive',
   Overdue: 'warning',
   Paid: 'neutral',
-} as const
+}
 
-const statusOptions: Array<LoanStatus | 'All'> = ['All', 'Active', 'Overdue', 'Paid']
+const statusOptions = ['All', 'Active', 'Overdue', 'Paid']
 
 const PAGE_SIZE = 10
 
@@ -48,7 +50,7 @@ interface ActionMenuState {
   left: number
 }
 
-interface ConfirmAction {
+interface ConfirmActionState {
   id: string
   name: string
 }
@@ -56,7 +58,7 @@ interface ConfirmAction {
 export default function Loans() {
   const [loans, setLoans] = useState<Loan[]>(initialLoans)
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<LoanStatus | 'All'>('All')
+  const [status, setStatus] = useState('All')
   const [dueDateFrom, setDueDateFrom] = useState('')
   const [dueDateTo, setDueDateTo] = useState('')
   const [page, setPage] = useState(1)
@@ -64,7 +66,7 @@ export default function Loans() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [actionMenu, setActionMenu] = useState<ActionMenuState | null>(null)
   const menuButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
-  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
+  const [confirmAction, setConfirmAction] = useState<ConfirmActionState | null>(null)
   const [view, setView] = useState<'list' | 'form'>('list')
 
   const filtered = useMemo(() => {
@@ -84,7 +86,7 @@ export default function Loans() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  const selected: Loan | null = loans.find((loan) => loan.id === selectedId) ?? null
+  const selected = loans.find((loan) => loan.id === selectedId) ?? null
 
   const totalDisbursed = loans.reduce((sum, loan) => sum + loan.principal, 0)
   const totalOutstanding = loans.reduce((sum, loan) => sum + loan.outstanding, 0)
@@ -130,7 +132,8 @@ export default function Loans() {
   }
 
   const nextLoanId = () => {
-    const nextNumber = Math.max(0, ...loans.map((loan) => Number(loan.id.replace('LN-', '')) || 0)) + 1
+    const nextNumber =
+      Math.max(0, ...loans.map((loan) => Number(loan.id.replace('LN-', '')) || 0)) + 1
     return `LN-${nextNumber}`
   }
 
@@ -251,7 +254,7 @@ export default function Loans() {
           <select
             value={status}
             onChange={(event) => {
-              setStatus(event.target.value as LoanStatus | 'All')
+              setStatus(event.target.value)
               resetToFirstPage()
             }}
             className="rounded-full border border-transparent bg-white px-4 py-2.5 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
@@ -291,7 +294,9 @@ export default function Loans() {
                   <td className="px-6 py-3.5 text-right font-semibold text-ink">
                     {formatAmount(loan.principal)}
                   </td>
-                  <td className="px-6 py-3.5 text-right text-ink/70">{formatAmount(loan.outstanding)}</td>
+                  <td className="px-6 py-3.5 text-right text-ink/70">
+                    {formatAmount(loan.outstanding)}
+                  </td>
                   <td className="px-6 py-3.5">
                     <StatusBadge status={statusVariant[loan.status]} label={loan.status} />
                   </td>
@@ -420,7 +425,9 @@ export default function Loans() {
               <p className="flex items-center gap-1.5 text-xs font-medium text-muted">
                 <Wallet size={14} /> Principal
               </p>
-              <p className="mt-1 text-3xl font-extrabold text-ink">{formatAmount(selected.principal)}</p>
+              <p className="mt-1 text-3xl font-extrabold text-ink">
+                {formatAmount(selected.principal)}
+              </p>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-line">
                 <div
                   className="h-full rounded-full bg-brand"
@@ -438,7 +445,9 @@ export default function Loans() {
             </div>
 
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Loan Information</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                Loan Information
+              </p>
               <div className="mt-3 divide-y divide-line rounded-xl ring-1 ring-line">
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -447,7 +456,9 @@ export default function Loans() {
                     </span>
                     <p className="text-xs text-muted">Loan ID</p>
                   </div>
-                  <p className="shrink-0 truncate font-mono text-sm font-semibold text-ink">{selected.id}</p>
+                  <p className="shrink-0 truncate font-mono text-sm font-semibold text-ink">
+                    {selected.id}
+                  </p>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -467,7 +478,9 @@ export default function Loans() {
                     </span>
                     <p className="text-xs text-muted">Interest Rate</p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold text-ink">{selected.interestRate}%</p>
+                  <p className="shrink-0 text-sm font-semibold text-ink">
+                    {selected.interestRate}%
+                  </p>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -487,7 +500,9 @@ export default function Loans() {
                     </span>
                     <p className="text-xs text-muted">Loan Officer</p>
                   </div>
-                  <p className="shrink-0 truncate text-sm font-semibold text-ink">{selected.officer}</p>
+                  <p className="shrink-0 truncate text-sm font-semibold text-ink">
+                    {selected.officer}
+                  </p>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -496,7 +511,9 @@ export default function Loans() {
                     </span>
                     <p className="text-xs text-muted">Disbursed Date</p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold text-ink">{selected.disbursedDate}</p>
+                  <p className="shrink-0 text-sm font-semibold text-ink">
+                    {selected.disbursedDate}
+                  </p>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">

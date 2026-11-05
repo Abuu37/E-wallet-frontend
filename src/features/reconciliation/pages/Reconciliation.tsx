@@ -20,21 +20,15 @@ import {
   User,
 } from 'lucide-react'
 import StatCard from '../../../components/ui/StatCard'
-import StatusBadge, { type StatusBadgeVariant } from '../../../components/ui/StatusBadge'
+import StatusBadge from '../../../components/ui/StatusBadge'
 import TypeBadge from '../../../components/ui/TypeBadge'
 import Drawer from '../../../components/ui/Drawer'
 import Modal from '../../../components/ui/Modal'
-import {
-  reconciliationRuns as initialRuns,
-  buildReconciliationRun,
-  getCashierName,
-  type ReconciliationRun,
-  type ReconciliationScope,
-  type ReconciliationStatus,
-} from '../data'
+import { reconciliationRuns as initialRuns, buildReconciliationRun, getCashierName } from '../data'
+import type { ReconciliationRun, ReconciliationScope, ReconciliationStatus } from '../data'
 import { cashiers } from '../../cashiers/data'
 
-const statusVariant: Record<ReconciliationStatus, StatusBadgeVariant> = {
+const statusVariant: Record<string, string> = {
   Balanced: 'positive',
   Open: 'negative',
   Investigating: 'warning',
@@ -42,20 +36,13 @@ const statusVariant: Record<ReconciliationStatus, StatusBadgeVariant> = {
   'Written Off': 'neutral',
 }
 
-const scopeTone = {
+const scopeTone: Record<string, string> = {
   Company: 'blue',
   Cashier: 'amber',
-} as const
+}
 
-const scopeOptions: Array<ReconciliationScope | 'All'> = ['All', 'Company', 'Cashier']
-const statusOptions: Array<ReconciliationStatus | 'All'> = [
-  'All',
-  'Balanced',
-  'Open',
-  'Investigating',
-  'Resolved',
-  'Written Off',
-]
+const scopeOptions = ['All', 'Company', 'Cashier']
+const statusOptions = ['All', 'Balanced', 'Open', 'Investigating', 'Resolved', 'Written Off']
 const resolvableStatuses: ReconciliationStatus[] = ['Open', 'Investigating', 'Resolved', 'Written Off']
 
 const currency = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
@@ -74,21 +61,16 @@ const formatDateTime = (iso: string) => {
 const subjectOf = (run: ReconciliationRun) =>
   run.scope === 'Company' ? 'Company Wallet' : getCashierName(run.cashierId)
 
-interface NewRunValues {
-  scope: ReconciliationScope
-  cashierId: string
-  statementAmount: string
-  performedBy: string
-}
-
 const newRunSchema = Yup.object({
-  scope: Yup.mixed<ReconciliationScope>().oneOf(['Company', 'Cashier']).required(),
+  scope: Yup.mixed().oneOf(['Company', 'Cashier']).required(),
   cashierId: Yup.string().when('scope', {
     is: 'Cashier',
     then: (schema) => schema.required('Select a cashier'),
     otherwise: (schema) => schema.notRequired(),
   }),
-  statementAmount: Yup.number().typeError('Enter a valid amount').required('This field is required'),
+  statementAmount: Yup.number()
+    .typeError('Enter a valid amount')
+    .required('This field is required'),
   performedBy: Yup.string().trim().required('Performed by is required'),
 })
 
@@ -98,6 +80,13 @@ const getFieldClass = (hasError: boolean) =>
   }`
 const errorClass = 'mt-1 text-xs font-medium text-red-600'
 
+interface NewRunValues {
+  scope: ReconciliationScope
+  cashierId: string
+  statementAmount: string
+  performedBy: string
+}
+
 interface ActionMenuState {
   id: string
   top: number
@@ -106,8 +95,8 @@ interface ActionMenuState {
 
 export default function Reconciliation() {
   const [runs, setRuns] = useState<ReconciliationRun[]>(initialRuns)
-  const [scopeFilter, setScopeFilter] = useState<ReconciliationScope | 'All'>('All')
-  const [statusFilter, setStatusFilter] = useState<ReconciliationStatus | 'All'>('All')
+  const [scopeFilter, setScopeFilter] = useState('All')
+  const [statusFilter, setStatusFilter] = useState('All')
   const [query, setQuery] = useState('')
 
   const [actionMenu, setActionMenu] = useState<ActionMenuState | null>(null)
@@ -182,7 +171,7 @@ export default function Reconciliation() {
               notes: draftNotes.trim() || undefined,
               resolvedAt:
                 draftStatus === 'Resolved' || draftStatus === 'Written Off'
-                  ? run.resolvedAt ?? new Date().toISOString()
+                  ? (run.resolvedAt ?? new Date().toISOString())
                   : run.resolvedAt,
             }
           : run,
@@ -219,8 +208,8 @@ export default function Reconciliation() {
         <div>
           <h1 className="text-2xl font-extrabold text-ink">Reconciliation</h1>
           <p className="mt-1 text-sm text-muted">
-            Checks the ledger against real bank statements and cashier cash counts, and tracks
-            any gap through to resolution.
+            Checks the ledger against real bank statements and cashier cash counts, and tracks any
+            gap through to resolution.
           </p>
         </div>
         <button
@@ -241,7 +230,12 @@ export default function Reconciliation() {
           label="Open Discrepancies"
           value={String(openCount)}
         />
-        <StatCard icon={CheckCircle2} tone="positive" label="Balanced Runs" value={String(balancedCount)} />
+        <StatCard
+          icon={CheckCircle2}
+          tone="positive"
+          label="Balanced Runs"
+          value={String(balancedCount)}
+        />
         <StatCard
           icon={CalendarClock}
           tone="accent"
@@ -252,7 +246,10 @@ export default function Reconciliation() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-xs">
-          <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
+          <Search
+            size={16}
+            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+          />
           <input
             type="search"
             value={query}
@@ -264,7 +261,7 @@ export default function Reconciliation() {
         <div className="flex flex-wrap gap-3">
           <select
             value={scopeFilter}
-            onChange={(event) => setScopeFilter(event.target.value as ReconciliationScope | 'All')}
+            onChange={(event) => setScopeFilter(event.target.value)}
             className="rounded-full border border-transparent bg-white px-4 py-2.5 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
           >
             {scopeOptions.map((option) => (
@@ -275,7 +272,7 @@ export default function Reconciliation() {
           </select>
           <select
             value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as ReconciliationStatus | 'All')}
+            onChange={(event) => setStatusFilter(event.target.value)}
             className="rounded-full border border-transparent bg-white px-4 py-2.5 text-sm outline-none ring-1 ring-line transition-colors focus:border-brand"
           >
             {statusOptions.map((option) => (
@@ -318,8 +315,12 @@ export default function Reconciliation() {
                   </td>
                   <td className="px-6 py-3.5 font-medium text-ink">{subjectOf(run)}</td>
                   <td className="px-6 py-3.5 text-ink/70">{formatDateTime(run.asOf)}</td>
-                  <td className="px-6 py-3.5 text-right text-ink/80">{currency(run.statementAmount)}</td>
-                  <td className="px-6 py-3.5 text-right text-ink/80">{currency(run.ledgerAmount)}</td>
+                  <td className="px-6 py-3.5 text-right text-ink/80">
+                    {currency(run.statementAmount)}
+                  </td>
+                  <td className="px-6 py-3.5 text-right text-ink/80">
+                    {currency(run.ledgerAmount)}
+                  </td>
                   <td
                     className={`px-6 py-3.5 text-right font-semibold ${
                       Math.abs(run.difference) < 0.01 ? 'text-ink' : 'text-red-600'
@@ -441,7 +442,9 @@ export default function Reconciliation() {
                     </span>
                     <p className="text-xs text-muted">Subject</p>
                   </div>
-                  <p className="min-w-0 truncate text-sm font-semibold text-ink">{subjectOf(selected)}</p>
+                  <p className="min-w-0 truncate text-sm font-semibold text-ink">
+                    {subjectOf(selected)}
+                  </p>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -450,7 +453,9 @@ export default function Reconciliation() {
                     </span>
                     <p className="text-xs text-muted">As Of</p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold text-ink">{formatDateTime(selected.asOf)}</p>
+                  <p className="shrink-0 text-sm font-semibold text-ink">
+                    {formatDateTime(selected.asOf)}
+                  </p>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -461,7 +466,9 @@ export default function Reconciliation() {
                       {selected.scope === 'Company' ? 'Bank Statement' : 'Cash Counted'}
                     </p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold text-ink">{currency(selected.statementAmount)}</p>
+                  <p className="shrink-0 text-sm font-semibold text-ink">
+                    {currency(selected.statementAmount)}
+                  </p>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -470,7 +477,9 @@ export default function Reconciliation() {
                     </span>
                     <p className="text-xs text-muted">Ledger Amount</p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold text-ink">{currency(selected.ledgerAmount)}</p>
+                  <p className="shrink-0 text-sm font-semibold text-ink">
+                    {currency(selected.ledgerAmount)}
+                  </p>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -486,13 +495,17 @@ export default function Reconciliation() {
 
             {Math.abs(selected.difference) >= 0.01 && (
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted">Resolution</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Resolution
+                </p>
                 <div className="mt-3 space-y-3">
                   <div>
                     <label className="text-xs font-medium text-muted">Status</label>
                     <select
                       value={draftStatus}
-                      onChange={(event) => setDraftStatus(event.target.value as ReconciliationStatus)}
+                      onChange={(event) =>
+                        setDraftStatus(event.target.value as ReconciliationStatus)
+                      }
                       className="mt-1 w-full rounded-xl border border-transparent bg-surface px-3.5 py-2.5 text-sm outline-none ring-1 ring-line focus:border-brand"
                     >
                       {resolvableStatuses.map((status) => (
@@ -505,7 +518,10 @@ export default function Reconciliation() {
                   <div>
                     <label className="text-xs font-medium text-muted">Notes</label>
                     <div className="relative mt-1">
-                      <FileText size={16} className="pointer-events-none absolute left-3.5 top-3 text-muted" />
+                      <FileText
+                        size={16}
+                        className="pointer-events-none absolute left-3.5 top-3 text-muted"
+                      />
                       <textarea
                         value={draftNotes}
                         onChange={(event) => setDraftNotes(event.target.value)}
@@ -600,7 +616,9 @@ export default function Reconciliation() {
                   step="0.01"
                   name="statementAmount"
                   placeholder="e.g. 795966.75"
-                  className={getFieldClass(Boolean(touched.statementAmount && errors.statementAmount))}
+                  className={getFieldClass(
+                    Boolean(touched.statementAmount && errors.statementAmount),
+                  )}
                 />
                 <ErrorMessage name="statementAmount" component="p" className={errorClass} />
                 <p className="mt-1 text-xs text-muted">
@@ -629,5 +647,7 @@ export default function Reconciliation() {
 }
 
 function runTitle(run: ReconciliationRun) {
-  return run.scope === 'Company' ? 'Company Wallet Reconciliation' : `${getCashierName(run.cashierId)}'s Float`
+  return run.scope === 'Company'
+    ? 'Company Wallet Reconciliation'
+    : `${getCashierName(run.cashierId)}'s Float`
 }

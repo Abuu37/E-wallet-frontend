@@ -18,11 +18,6 @@ interface CashierTopUpFormProps {
   onCancel: () => void
 }
 
-interface TopUpFormValues {
-  amount: string
-  pin: string
-}
-
 export default function CashierTopUpForm({
   cashier,
   companyWalletBalance,
@@ -31,7 +26,7 @@ export default function CashierTopUpForm({
 }: CashierTopUpFormProps) {
   const sessionPin = (() => {
     try {
-      return JSON.parse(sessionStorage.getItem('user') ?? '{}').pin as string | undefined
+      return JSON.parse(sessionStorage.getItem('user') ?? '{}').pin
     } catch {
       return undefined
     }
@@ -48,7 +43,7 @@ export default function CashierTopUpForm({
       .test('correct-pin', 'Incorrect PIN', (value) => value === sessionPin),
   })
 
-  const formik = useFormik<TopUpFormValues>({
+  const formik = useFormik({
     initialValues: { amount: '', pin: '' },
     validationSchema: topUpSchema,
     onSubmit: (values) => {
@@ -56,7 +51,7 @@ export default function CashierTopUpForm({
     },
   })
 
-  const hasError = (field: keyof TopUpFormValues) => Boolean(formik.touched[field] && formik.errors[field])
+  const hasError = (field: 'amount' | 'pin') => Boolean(formik.touched[field] && formik.errors[field])
 
   const balanceAfterTransfer = companyWalletBalance - (Number(formik.values.amount) || 0)
 
@@ -70,7 +65,10 @@ export default function CashierTopUpForm({
       <div>
         <label className="text-xs font-medium text-muted">Funding Source</label>
         <div className="relative mt-1">
-          <Landmark size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+          <Landmark
+            size={16}
+            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+          />
           <div className={`${getInputClass(false)} flex items-center justify-between pl-10`}>
             <span className="font-semibold text-ink">Company Wallet</span>
             <span className="font-mono text-ink/70">{formatAmount(companyWalletBalance)}</span>
@@ -83,7 +81,10 @@ export default function CashierTopUpForm({
           Float Amount <span className="text-red-500">*</span>
         </label>
         <div className="relative mt-1">
-          <Wallet size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+          <Wallet
+            size={16}
+            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+          />
           <input
             type="text"
             name="amount"
@@ -108,7 +109,10 @@ export default function CashierTopUpForm({
           Admin PIN <span className="text-red-500">*</span>
         </label>
         <div className="relative mt-1">
-          <Lock size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+          <Lock
+            size={16}
+            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+          />
           <input
             type="password"
             name="pin"

@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { X } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 interface ModalProps {
   open: boolean
