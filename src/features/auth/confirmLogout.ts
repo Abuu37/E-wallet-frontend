@@ -1,4 +1,5 @@
 import Swal from 'sweetalert2'
+import { toast } from '../../lib/toast'
 
 /** Shows a confirmation dialog before logging out. Resolves true only if the user confirms. */
 export async function confirmLogout(): Promise<boolean> {
@@ -16,14 +17,9 @@ export async function confirmLogout(): Promise<boolean> {
 
   if (!result.isConfirmed) return false
 
-  await Swal.fire({
-    toast: true,
-    position: 'top-end',
-    icon: 'success',
-    title: 'Logout Successful',
-    text: "You've been logged out.",
-    showConfirmButton: false,
-    timer: 1500,
+  toast.success('Logout Successful', {
+    description: "You've been logged out.",
+    duration: 1500,
   })
 
   return true

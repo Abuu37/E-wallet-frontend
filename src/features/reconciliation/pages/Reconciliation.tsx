@@ -24,9 +24,9 @@ import StatusBadge from '../../../components/ui/StatusBadge'
 import TypeBadge from '../../../components/ui/TypeBadge'
 import Drawer from '../../../components/ui/Drawer'
 import Modal from '../../../components/ui/Modal'
-import { reconciliationRuns as initialRuns, buildReconciliationRun, getCashierName } from '../data'
+import { reconciliationRuns as initialRuns, buildReconciliationRun, getAgentName } from '../data'
 import type { ReconciliationRun, ReconciliationScope, ReconciliationStatus } from '../data'
-import { cashiers } from '../../cashiers/data'
+import { agents } from '../../agents/data'
 
 const statusVariant: Record<string, string> = {
   Balanced: 'positive',
@@ -38,10 +38,10 @@ const statusVariant: Record<string, string> = {
 
 const scopeTone: Record<string, string> = {
   Company: 'blue',
-  Cashier: 'amber',
+  Agent: 'amber',
 }
 
-const scopeOptions = ['All', 'Company', 'Cashier']
+const scopeOptions = ['All', 'Company', 'Agent']
 const statusOptions = ['All', 'Balanced', 'Open', 'Investigating', 'Resolved', 'Written Off']
 const resolvableStatuses: ReconciliationStatus[] = ['Open', 'Investigating', 'Resolved', 'Written Off']
 
@@ -59,13 +59,13 @@ const formatDateTime = (iso: string) => {
 }
 
 const subjectOf = (run: ReconciliationRun) =>
-  run.scope === 'Company' ? 'Company Wallet' : getCashierName(run.cashierId)
+  run.scope === 'Company' ? 'Company Wallet' : getAgentName(run.agentId)
 
 const newRunSchema = Yup.object({
-  scope: Yup.mixed().oneOf(['Company', 'Cashier']).required(),
-  cashierId: Yup.string().when('scope', {
-    is: 'Cashier',
-    then: (schema) => schema.required('Select a cashier'),
+  scope: Yup.mixed().oneOf(['Company', 'Agent']).required(),
+  agentId: Yup.string().when('scope', {
+    is: 'Agent',
+    then: (schema) => schema.required('Select an agent'),
     otherwise: (schema) => schema.notRequired(),
   }),
   statementAmount: Yup.number()
@@ -82,7 +82,7 @@ const errorClass = 'mt-1 text-xs font-medium text-red-600'
 
 interface NewRunValues {
   scope: ReconciliationScope
-  cashierId: string
+  agentId: string
   statementAmount: string
   performedBy: string
 }
@@ -110,7 +110,7 @@ export default function Reconciliation() {
   const [createOpen, setCreateOpen] = useState(false)
   const blankNewRun: NewRunValues = {
     scope: 'Company',
-    cashierId: cashiers[0]?.id ?? '',
+    agentId: agents[0]?.id ?? '',
     statementAmount: '',
     performedBy: '',
   }
@@ -194,7 +194,7 @@ export default function Reconciliation() {
     const run = buildReconciliationRun({
       id: nextRunId(),
       scope: values.scope,
-      cashierId: values.scope === 'Cashier' ? values.cashierId : undefined,
+      agentId: values.scope === 'Agent' ? values.agentId : undefined,
       statementAmount: Number(values.statementAmount),
       performedBy: values.performedBy,
     })
@@ -208,7 +208,7 @@ export default function Reconciliation() {
         <div>
           <h1 className="text-2xl font-extrabold text-ink">Reconciliation</h1>
           <p className="mt-1 text-sm text-muted">
-            Checks the ledger against real bank statements and cashier cash counts, and tracks any
+            Checks the ledger against real bank statements and agent cash counts, and tracks any
             gap through to resolution.
           </p>
         </div>
@@ -584,25 +584,25 @@ export default function Reconciliation() {
                 <label className="text-xs font-medium text-muted">Scope</label>
                 <Field as="select" name="scope" className={getFieldClass(false)}>
                   <option value="Company">Company (trust account)</option>
-                  <option value="Cashier">Cashier (float cash count)</option>
+                  <option value="Agent">Agent (float cash count)</option>
                 </Field>
               </div>
 
-              {values.scope === 'Cashier' && (
+              {values.scope === 'Agent' && (
                 <div>
-                  <label className="text-xs font-medium text-muted">Cashier</label>
+                  <label className="text-xs font-medium text-muted">Agent</label>
                   <Field
                     as="select"
-                    name="cashierId"
-                    className={getFieldClass(Boolean(touched.cashierId && errors.cashierId))}
+                    name="agentId"
+                    className={getFieldClass(Boolean(touched.agentId && errors.agentId))}
                   >
-                    {cashiers.map((cashier) => (
-                      <option key={cashier.id} value={cashier.id}>
-                        {cashier.name} ({cashier.id})
+                    {agents.map((agent) => (
+                      <option key={agent.id} value={agent.id}>
+                        {agent.name} ({agent.id})
                       </option>
                     ))}
                   </Field>
-                  <ErrorMessage name="cashierId" component="p" className={errorClass} />
+                  <ErrorMessage name="agentId" component="p" className={errorClass} />
                 </div>
               )}
 
@@ -649,5 +649,5 @@ export default function Reconciliation() {
 function runTitle(run: ReconciliationRun) {
   return run.scope === 'Company'
     ? 'Company Wallet Reconciliation'
-    : `${getCashierName(run.cashierId)}'s Float`
+    : `${getAgentName(run.agentId)}'s Float`
 }

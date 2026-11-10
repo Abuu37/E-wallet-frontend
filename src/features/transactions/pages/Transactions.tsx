@@ -39,8 +39,8 @@ import {
   getAmountTone,
   getTxFromTo,
   formatTxDateTime,
-  isCashierServed,
-  getCashierId,
+  isAgentServed,
+  getAgentId,
   getRecognizedFee,
   getCommission,
   getNetRevenue,
@@ -74,8 +74,8 @@ const txTypeIcon: Record<TransactionType, LucideIcon> = {
 
 const recipientLabel: Record<TransactionType, string> = {
   W2W: 'Recipient wallet',
-  'Cash In': 'Served by (cashier)',
-  'Cash Out': 'Served by (cashier)',
+  'Cash In': 'Served by (agent)',
+  'Cash Out': 'Served by (agent)',
   W2B: 'Bank account',
   'Loan Disbursement': 'Loan account',
   'Loan Repayment': 'Loan account',
@@ -220,7 +220,7 @@ export default function Transactions() {
       <div>
         <h1 className="text-2xl font-extrabold text-ink">Transactions</h1>
         <p className="mt-1 text-sm text-muted">
-          Monitor and manage wallet, bank, and cashier transactions across the platform.
+          Monitor and manage wallet, bank, and agent transactions across the platform.
         </p>
       </div>
 
@@ -557,7 +557,7 @@ export default function Transactions() {
                   </p>
                 </div>
                 {selected.recipientName &&
-                  !isCashierServed(selected) &&
+                  !isAgentServed(selected) &&
                   (() => {
                     const RecipientIcon = txTypeIcon[selected.type]
                     return (
@@ -597,17 +597,17 @@ export default function Transactions() {
                   </div>
                   <p className="shrink-0 text-sm font-semibold text-ink">{selected.channel}</p>
                 </div>
-                {isCashierServed(selected) && (
+                {isAgentServed(selected) && (
                   <>
                     <div className="flex items-center justify-between gap-3 p-3">
                       <div className="flex min-w-0 items-center gap-3">
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
                           <Hash size={16} />
                         </span>
-                        <p className="text-xs text-muted">Cashier ID</p>
+                        <p className="text-xs text-muted">Agent ID</p>
                       </div>
                       <p className="shrink-0 truncate font-mono text-sm font-semibold text-ink">
-                        {getCashierId(selected.recipientName)}
+                        {getAgentId(selected.recipientName)}
                       </p>
                     </div>
                     <div className="flex items-center justify-between gap-3 p-3">
@@ -615,7 +615,7 @@ export default function Transactions() {
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
                           <UserCog size={16} />
                         </span>
-                        <p className="text-xs text-muted">Cashier Name</p>
+                        <p className="text-xs text-muted">Agent Name</p>
                       </div>
                       <p className="min-w-0 truncate text-sm font-semibold text-ink">
                         {selected.recipientName}

@@ -1,9 +1,9 @@
-import { transactions, isCashierServed, getRecognizedFee, getCommission } from '../transactions/data'
+import { transactions, isAgentServed, getRecognizedFee, getCommission } from '../transactions/data'
 import type { Transaction } from '../transactions/data'
 import { customers } from '../customers/data'
 import type { Customer } from '../customers/data'
-import { cashiers } from '../cashiers/data'
-import type { Cashier } from '../cashiers/data'
+import { agents } from '../agents/data'
+import type { Agent } from '../agents/data'
 
 export type AccountCategory = 'Asset' | 'Liability' | 'Revenue' | 'Expense'
 
@@ -33,8 +33,8 @@ export const chartOfAccounts: Account[] = [
   { id: '1010', name: 'Bank Account', category: 'Asset' },
   { id: '1020', name: 'Loans Receivable', category: 'Asset' },
   { id: '2000', name: 'Customer Wallet', category: 'Liability' },
-  { id: '2005', name: 'Cashier Float Wallet', category: 'Liability' },
-  { id: '2010', name: 'Cashier Commission Wallet', category: 'Liability' },
+  { id: '2005', name: 'Agent Float Wallet', category: 'Liability' },
+  { id: '2010', name: 'Agent Commission Wallet', category: 'Liability' },
   { id: '2020', name: 'Tax Payable', category: 'Liability' },
   { id: '4000', name: 'Fee Income', category: 'Revenue' },
   { id: '5000', name: 'Commission Expense', category: 'Expense' },
@@ -50,7 +50,7 @@ const round2 = (value: number) => Math.round(value * 100) / 100
 /** The excise tax portion of a transaction's recognized fee (0 if no fee was recognized). */
 export const getTax = (tx: Transaction) => round2(getRecognizedFee(tx) * TAX_RATE)
 
-// Who the line belongs to (which customer, which cashier) is already explained by the
+// Who the line belongs to (which customer, which agent) is already explained by the
 // entry's Memo — the line itself only needs the account.
 const walletLine = (debit: number, credit: number): LedgerLine => ({
   accountId: '2000',
@@ -59,7 +59,7 @@ const walletLine = (debit: number, credit: number): LedgerLine => ({
   credit,
 })
 
-const cashierFloatLine = (debit: number, credit: number): LedgerLine => ({
+const agentFloatLine = (debit: number, credit: number): LedgerLine => ({
   accountId: '2005',
   accountName: accountName('2005'),
   debit,
@@ -90,9 +90,9 @@ const feeLines = (fee: number): LedgerLine[] => {
 const describe = (tx: Transaction) => {
   switch (tx.type) {
     case 'Cash In':
-      return `Cash deposit via ${tx.channel} — served by ${tx.recipientName ?? 'cashier'}`
+      return `Cash deposit via ${tx.channel} — served by ${tx.recipientName ?? 'agent'}`
     case 'Cash Out':
-      return `Cash withdrawal via ${tx.channel} — served by ${tx.recipientName ?? 'cashier'}`
+      return `Cash withdrawal via ${tx.channel} — served by ${tx.recipientName ?? 'agent'}`
     case 'W2B':
       return `Wallet-to-bank withdrawal to ${tx.recipientName ?? 'bank account'}`
     case 'W2W':
@@ -110,8 +110,8 @@ const describe = (tx: Transaction) => {
  * Builds the balanced double-entry lines for a transaction. Debits always equal credits
  * by construction.
  *
- * Cash In/Out move between the cashier's own float wallet and the customer's wallet — the
- * cashier is advancing (or reclaiming) their float e-money against the customer's balance,
+ * Cash In/Out move between the agent's own float wallet and the customer's wallet — the
+ * agent is advancing (or reclaiming) their float e-money against the customer's balance,
  * so the two liability wallets move against each other rather than touching a cash/bank
  * asset account.
  */
@@ -122,13 +122,13 @@ const buildLines = (tx: Transaction): LedgerLine[] => {
 
   switch (tx.type) {
     case 'Cash In':
-      lines.push(cashierFloatLine(tx.amount, 0))
+      lines.push(agentFloatLine(tx.amount, 0))
       lines.push(walletLine(0, tx.amount - fee))
       lines.push(...feeLines(fee))
       break
     case 'Cash Out':
       lines.push(walletLine(tx.amount, 0))
-      lines.push(cashierFloatLine(0, tx.amount - fee))
+      lines.push(agentFloatLine(0, tx.amount - fee))
       lines.push(...feeLines(fee))
       break
     case 'W2B':
@@ -161,7 +161,7 @@ const buildLines = (tx: Transaction): LedgerLine[] => {
       break
   }
 
-  if (commission > 0 && isCashierServed(tx)) {
+  if (commission > 0 && isAgentServed(tx)) {
     lines.push({
       accountId: '5000',
       accountName: accountName('5000'),
@@ -179,12 +179,12 @@ const buildLines = (tx: Transaction): LedgerLine[] => {
   return lines
 }
 
-// Every customer's/cashier's starting balance (opening-balance + ledger-movement model) has to
+// Every customer's/agent's starting balance (opening-balance + ledger-movement model) has to
 // be backed by real cash from day one — this is the single opening entry that funds all of it
 // out of the Bank Account, computed live from the actual seed data so it can never drift out of
-// sync with customers/data.ts or cashiers/data.ts.
+// sync with customers/data.ts or agents/data.ts.
 const OPENING_CUSTOMER_WALLET_TOTAL = customers.reduce((sum, c) => sum + c.openingBalance, 0)
-const OPENING_CASHIER_FLOAT_TOTAL = cashiers.reduce((sum, c) => sum + c.openingFloatBalance, 0)
+const OPENING_AGENT_FLOAT_TOTAL = agents.reduce((sum, c) => sum + c.openingFloatBalance, 0)
 
 const openingBalanceEntry: JournalEntry = {
   id: 'JE-OPENING',
@@ -192,12 +192,12 @@ const openingBalanceEntry: JournalEntry = {
   referenceTxnId: 'OPENING-BALANCE',
   status: 'Posted',
   description:
-    'Opening balances — trust account funding for all customer wallets and cashier floats as of go-live',
+    'Opening balances — trust account funding for all customer wallets and agent floats as of go-live',
   lines: [
     {
       accountId: '1010',
       accountName: accountName('1010'),
-      debit: OPENING_CUSTOMER_WALLET_TOTAL + OPENING_CASHIER_FLOAT_TOTAL,
+      debit: OPENING_CUSTOMER_WALLET_TOTAL + OPENING_AGENT_FLOAT_TOTAL,
       credit: 0,
     },
     {
@@ -210,7 +210,7 @@ const openingBalanceEntry: JournalEntry = {
       accountId: '2005',
       accountName: accountName('2005'),
       debit: 0,
-      credit: OPENING_CASHIER_FLOAT_TOTAL,
+      credit: OPENING_AGENT_FLOAT_TOTAL,
     },
   ],
 }
@@ -226,7 +226,7 @@ export const RECONCILED_AT = '2026-10-22 08:00'
 // W2B withdrawals — is dated after it). It is NOT recomputed from live ledger activity, so it
 // genuinely drifts from the live Bank Account balance once something happens after this date,
 // exactly like a real statement would until the next one arrives.
-export const TRUST_ACCOUNT_BALANCE = OPENING_CUSTOMER_WALLET_TOTAL + OPENING_CASHIER_FLOAT_TOTAL
+export const TRUST_ACCOUNT_BALANCE = OPENING_CUSTOMER_WALLET_TOTAL + OPENING_AGENT_FLOAT_TOTAL
 
 /** One journal entry per transaction, plus the opening entry above. Failed transactions never post — nothing moved. */
 export const journalEntries: JournalEntry[] = [
@@ -293,11 +293,11 @@ export const getCustomerLedgerMovement = (customerId: string) => {
 }
 
 /**
- * Net Cashier Float Wallet (2005) movement a specific cashier's float account contributed to the
- * ledger. Cash In/Cash Out only ever touch one cashier's float per transaction, so no
+ * Net Agent Float Wallet (2005) movement a specific agent's float account contributed to the
+ * ledger. Cash In/Cash Out only ever touch one agent's float per transaction, so no
  * sender/recipient split is needed here.
  */
-export const getCashierLedgerMovement = (floatAccount: string) => {
+export const getAgentLedgerMovement = (floatAccount: string) => {
   let movement = 0
   for (const entry of journalEntries) {
     const tx = resolveTx(entry)
@@ -313,9 +313,9 @@ export const getCashierLedgerMovement = (floatAccount: string) => {
 export const getCustomerBalance = (customer: Customer) =>
   customer.openingBalance + getCustomerLedgerMovement(customer.id)
 
-/** A cashier's displayed float balance: their opening float plus their own ledger movement. */
-export const getCashierFloatBalance = (cashier: Cashier) =>
-  cashier.openingFloatBalance + getCashierLedgerMovement(cashier.floatAccount)
+/** An agent's displayed float balance: their opening float plus their own ledger movement. */
+export const getAgentFloatBalance = (agent: Agent) =>
+  agent.openingFloatBalance + getAgentLedgerMovement(agent.floatAccount)
 
 /** Every e-money liability the company owes through — wallets, float, commission, and tax withheld. */
 export const getEmoneyLiabilities = () =>

@@ -1,8 +1,8 @@
 import type { TransactionType } from '../transactions/data'
 
 export interface OverviewStats {
-  totalCashiers: number
-  totalCashiersDelta: number
+  totalAgents: number
+  totalAgentsDelta: number
   totalCustomers: number
   totalCustomersDelta: number
   totalWalletBalance: number
@@ -14,8 +14,8 @@ export interface OverviewStats {
 }
 
 export const overviewStats: OverviewStats = {
-  totalCashiers: 48,
-  totalCashiersDelta: 4.0,
+  totalAgents: 48,
+  totalAgentsDelta: 4.0,
   totalCustomers: 12480,
   totalCustomersDelta: 4.2,
   totalWalletBalance: 482350.75,
@@ -114,8 +114,8 @@ export const transactionTypeColor: Record<TransactionType, string> = {
 export interface WalletOverview {
   activeWallets: number
   activeWalletsDelta: number
-  cashierFloat: number
-  cashierFloatDelta: number
+  agentFloat: number
+  agentFloatDelta: number
   newWallets: number
   newWalletsDelta: number
 }
@@ -123,8 +123,8 @@ export interface WalletOverview {
 export const walletOverview: WalletOverview = {
   activeWallets: 9342,
   activeWalletsDelta: 5.1,
-  cashierFloat: 128500.0,
-  cashierFloatDelta: 2.8,
+  agentFloat: 128500.0,
+  agentFloatDelta: 2.8,
   newWallets: 186,
   newWalletsDelta: 14.0,
 }

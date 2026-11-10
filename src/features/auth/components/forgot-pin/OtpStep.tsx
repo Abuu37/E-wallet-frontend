@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import { ArrowLeft, Mail, RefreshCw } from 'lucide-react'
-import Swal from 'sweetalert2'
+import { toast } from '../../../../lib/toast'
 import Button from '../../../../components/ui/Button'
 
 const OTP_LENGTH = 6
-const RESEND_SECONDS = 30
+const RESEND_SECONDS = 300
 
 interface OtpStepProps {
   email: string
@@ -58,14 +58,9 @@ export default function OtpStep({ email, onVerified, onBack }: OtpStepProps) {
         body: JSON.stringify({ email }),
       })
     } catch {
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'error',
-        title: 'Network Error',
-        text: 'Could not reach the server. Check your connection and try again.',
-        showConfirmButton: false,
-        timer: 3000,
+      toast.error('Network Error', {
+        description: 'Could not reach the server. Check your connection and try again.',
+        duration: 3000,
       })
       return
     }
@@ -82,24 +77,14 @@ export default function OtpStep({ email, onVerified, onBack }: OtpStepProps) {
       setResendCountdown(RESEND_SECONDS)
       otpRefs.current[0]?.focus()
 
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'success',
-        title: 'Code Resent',
-        text: 'A new code has been sent to your email.',
-        showConfirmButton: false,
-        timer: 1500,
+      toast.success('Code Resent', {
+        description: 'A new code has been sent to your email.',
+        duration: 1500,
       })
     } catch (error) {
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'error',
-        title: 'Resend Failed',
-        text: error instanceof Error ? error.message : 'Could not resend code',
-        showConfirmButton: false,
-        timer: 3000,
+      toast.error('Resend Failed', {
+        description: error instanceof Error ? error.message : 'Could not resend code',
+        duration: 3000,
       })
     }
   }
@@ -107,14 +92,9 @@ export default function OtpStep({ email, onVerified, onBack }: OtpStepProps) {
   const handleVerify = async () => {
     if (otp.some((digit) => digit === '')) {
       setHasError(true)
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'error',
-        title: 'Incomplete Code',
-        text: 'Enter the full 6-digit code',
-        showConfirmButton: false,
-        timer: 3000,
+      toast.error('Incomplete Code', {
+        description: 'Enter the full 6-digit code',
+        duration: 3000,
       })
       return
     }
@@ -131,14 +111,9 @@ export default function OtpStep({ email, onVerified, onBack }: OtpStepProps) {
       })
     } catch {
       setHasError(true)
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'error',
-        title: 'Network Error',
-        text: 'Could not reach the server. Check your connection and try again.',
-        showConfirmButton: false,
-        timer: 3000,
+      toast.error('Network Error', {
+        description: 'Could not reach the server. Check your connection and try again.',
+        duration: 3000,
       })
       setVerifying(false)
       return
@@ -155,14 +130,9 @@ export default function OtpStep({ email, onVerified, onBack }: OtpStepProps) {
       onVerified(code)
     } catch (error) {
       setHasError(true)
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'error',
-        title: 'Verification Failed',
-        text: error instanceof Error ? error.message : 'Invalid code',
-        showConfirmButton: false,
-        timer: 3000,
+      toast.error('Verification Failed', {
+        description: error instanceof Error ? error.message : 'Invalid code',
+        duration: 3000,
       })
     } finally {
       setVerifying(false)
@@ -225,7 +195,10 @@ export default function OtpStep({ email, onVerified, onBack }: OtpStepProps) {
 
       <div className="mt-4 text-center text-sm text-muted">
         {resendCountdown > 0 ? (
-          <span>Resend code in 00:{String(resendCountdown).padStart(2, '0')}</span>
+          <span>
+            Resend code in {String(Math.floor(resendCountdown / 60)).padStart(2, '0')}:
+            {String(resendCountdown % 60).padStart(2, '0')}
+          </span>
         ) : (
           <button
             type="button"
@@ -239,7 +212,7 @@ export default function OtpStep({ email, onVerified, onBack }: OtpStepProps) {
       </div>
 
       <Button type="button" className="mt-6 w-full" onClick={handleVerify} disabled={verifying} loading={verifying}>
-        Verify & Continue
+        Verify
       </Button>
     </motion.div>
   )

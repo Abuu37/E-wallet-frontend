@@ -2,7 +2,7 @@ import { motion } from 'motion/react'
 import { Formik, Form, Field, ErrorMessage } from 'formik'
 import * as Yup from 'yup'
 import { User, Mail } from 'lucide-react'
-import Swal from 'sweetalert2'
+import { toast } from '../../../../lib/toast'
 import Button from '../../../../components/ui/Button'
 import PhoneInput, { isValidPhoneNumber, type Country } from 'react-phone-number-input'
 import 'react-phone-number-input/style.css'
@@ -81,14 +81,9 @@ export default function DetailsStep({
               },
             )
           } catch {
-            Swal.fire({
-              toast: true,
-              position: 'top-end',
-              icon: 'error',
-              title: 'Network Error',
-              text: 'Could not reach the server. Check your connection and try again.',
-              showConfirmButton: false,
-              timer: 3000,
+            toast.error('Network Error', {
+              description: 'Could not reach the server. Check your connection and try again.',
+              duration: 3000,
             })
             setSubmitting(false)
             return
@@ -101,13 +96,11 @@ export default function DetailsStep({
               if (body.errors) {
                 setErrors(body.errors)
               } else {
-                Swal.fire({
-                  toast: true,
-                  position: 'top-end',
-                  icon: 'error',
-                  text: body.message ?? 'Could not register',
-                  showConfirmButton: false,
-                  timer: 3000,
+                toast.error(
+                  'Registration Failed', 
+                  {
+                  description: body.message ?? 'Could not register',
+                  duration: 3000,
                 })
               }
               return
@@ -129,7 +122,7 @@ export default function DetailsStep({
                 <div className="relative mt-2">
                   <User
                     size={18}
-                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-brand"
                   />
                   <Field
                     id="firstName"
@@ -151,7 +144,7 @@ export default function DetailsStep({
                 <div className="relative mt-2">
                   <User
                     size={18}
-                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-brand"
                   />
                   <Field
                     id="lastName"
@@ -174,7 +167,7 @@ export default function DetailsStep({
               <div className="relative mt-2">
                 <User
                   size={18}
-                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-brand"
                 />
                 <Field
                   id="middleName"
@@ -196,14 +189,15 @@ export default function DetailsStep({
               <div className="relative mt-2">
                 <Mail
                   size={18}
-                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-brand"
                 />
+                <span className="pointer-events-none absolute left-9 top-1/2 h-5 w-px -translate-y-1/2 bg-line" />
                 <Field
                   id="email"
                   name="email"
                   type="email"
                   className={`${getFieldClass(Boolean(touched.email && errors.email))} pr-4`}
-                  placeholder="you@example.com"
+                  placeholder="ashajuma@gmail.com"
                 />
               </div>
               <ErrorMessage name="email" component="p" className={errorClass} />

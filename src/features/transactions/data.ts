@@ -1,4 +1,4 @@
-import { cashiers } from '../cashiers/data'
+import { agents } from '../agents/data'
 
 export type TransactionType =
   | 'Cash In'
@@ -84,7 +84,7 @@ export const getAmountTone = (type: TransactionType) => {
 }
 
 /**
- * "From" is whoever conducts the transaction: the cashier for an agent-served Cash In/Out,
+ * "From" is whoever conducts the transaction: the agent for an agent-served Cash In/Out,
  * the loan account for a disbursement, and the customer themselves for a self-service
  * W2W transfer or loan repayment.
  */
@@ -95,8 +95,8 @@ export const getTxFromTo = (tx: Transaction) => {
   return { from: tx.customer, to: tx.recipientName ?? '—' }
 }
 
-/** Whether this transaction was served by a cashier/agent (Cash In or Cash Out). */
-export const isCashierServed = (tx: Transaction) => tx.type === 'Cash In' || tx.type === 'Cash Out'
+/** Whether this transaction was served by an agent (Cash In or Cash Out). */
+export const isAgentServed = (tx: Transaction) => tx.type === 'Cash In' || tx.type === 'Cash Out'
 
 export const STUCK_PENDING_MINUTES = 10
 
@@ -107,7 +107,7 @@ export const isStuckPending = (tx: Transaction, now = Date.now()) => {
   return minutesSince > STUCK_PENDING_MINUTES
 }
 
-// Commission is paid to the cashier/agent who handled the transaction, funded by the
+// Commission is paid to the agent who handled the transaction, funded by the
 // operator — independent of the customer fee (e.g. Cash In has no fee but still pays commission).
 const COMMISSION_RATES: Partial<Record<TransactionType, number>> = { 'Cash In': 0.01, 'Cash Out': 0.01 }
 
@@ -156,9 +156,9 @@ export const getNetAdjustment = (txs: Transaction[]) => {
 export const getTotalWalletBalance = (txs: Transaction[]) =>
   getTotalDeposits(txs) - getTotalWithdrawals(txs) + getNetAdjustment(txs)
 
-/** Looks up the cashier ID for a transaction's recipientName (the serving cashier's name). */
-export const getCashierId = (name?: string) =>
-  (name && cashiers.find((cashier) => cashier.name === name)?.id) || '—'
+/** Looks up the agent ID for a transaction's recipientName (the serving agent's name). */
+export const getAgentId = (name?: string) =>
+  (name && agents.find((agent) => agent.name === name)?.id) || '—'
 
 // Fixed categorical display order — kept separate from the live counts below so chart color
 // adjacency (picked per type, not per value) never has to be re-validated when volumes change.

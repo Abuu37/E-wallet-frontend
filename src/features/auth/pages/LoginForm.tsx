@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Formik, Form, ErrorMessage } from 'formik'
 import * as Yup from 'yup'
-import Swal from 'sweetalert2'
+import { toast } from '../../../lib/toast'
 import { Lock, Eye, EyeOff } from 'lucide-react'
 import Button from '../../../components/ui/Button'
 import ewalletImage from '../../../assets/imgs/ewallet.webp'
@@ -36,10 +36,8 @@ interface LoginErrorResponse {
 }
 
 const getPinFieldClass = (hasError: boolean) =>
-  `w-full rounded-full border py-2.5 pl-11 pr-11 text-sm tracking-[0.5em] outline-none transition-colors focus:bg-white ${
-    hasError
-      ? 'border-red-400 bg-surface focus:border-red-500'
-      : 'border-transparent bg-surface focus:border-brand'
+  `w-full rounded-full border bg-white py-2.5 pl-11 pr-11 text-sm tracking-[0.5em] outline-none transition-colors ${
+    hasError ? 'border-red-400 focus:border-red-500' : 'border-line focus:border-brand'
   }`
 const errorClass = 'mt-2 text-xs font-medium text-red-600'
 
@@ -96,13 +94,9 @@ export default function LoginForm() {
               const body: LoginResponse | LoginErrorResponse = await response.json()
 
               if (!response.ok) {
-                Swal.fire({
-                  toast: true,
-                  position: 'top-end',
-                  icon: 'error',
-                  title: 'Login Failed',
-                  text: 'message' in body ? body.message : 'Login failed',
-                  showConfirmButton: false,
+                toast.error('Login Failed', {
+                  description: 'message' in body ? body.message : 'Login failed',
+                  duration: 3000,
                 })
                 return
               }
@@ -110,14 +104,7 @@ export default function LoginForm() {
               const { accessToken, refreshToken, roles } = (body as LoginResponse).data
               login({ accessToken, refreshToken, roles })
 
-              Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: 'success',
-                title: 'Login Successful',
-                showConfirmButton: false,
-                timer: 1500,
-              })
+              toast.success('Login Successful', { duration: 1500 })
 
               if (roles.includes('CUSTOMER')) {
                 navigate('/account')
@@ -128,13 +115,9 @@ export default function LoginForm() {
               }
 
             } catch (error) {
-              Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: 'error',
-                title: 'Login Failed',
-                text: error instanceof Error ? error.message : 'Login failed',
-                showConfirmButton: false,
+              toast.error('Login Failed', {
+                description: error instanceof Error ? error.message : 'Login failed',
+                duration: 3000,
               })
             } finally {
               setSubmitting(false)
@@ -173,8 +156,9 @@ export default function LoginForm() {
                 <div className="relative mt-2">
                   <Lock
                     size={18}
-                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                    className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-brand"
                   />
+                  <span className="pointer-events-none absolute left-9 top-1/2 h-5 w-px -translate-y-1/2 bg-line" />
                   <input
                     id="pin"
                     name="pin"

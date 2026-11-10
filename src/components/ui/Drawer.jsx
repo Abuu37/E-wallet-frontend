@@ -4,6 +4,7 @@ import { X } from 'lucide-react'
 const sizeStyles = {
   md: 'max-w-md',
   lg: 'max-w-xl',
+  xl: 'max-w-2xl',
 }
 
 export default function Drawer({ open, onClose, title, children, footer, size = 'md' }) {

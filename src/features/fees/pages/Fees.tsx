@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import Swal from 'sweetalert2'
+import { toast } from '../../../lib/toast'
 import { Formik, Form, Field, ErrorMessage } from 'formik'
 import * as Yup from 'yup'
 import type { LucideIcon } from 'lucide-react'
@@ -213,15 +213,7 @@ export default function Fees() {
           ),
         )
         closeForm()
-        Swal.fire({
-          toast: true,
-          position: 'top-end',
-          icon: 'success',
-          title: 'Fee Updated',
-          text: 'Updated successfully.',
-          showConfirmButton: false,
-          timer: 1500,
-        })
+        toast.success('Fee Updated', { description: 'Updated successfully.', duration: 1500 })
       } else if (formMode === 'create') {
         const newTier: FeeTier = {
           id: nextTierId(),
@@ -239,13 +231,8 @@ export default function Fees() {
       }
     } catch (error) {
       console.error('Fee form submit error:', error)
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'error',
-        title: 'Fee Update Failed',
-        text: 'An error occurred while updating the fee tier. Please try again.',
-        showConfirmButton: false,
+      toast.error('Fee Update Failed', {
+        description: 'An error occurred while updating the fee tier. Please try again.',
       })
     }
   }
@@ -352,9 +339,9 @@ export default function Fees() {
             <tbody className="divide-y divide-line">
               {pageItems.map((tier, index) => {
                 const isCashIn = tier.transactionType === 'Cash In'
-                // Only Cash In/Cash Out go through a cashier — W2W and W2B are self-service, so
+                // Only Cash In/Cash Out go through an agent — W2W and W2B are self-service, so
                 // there's no agent to split the fee with (see rolePermissions.ts).
-                const isCashierServed = isCashIn || tier.transactionType === 'Cash Out'
+                const isAgentServed = isCashIn || tier.transactionType === 'Cash Out'
                 return (
                   <tr
                     key={tier.id}
@@ -384,10 +371,10 @@ export default function Fees() {
                     </td>
                     <td className="px-6 py-3.5 text-right tabular-nums text-ink/70">
                       {isCashIn && <>{formatAmount(tier.customerFee)}</>}
-                      {!isCashIn && isCashierServed && (
+                      {!isCashIn && isAgentServed && (
                         <>{formatAmount(tier.customerFee * SHARE_RATE)}</>
                       )}
-                      {!isCashierServed && <span className="text-muted">No agent</span>}
+                      {!isAgentServed && <span className="text-muted">No agent</span>}
                     </td>
                     <td
                       className={`px-6 py-3.5 text-right tabular-nums ${isCashIn ? 'text-red-500' : 'text-ink/70'}`}
@@ -395,7 +382,7 @@ export default function Fees() {
                       {formatAmount(
                         isCashIn
                           ? -tier.customerFee
-                          : isCashierServed
+                          : isAgentServed
                             ? tier.customerFee * SHARE_RATE
                             : tier.customerFee,
                       )}

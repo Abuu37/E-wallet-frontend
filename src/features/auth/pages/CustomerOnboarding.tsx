@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AnimatePresence } from 'motion/react'
-import Swal from 'sweetalert2'
+import { toast } from '../../../lib/toast'
 import type { Country } from 'react-phone-number-input'
 import ewalletImage from '../../../assets/imgs/ewallet.webp'
 import paymentImage from '../../../assets/imgs/payment-img1.jpg'
@@ -100,14 +100,8 @@ export default function CustomerOnboarding() {
               email={details?.email ?? ''}
               onBack={() => setStep('otp')}
               onSuccess={() => {
-                Swal.fire({
-                  toast: true,
-                  position: 'top-end',
-                  icon: 'success',
-                  title: "You're registered",
-                  text: "We'll reach out with next steps to get your WalletPesa card.",
-                  showConfirmButton: false,
-                  timer: 2000,
+                toast.success("Registration successfully", {
+                  duration: 2000,
                 })
                 navigate('/login')
               }}

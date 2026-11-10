@@ -1,14 +1,14 @@
-import { chartOfAccounts, getAccountBalance, getCashierFloatBalance } from '../ledger/data'
-import { cashiers } from '../cashiers/data'
-import type { Cashier } from '../cashiers/data'
+import { chartOfAccounts, getAccountBalance, getAgentFloatBalance } from '../ledger/data'
+import { agents } from '../agents/data'
+import type { Agent } from '../agents/data'
 
-export type ReconciliationScope = 'Company' | 'Cashier'
+export type ReconciliationScope = 'Company' | 'Agent'
 export type ReconciliationStatus = 'Balanced' | 'Open' | 'Investigating' | 'Resolved' | 'Written Off'
 
 export interface ReconciliationRun {
   id: string
   scope: ReconciliationScope
-  cashierId?: string
+  agentId?: string
   asOf: string
   statementAmount: number
   ledgerAmount: number
@@ -38,33 +38,33 @@ export const getCompanyLedgerAmount = () => {
   return round2(liabilities + equity - loansReceivable)
 }
 
-/** What the ledger says this cashier's float should currently be. */
-export const getCashierLedgerAmount = (cashier: Cashier) => round2(getCashierFloatBalance(cashier))
+/** What the ledger says this agent's float should currently be. */
+export const getAgentLedgerAmount = (agent: Agent) => round2(getAgentFloatBalance(agent))
 
-export const getCashierName = (cashierId?: string) =>
-  (cashierId && cashiers.find((c) => c.id === cashierId)?.name) || '—'
+export const getAgentName = (agentId?: string) =>
+  (agentId && agents.find((c) => c.id === agentId)?.name) || '—'
 
 interface BuildReconciliationRunParams {
   id: string
   scope: ReconciliationScope
-  cashierId?: string
+  agentId?: string
   statementAmount: number
   performedBy: string
 }
 
 /** Builds a new run from user input, capturing today's live ledger amount as a frozen snapshot. */
 export const buildReconciliationRun = (params: BuildReconciliationRunParams): ReconciliationRun => {
-  const cashier = params.cashierId ? cashiers.find((c) => c.id === params.cashierId) : undefined
+  const agent = params.agentId ? agents.find((c) => c.id === params.agentId) : undefined
   const ledgerAmount =
-    params.scope === 'Cashier' && cashier
-      ? getCashierLedgerAmount(cashier)
+    params.scope === 'Agent' && agent
+      ? getAgentLedgerAmount(agent)
       : getCompanyLedgerAmount()
   const statementAmount = round2(params.statementAmount)
   const difference = round2(statementAmount - ledgerAmount)
   return {
     id: params.id,
     scope: params.scope,
-    cashierId: params.scope === 'Cashier' ? params.cashierId : undefined,
+    agentId: params.scope === 'Agent' ? params.agentId : undefined,
     asOf: new Date().toISOString(),
     statementAmount,
     ledgerAmount,
@@ -122,8 +122,8 @@ export const reconciliationRuns: ReconciliationRun[] = [
   },
   {
     id: 'RCN-005',
-    scope: 'Cashier',
-    cashierId: 'CSH-3001',
+    scope: 'Agent',
+    agentId: 'AGT-3001',
     asOf: '2026-10-20T17:00:00Z',
     statementAmount: 69300.0,
     ledgerAmount: 69300.0,
@@ -133,8 +133,8 @@ export const reconciliationRuns: ReconciliationRun[] = [
   },
   {
     id: 'RCN-006',
-    scope: 'Cashier',
-    cashierId: 'CSH-3008',
+    scope: 'Agent',
+    agentId: 'AGT-3008',
     asOf: '2026-10-21T17:00:00Z',
     statementAmount: 58700.0,
     ledgerAmount: 59200.0,

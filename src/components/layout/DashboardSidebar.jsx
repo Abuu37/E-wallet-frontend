@@ -60,8 +60,8 @@ const navGroups = [
         roles: ['ADMIN', 'CASHIER'],
       },
       {
-        path: '/dashboard/cashiers',
-        label: 'Cashiers',
+        path: '/dashboard/agents',
+        label: 'Agents',
         icon: UserCog,
         roles: ['ADMIN'],
       },

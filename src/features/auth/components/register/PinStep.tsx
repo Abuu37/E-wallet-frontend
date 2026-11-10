@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'motion/react'
 import { ArrowLeft, Eye, EyeOff, Lock } from 'lucide-react'
+import { toast } from '../../../../lib/toast'
 import Button from '../../../../components/ui/Button'
 import { getFieldClass, errorClass, RequiredMark } from './shared'
 
@@ -45,6 +46,10 @@ export default function PinStep({ email, onBack, onSuccess }: PinStepProps) {
       })
     } catch {
       setPinError('Could not reach the server. Check your connection and try again.')
+      toast.error('Network Error', {
+        description: 'Could not reach the server. Check your connection and try again.',
+        duration: 3000,
+      })
       setSubmitting(false)
       return
     }
@@ -59,7 +64,9 @@ export default function PinStep({ email, onBack, onSuccess }: PinStepProps) {
       setPinError('')
       onSuccess()
     } catch (error) {
-      setPinError(error instanceof Error ? error.message : 'Could not create account')
+      const message = error instanceof Error ? error.message : 'Could not create account'
+      setPinError(message)
+      toast.error('Account Creation Failed', { description: message, duration: 3000 })
     } finally {
       setSubmitting(false)
     }
@@ -104,8 +111,9 @@ export default function PinStep({ email, onBack, onSuccess }: PinStepProps) {
           <div className="relative mt-2">
             <Lock
               size={18}
-              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-brand"
             />
+            <span className="pointer-events-none absolute left-9 top-1/2 h-5 w-px -translate-y-1/2 bg-line" />
             <input
               id="pin"
               type={showPin ? 'text' : 'password'}
@@ -137,8 +145,9 @@ export default function PinStep({ email, onBack, onSuccess }: PinStepProps) {
           <div className="relative mt-2">
             <Lock
               size={18}
-              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-brand"
             />
+            <span className="pointer-events-none absolute left-9 top-1/2 h-5 w-px -translate-y-1/2 bg-line" />
             <input
               id="confirmPin"
               type={showConfirmPin ? 'text' : 'password'}

@@ -2,7 +2,7 @@ import { motion } from 'motion/react'
 import { Formik, Form, Field, ErrorMessage } from 'formik'
 import * as Yup from 'yup'
 import { Mail } from 'lucide-react'
-import Swal from 'sweetalert2'
+import { toast } from '../../../../lib/toast'
 import Button from '../../../../components/ui/Button'
 import { getFieldClass, errorClass, RequiredMark } from '../register/shared'
 
@@ -55,14 +55,9 @@ export default function EmailStep({ initialEmail, onSubmit }: EmailStepProps) {
               body: JSON.stringify({ email: values.email }),
             })
           } catch {
-            Swal.fire({
-              toast: true,
-              position: 'top-end',
-              icon: 'error',
-              title: 'Network Error',
-              text: 'Could not reach the server. Check your connection and try again.',
-              showConfirmButton: false,
-              timer: 3000,
+            toast.error('Network Error', {
+              description: 'Could not reach the server. Check your connection and try again.',
+              duration: 3000,
             })
             setSubmitting(false)
             return
@@ -75,25 +70,13 @@ export default function EmailStep({ initialEmail, onSubmit }: EmailStepProps) {
               throw new Error(body.message ?? 'Could not send reset code')
             }
 
-            Swal.fire({
-              toast: true,
-              position: 'top-end',
-              icon: 'success',
-              title: body.message,
-              showConfirmButton: false,
-              timer: 2000,
-            })
+            toast.success(body.message, { duration: 2000 })
 
             onSubmit(values.email)
           } catch (error) {
-            Swal.fire({
-              toast: true,
-              position: 'top-end',
-              icon: 'error',
-              title: 'Request Failed',
-              text: error instanceof Error ? error.message : 'Could not send reset code',
-              showConfirmButton: false,
-              timer: 3000,
+            toast.error('Request Failed', {
+              description: error instanceof Error ? error.message : 'Could not send reset code',
+              duration: 3000,
             })
           } finally {
             setSubmitting(false)
@@ -109,14 +92,15 @@ export default function EmailStep({ initialEmail, onSubmit }: EmailStepProps) {
               <div className="relative mt-2">
                 <Mail
                   size={18}
-                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-brand"
                 />
+                <span className="pointer-events-none absolute left-9 top-1/2 h-5 w-px -translate-y-1/2 bg-line" />
                 <Field
                   id="email"
                   name="email"
                   type="email"
                   className={`${getFieldClass(Boolean(touched.email && errors.email))} pr-4`}
-                  placeholder="you@example.com"
+                  placeholder="ashajuma@gmail.com"
                 />
               </div>
               <ErrorMessage name="email" component="p" className={errorClass} />

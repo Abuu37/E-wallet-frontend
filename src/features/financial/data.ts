@@ -149,7 +149,7 @@ export const revenueByRange: Record<'today' | 'week' | '30day', RevenuePoint[]> 
 export const feeByChannel = [
   { type: 'Wallet Transfer', value: 38, color: 'var(--color-chart-blue)' },
   { type: 'Bank Transfer', value: 24, color: 'var(--color-chart-orange)' },
-  { type: 'Cashier Topup', value: 22, color: 'var(--color-chart-aqua)' },
+  { type: 'Agent Topup', value: 22, color: 'var(--color-chart-aqua)' },
   { type: 'Withdraw', value: 16, color: 'var(--color-chart-amber)' },
 ]
 
@@ -160,7 +160,7 @@ export const floatManagement: Array<{
   delta?: number
 }> = [
   { label: 'Company Wallet', value: 120450.5, status: 'Available', delta: 4.6 },
-  { label: 'Cashier Floats', value: 28750.0, status: 'Available' },
+  { label: 'Agent Floats', value: 28750.0, status: 'Available' },
   { label: 'Pending Settlements', value: 5200.0, status: 'Processing' },
   { label: 'Blocked Funds', value: 2000.0, status: 'Blocked' },
 ]

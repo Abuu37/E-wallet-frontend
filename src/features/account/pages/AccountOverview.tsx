@@ -72,7 +72,7 @@ export default function AccountOverview() {
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-ink">Withdraw Money</p>
-              <p className="text-xs text-muted">Via cashier or to your bank</p>
+              <p className="text-xs text-muted">Via agent or to your bank</p>
             </div>
             <ChevronRight size={16} className="shrink-0 text-muted" />
           </Link>

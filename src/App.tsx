@@ -1,4 +1,6 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 import Layout from './components/layout/Layout'
 import Home from './pages/Home/Home'
 import MainService from './pages/services/MainService'
@@ -18,7 +20,7 @@ import Overview from './features/overview/pages/Overview'
 import DashboardTransactions from './features/transactions/pages/Transactions'
 import DashboardCustomers from './features/customers/pages/Customers'
 import DashboardCompanyWallet from './features/wallets/pages/CompanyWallet'
-import DashboardCashiers from './features/cashiers/pages/Cashiers'
+import DashboardAgents from './features/agents/pages/Agents'
 import DashboardFinancial from './features/financial/pages/Financial'
 import DashboardLedger from './features/ledger/pages/Ledger'
 import DashboardLoans from './features/loans/pages/Loans'
@@ -33,11 +35,14 @@ import AccountWithdraw from './features/account/pages/AccountWithdraw'
 import { AuthProvider } from './components/context/AuthContext';
 import { AuthGuard } from './components/Guard/AuthGuard';
 import { RoleGuard } from './components/Guard/RoleGuard';
+import IdleSessionGuard from './components/Guard/IdleSessionGuard';
 
 export default function App() {
   return (
     <AuthProvider>
+      <ToastContainer position="top-right" theme="light" />
       <BrowserRouter>
+        <IdleSessionGuard />
         <Routes>
           {/*==========  Public Routes ============ */}
           <Route path="/" element={<Layout />}>
@@ -67,7 +72,7 @@ export default function App() {
                 <Route path="transactions" element={<DashboardTransactions />} />
                 <Route path="customers" element={<DashboardCustomers />} />
                 <Route path="company-wallet" element={<DashboardCompanyWallet />} />
-                <Route path="cashiers" element={<DashboardCashiers />} />
+                <Route path="agents" element={<DashboardAgents />} />
                 <Route path="financial" element={<DashboardFinancial />} />
                 <Route path="ledger" element={<DashboardLedger />} />
                 <Route path="loans" element={<DashboardLoans />} />

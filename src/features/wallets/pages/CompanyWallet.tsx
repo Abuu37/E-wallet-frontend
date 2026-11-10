@@ -112,7 +112,7 @@ export default function CompanyWallet() {
           tone="accent"
           label="E-money Liabilities"
           value={currency(emoneyLiabilities)}
-          deltaLabel="Customers + cashiers + commissions + tax"
+          deltaLabel="Customers + agents + commissions + tax"
         />
         <StatCard
           icon={Banknote}
@@ -129,7 +129,7 @@ export default function CompanyWallet() {
           tone="warning"
           label="Commission Payable"
           value={currency(commissionPayable)}
-          deltaLabel="Owed to cashiers, not yet settled"
+          deltaLabel="Owed to agents, not yet settled"
         />
 
         <Link

@@ -57,12 +57,12 @@ import {
   chartOfAccounts,
   getAccountBalance,
   getCustomerBalance,
-  getCashierFloatBalance,
+  getAgentFloatBalance,
   TRUST_ACCOUNT_BALANCE,
   RECONCILED_AT,
 } from '../../ledger/data'
 import { customers } from '../../customers/data'
-import { cashiers } from '../../cashiers/data'
+import { agents } from '../../agents/data'
 import { maskAccount } from '../../../utils/mask'
 
 const txStatusVariant: Record<string, string> = {
@@ -95,7 +95,7 @@ function escapeCsvCell(value: unknown) {
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
 }
 
-// Cashiers use their float account code (e.g. "FA-384021"), not a phone number, so only
+// Agents use their float account code (e.g. "FA-384021"), not a phone number, so only
 // mask values that actually look like a phone number; masking a float code would just
 // mangle it into something unrecognizable.
 function displayAccount(value: string) {
@@ -141,8 +141,8 @@ const txTypeIcon: Record<TransactionType, LucideIcon> = {
 
 const recipientLabel: Record<TransactionType, string> = {
   W2W: 'Recipient wallet',
-  'Cash In': 'Served by (cashier)',
-  'Cash Out': 'Served by (cashier)',
+  'Cash In': 'Served by (agent)',
+  'Cash Out': 'Served by (agent)',
   W2B: 'Bank account',
   'Loan Disbursement': 'Loan account',
   'Loan Repayment': 'Loan account',
@@ -281,11 +281,11 @@ export default function Overview() {
   const companyEquity = balanceOf('4000') - balanceOf('5000')
 
   // Total e-money the company is currently custodying for others: every customer's wallet
-  // plus every cashier's float, combined — distinct from Company Equity above, which is money
+  // plus every agent's float, combined — distinct from Company Equity above, which is money
   // the company itself owns.
   const customerWalletBalance = customers.reduce((sum, c) => sum + getCustomerBalance(c), 0)
-  const cashierFloatBalance = cashiers.reduce((sum, c) => sum + getCashierFloatBalance(c), 0)
-  const totalWalletBalance = customerWalletBalance + cashierFloatBalance
+  const agentFloatBalance = agents.reduce((sum, c) => sum + getAgentFloatBalance(c), 0)
+  const totalWalletBalance = customerWalletBalance + agentFloatBalance
 
   const successfulTransactionsCount = transactions.filter((tx) => tx.status === 'Successful').length
 
@@ -302,8 +302,8 @@ export default function Overview() {
         <StatCard
           icon={UserCog}
           tone="brand"
-          label="Total Cashiers"
-          value={String(cashiers.length)}
+          label="Total Agents"
+          value={String(agents.length)}
         />
         <StatCard
           icon={Users}

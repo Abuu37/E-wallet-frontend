@@ -45,10 +45,10 @@ import {
   chartOfAccounts,
   getAccountBalance,
   getCustomerBalance,
-  getCashierFloatBalance,
+  getAgentFloatBalance,
 } from '../../ledger/data'
 import { customers } from '../../customers/data'
-import { cashiers } from '../../cashiers/data'
+import { agents } from '../../agents/data'
 import { maskAccount } from '../../../utils/mask'
 
 const txStatusVariant: Record<string, string> = {
@@ -77,8 +77,8 @@ const txTypeIcon: Record<TransactionType, LucideIcon> = {
 
 const recipientLabel: Record<TransactionType, string> = {
   W2W: 'Recipient wallet',
-  'Cash In': 'Served by (cashier)',
-  'Cash Out': 'Served by (cashier)',
+  'Cash In': 'Served by (agent)',
+  'Cash Out': 'Served by (agent)',
   W2B: 'Bank account',
   'Loan Disbursement': 'Loan account',
   'Loan Repayment': 'Loan account',
@@ -97,10 +97,10 @@ interface QuickAction {
 
 const quickActions: QuickAction[] = [
   {
-    label: 'Top-Up Cashier Float',
+    label: 'Top-Up Agent Float',
     icon: CirclePlus,
     tone: 'bg-green-100 text-green-600',
-    to: '/dashboard/cashiers',
+    to: '/dashboard/agents',
   },
   {
     label: 'Loan Management',
@@ -114,7 +114,7 @@ const quickActions: QuickAction[] = [
 const floatIcon: Record<string, LucideIcon> = {
   'Company Equity': Banknote,
   'Customer Wallet': Wallet,
-  'Cashier Float': UserCog,
+  'Agent Float': UserCog,
 }
 
 const RECENT_TRANSACTIONS_PAGE_SIZE = 10
@@ -128,7 +128,7 @@ function escapeCsvCell(value: unknown) {
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
 }
 
-// Cashiers use their float account code (e.g. "FA-384021"), not a phone number, so only
+// Agents use their float account code (e.g. "FA-384021"), not a phone number, so only
 // mask values that actually look like a phone number; masking a float code would just
 // mangle it into something unrecognizable.
 function displayAccount(value: string) {
@@ -244,12 +244,12 @@ export default function Financial() {
   // page's own terminology) rather than "Company Wallet", since it isn't money anyone's owed.
   const companyEquityBalance = balanceOf('4000') - balanceOf('5000')
   const customerWalletBalance = customers.reduce((sum, c) => sum + getCustomerBalance(c), 0)
-  const cashierFloatBalance = cashiers.reduce((sum, c) => sum + getCashierFloatBalance(c), 0)
+  const agentFloatBalance = agents.reduce((sum, c) => sum + getAgentFloatBalance(c), 0)
 
   const floatRows = [
     { label: 'Company Equity', value: companyEquityBalance },
     { label: 'Customer Wallet', value: customerWalletBalance },
-    { label: 'Cashier Float', value: cashierFloatBalance },
+    { label: 'Agent Float', value: agentFloatBalance },
   ]
 
   const [recentPage, setRecentPage] = useState(1)

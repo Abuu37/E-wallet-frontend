@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import Swal from 'sweetalert2'
+import { toast } from '../../../lib/toast'
 import {
   Search,
   Users,
+  User,
   UserCog,
   UserCheck,
   UserX,
@@ -12,15 +13,14 @@ import {
   Eye,
   Pencil,
   Ban,
-  ShieldCheck,
   Trash2,
   Hash,
   Phone,
+  Mail,
   MapPin,
   CalendarDays,
   Clock,
-  PauseCircle,
-  Moon,
+  Lock,
   AlertTriangle,
   Receipt,
   HandCoins,
@@ -31,65 +31,47 @@ import StatCard from '../../../components/ui/StatCard'
 import StatusBadge from '../../../components/ui/StatusBadge'
 import Drawer from '../../../components/ui/Drawer'
 import Modal from '../../../components/ui/Modal'
-import TransactionHistoryView from '../../../components/ui/TransactionHistoryView'
 import SortIcon from '../../../components/ui/SortIcon'
-import CashierRegisterForm from './CashierRegisterForm'
-import CashierTopUpForm from '../components/CashierTopUpForm'
-import { cashiers as initialCashiers } from '../data'
-import type { Cashier } from '../data'
-import { daysSince, getCashierStatus, getLastActiveDate } from '../status'
-import { transactions } from '../../transactions/data'
-import {
-  getCashierFloatBalance,
-  TRUST_ACCOUNT_BALANCE,
-  getEmoneyLiabilities,
-} from '../../ledger/data'
+import AgentOnboarding from './AgentOnboarding'
+import AgentTopUpForm from '../components/AgentTopUpForm'
+import { useAuth } from '../../../components/context/AuthContext'
+import type { AgentDetail, AgentEditableFields, AgentStatus, AgentSummary, FloatHealth } from '../types'
+import { TRUST_ACCOUNT_BALANCE, getEmoneyLiabilities } from '../../ledger/data'
 
 const statusVariant: Record<string, string> = {
   Active: 'positive',
   Pending: 'warning',
-  Idle: 'neutral',
-  Dormant: 'info',
+  PIN_CHANGE_REQUIRED: 'info',
   Blocked: 'negative',
 }
 
 const statusIconTone: Record<string, string> = {
   Active: 'bg-green-50 text-green-700',
   Pending: 'bg-amber-50 text-amber-700',
-  Idle: 'bg-slate-100 text-slate-600',
-  Dormant: 'bg-purple-50 text-purple-700',
+  PIN_CHANGE_REQUIRED: 'bg-purple-50 text-purple-700',
   Blocked: 'bg-red-100 text-red-800',
 }
 
 const statusIcon: Record<string, typeof UserCheck> = {
   Active: UserCheck,
   Pending: Clock,
-  Idle: PauseCircle,
-  Dormant: Moon,
+  PIN_CHANGE_REQUIRED: Lock,
   Blocked: Ban,
 }
 
-const statusOptions = ['All', 'Active', 'Idle', 'Dormant', 'Pending', 'Blocked']
-const floatHealthOptions = ['All', 'Healthy', 'Low', 'Critical']
+const statusOptions = ['All', 'Active', 'Pending', 'PIN_CHANGE_REQUIRED', 'Blocked']
 
-const LOW_FLOAT_THRESHOLD = 50000
+const statusLabel: Record<string, string> = {
+  Active: 'Active',
+  Pending: 'Pending',
+  PIN_CHANGE_REQUIRED: 'PIN Change Required',
+  Blocked: 'Blocked',
+}
+const floatHealthOptions = ['All', 'Healthy', 'Low', 'Critical']
 
 const PAGE_SIZE = 10
 
 const formatAmount = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
-
-const getFloatHealth = (floatBalance: number) => {
-  if (floatBalance <= 0) return { label: 'Critical', variant: 'negative' }
-  if (floatBalance < LOW_FLOAT_THRESHOLD) return { label: 'Low', variant: 'warning' }
-  return { label: 'Healthy', variant: 'positive' }
-}
-
-const formatLastActive = (dateValue: string) => {
-  const days = daysSince(dateValue)
-  if (days === 0) return 'Today'
-  if (days === 1) return 'Yesterday'
-  return `${days} days ago`
-}
 
 type SortKey =
   | 'id'
@@ -98,7 +80,6 @@ type SortKey =
   | 'floatHealth'
   | 'commissionBalance'
   | 'transactions'
-  | 'lastActive'
   | 'status'
 
 interface ActionMenuState {
@@ -107,14 +88,104 @@ interface ActionMenuState {
   left: number
 }
 
-interface ConfirmReportState {
-  id: string
-  name: string
-  report: boolean
+// The backend's actual response shape — not the agentNumber/fullName-based
+// contract originally speced. Mapped onto AgentSummary/AgentDetail below.
+interface RawAgentRecord {
+  agentId: string
+  agentNumber: string
+  firstName?: string
+  middleName?: string
+  lastName?: string
+  phone: string
+  email?: string
+  gender?: string
+  dateOfBirth?: string
+  regionId?: string
+  regionName?: string
+  districtId?: string
+  districtName?: string
+  currentBalance?: number | null
+  floatHealth?: string
+  commission?: number | null
+  transactionCount?: number | null
+  status?: string
 }
 
-export default function Cashiers() {
-  const [cashiers, setCashiers] = useState<Cashier[]>(initialCashiers)
+const toSafeNumber = (value: unknown): number =>
+  typeof value === 'number' && Number.isFinite(value) ? value : 0
+
+const normalizeFloatHealth = (value: unknown): FloatHealth => {
+  switch (String(value ?? '').toUpperCase()) {
+    case 'HEALTHY':
+      return 'Healthy'
+    case 'LOW':
+      return 'Low'
+    default:
+      return 'Critical'
+  }
+}
+
+const normalizeStatus = (value: unknown): AgentStatus => {
+  switch (String(value ?? '').toUpperCase()) {
+    case 'ACTIVE':
+      return 'Active'
+    case 'BLOCKED':
+      return 'Blocked'
+    case 'PIN_CHANGE_REQUIRED':
+      return 'PIN_CHANGE_REQUIRED'
+    default:
+      return 'Pending'
+  }
+}
+
+function toAgentSummary(raw: RawAgentRecord): AgentSummary {
+  return {
+    agentId: raw.agentId,
+    agentNumber: raw.agentNumber,
+    fullName: [raw.firstName, raw.middleName, raw.lastName].filter(Boolean).join(' '),
+    phone: raw.phone,
+    email: raw.email,
+    gender: raw.gender,
+    dateOfBirth: raw.dateOfBirth,
+    region: raw.regionName,
+    regionId: raw.regionId,
+    district: raw.districtName,
+    districtId: raw.districtId,
+    floatBalance: toSafeNumber(raw.currentBalance),
+    floatHealth: normalizeFloatHealth(raw.floatHealth),
+    commissionBalance: toSafeNumber(raw.commission),
+    transactions: toSafeNumber(raw.transactionCount),
+    status: normalizeStatus(raw.status),
+  }
+}
+
+async function fetchAgents(accessToken?: string): Promise<AgentSummary[]> {
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/agents`, {
+    headers: { Authorization: `Bearer ${accessToken ?? ''}` },
+  })
+  if (!response.ok) throw new Error('Failed to load agents')
+  const body: { data: RawAgentRecord[] } = await response.json()
+  return (body.data ?? []).map(toAgentSummary)
+}
+
+async function fetchAgentDetail(agentId: string, accessToken?: string): Promise<AgentDetail> {
+  const response = await fetch(
+    `${import.meta.env.VITE_API_BASE_URL}/agents/${encodeURIComponent(agentId)}`,
+    { headers: { Authorization: `Bearer ${accessToken ?? ''}` } },
+  )
+  if (!response.ok) throw new Error('Failed to load agent')
+  const body: { data: RawAgentRecord } = await response.json()
+  return toAgentSummary(body.data)
+}
+
+
+export default function Agents() {
+  const { user } = useAuth()
+
+  const [agents, setAgents] = useState<AgentSummary[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('All')
   const [floatHealthFilter, setFloatHealthFilter] = useState('All')
@@ -122,62 +193,84 @@ export default function Cashiers() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null)
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedDetail, setSelectedDetail] = useState<AgentDetail | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
 
-  const [view, setView] = useState<'list' | 'form' | 'history'>('list')
+  const [view, setView] = useState<'list' | 'form'>('list')
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
 
   const [actionMenu, setActionMenu] = useState<ActionMenuState | null>(null)
   const menuButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
-  const [confirmReport, setConfirmReport] = useState<ConfirmReportState | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<Cashier | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<AgentSummary | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [companyWalletBalance, setCompanyWalletBalance] = useState(
     () => TRUST_ACCOUNT_BALANCE - getEmoneyLiabilities(),
   )
-  const [topUpTarget, setTopUpTarget] = useState<Cashier | null>(null)
+  const [topUpTarget, setTopUpTarget] = useState<AgentSummary | null>(null)
+  const [isToppingUp, setIsToppingUp] = useState(false)
 
-  const filtered = useMemo(() => {
+  const [reloadToken, setReloadToken] = useState(0)
+  const reloadAgents = () => setReloadToken((token) => token + 1)
+
+  useEffect(() => {
+    let active = true
+    const loadAgents = async () => {
+      setIsLoading(true)
+      setLoadError(null)
+      try {
+        const data = await fetchAgents(user?.accessToken)
+        if (active) setAgents(data)
+      } catch {
+        if (active) setLoadError('Could not load agents. Please try again.')
+      } finally {
+        if (active) setIsLoading(false)
+      }
+    }
+    loadAgents()
+    return () => {
+      active = false
+    }
+  }, [user?.accessToken, reloadToken])
+
+    const filtered = useMemo(() => {
     const digitsQuery = query.replace(/\D/g, '')
-    return cashiers.filter((cashier) => {
+    return agents.filter((agent) => {
+      const fullName = agent.fullName?.toLowerCase() ?? '';
+      const agentNumber = agent.agentNumber?.toLowerCase() ?? '';
+      const phone = agent.phone?.replace(/\D/g, '') ?? '';
+      const search = query.toLowerCase();
+
       const matchesQuery =
-        cashier.name.toLowerCase().includes(query.toLowerCase()) ||
-        cashier.id.toLowerCase().includes(query.toLowerCase()) ||
-        (digitsQuery.length > 0 && cashier.phone.replace(/\D/g, '').includes(digitsQuery))
-      const matchesStatus = status === 'All' || getCashierStatus(cashier) === status
-      const matchesFloatHealth =
-        floatHealthFilter === 'All' ||
-        getFloatHealth(getCashierFloatBalance(cashier)).label === floatHealthFilter
+        fullName.includes(search) ||
+        agentNumber.includes(search) ||
+        (digitsQuery.length > 0 && phone.includes(digitsQuery))
+      
+      const matchesStatus = status === 'All' || agent.status === status
+      const matchesFloatHealth = floatHealthFilter === 'All' || agent.floatHealth === floatHealthFilter
       return matchesQuery && matchesStatus && matchesFloatHealth
     })
-  }, [cashiers, query, status, floatHealthFilter])
+  }, [agents, query, status, floatHealthFilter])
 
   const sorted = useMemo(() => {
     if (!sortKey || !sortDir) return filtered
     const direction = sortDir === 'asc' ? 1 : -1
-    const txCountOf = (cashier: Cashier) =>
-      transactions.filter((tx) => tx.recipientName === cashier.name).length
     return [...filtered].sort((a, b) => {
       switch (sortKey) {
         case 'id':
-          return a.id.localeCompare(b.id) * direction
+          return a.agentNumber.localeCompare(b.agentNumber) * direction
         case 'name':
-          return a.name.localeCompare(b.name) * direction
+          return a.fullName.localeCompare(b.fullName) * direction
         case 'floatBalance':
-          return (getCashierFloatBalance(a) - getCashierFloatBalance(b)) * direction
+          return (a.floatBalance - b.floatBalance) * direction
         case 'floatHealth':
-          return (
-            getFloatHealth(getCashierFloatBalance(a)).label.localeCompare(
-              getFloatHealth(getCashierFloatBalance(b)).label,
-            ) * direction
-          )
+          return a.floatHealth.localeCompare(b.floatHealth) * direction
         case 'commissionBalance':
-          return (a.commissionPayable - b.commissionPayable) * direction
+          return (a.commissionBalance - b.commissionBalance) * direction
         case 'transactions':
-          return (txCountOf(a) - txCountOf(b)) * direction
-        case 'lastActive':
-          return getLastActiveDate(a).localeCompare(getLastActiveDate(b)) * direction
+          return (a.transactions - b.transactions) * direction
         case 'status':
-          return getCashierStatus(a).localeCompare(getCashierStatus(b)) * direction
+          return a.status.localeCompare(b.status) * direction
         default:
           return 0
       }
@@ -200,28 +293,19 @@ export default function Cashiers() {
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
   const pageItems = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  const selected = cashiers.find((cashier) => cashier.id === selectedId) ?? null
-  const selectedStatus = selected ? getCashierStatus(selected) : null
+  const selected = agents.find((agent) => agent.agentId === selectedId) ?? null
+  const selectedStatus: AgentStatus | null = selected?.status ?? null
 
-  const selectedTransactions = useMemo(
-    () => (selected ? transactions.filter((tx) => tx.recipientName === selected.name) : []),
-    [selected],
-  )
-
-  const totalCashiers = cashiers.length
-  const activeCount = cashiers.filter((cashier) => getCashierStatus(cashier) === 'Active').length
-  const pendingCount = cashiers.filter((cashier) => getCashierStatus(cashier) === 'Pending').length
-  const idleCount = cashiers.filter((cashier) => getCashierStatus(cashier) === 'Idle').length
-  const dormantCount = cashiers.filter((cashier) => getCashierStatus(cashier) === 'Dormant').length
-  const blockedCount = cashiers.filter((cashier) => getCashierStatus(cashier) === 'Blocked').length
-  const lowFloatCount = cashiers.filter(
-    (cashier) => getCashierFloatBalance(cashier) < LOW_FLOAT_THRESHOLD,
-  ).length
-  const totalFloat = cashiers.reduce((sum, cashier) => sum + getCashierFloatBalance(cashier), 0)
-  const totalCommission = cashiers.reduce((sum, cashier) => sum + cashier.commissionPayable, 0)
-
+  const totalAgents = agents.length
+  const activeCount = agents.filter((agent) => agent.status === 'Active').length
+  const pendingCount = agents.filter((agent) => agent.status === 'Pending').length
+  const pinChangeRequiredCount = agents.filter(
+    (agent) => agent.status === 'PIN_CHANGE_REQUIRED',).length
+  const blockedCount = agents.filter((agent) => agent.status === 'Blocked').length
+  const lowFloatCount = agents.filter((agent) => agent.floatHealth !== 'Healthy').length
+  const totalFloat = agents.reduce((sum, agent) => sum + agent.floatBalance, 0)
+  const totalCommission = agents.reduce((sum, agent) => sum + agent.commissionBalance, 0)
   const resetToFirstPage = () => setPage(1)
-
   const closeActionMenu = () => setActionMenu(null)
 
   const toggleActionMenu = (id: string) => {
@@ -235,179 +319,149 @@ export default function Cashiers() {
     setActionMenu({ id, top: rect.bottom + 6, left: rect.right - 160 })
   }
 
-  const openCashier = (id: string) => {
-    setSelectedId(id)
+  const openAgent = async (agentId: string) => {
+    setSelectedId(agentId)
+    setSelectedDetail(null)
     setDrawerOpen(true)
     closeActionMenu()
+    setDetailLoading(true)
+    try {
+      const detail = await fetchAgentDetail(agentId, user?.accessToken)
+      setSelectedDetail(detail)
+    } catch {
+      toast.error('Could Not Load Agent', {
+        description: "Failed to fetch this agent's details. Please try again.",
+        duration: 3000,
+      })
+    } finally {
+      setDetailLoading(false)
+    }
   }
 
-  const nextCashierId = () => {
-    const nextNumber =
-      Math.max(0, ...cashiers.map((cashier) => Number(cashier.id.replace('CSH-', '')) || 0)) + 1
-    return `CSH-${nextNumber}`
-  }
-
-  const openEdit = (id: string) => {
-    const cashier = cashiers.find((item) => item.id === id)
-    if (!cashier) return
-    setSelectedId(id)
-    setFormMode('edit')
-    setView('form')
+  const openEdit = async (agentId: string) => {
     closeActionMenu()
+    try {
+      const detail = await fetchAgentDetail(agentId, user?.accessToken)
+      setSelectedId(agentId)
+      setSelectedDetail(detail)
+      setFormMode('edit')
+      setView('form')
+    } catch {
+      toast.error('Could Not Load Agent', {
+        description: "Failed to fetch this agent's details. Please try again.",
+        duration: 3000,
+      })
+    }
   }
 
   const openCreate = () => {
     setSelectedId(null)
+    setSelectedDetail(null)
     setFormMode('create')
     setView('form')
   }
 
   const backToList = () => setView('list')
 
-  const openTransactions = (id: string) => {
-    setSelectedId(id)
-    setView('history')
-    setDrawerOpen(false)
-    closeActionMenu()
-  }
-
-  const handleFormSubmit = (cashier: Cashier) => {
-    try {
-      if (formMode === 'edit') {
-        setCashiers((prev) => prev.map((item) => (item.id === cashier.id ? cashier : item)))
-      } else {
-        setCashiers((prev) => [cashier, ...prev])
-      }
-      setView('list')
-
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'success',
-        title: formMode === 'create' ? 'Cashier Created' : 'Cashier Updated',
-        text:
-          formMode === 'create'
-            ? `${cashier.name} has been registered successfully.`
-            : `${cashier.name}'s details have been updated successfully.`,
-        showConfirmButton: false,
-        timer: 1500,
-      })
-    } catch (error) {
-      console.error('Cashier form submit error:', error)
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'error',
-        title: formMode === 'create' ? 'Cashier Creation Failed' : 'Cashier Update Failed',
-        text:
-          formMode === 'create'
-            ? 'An error occurred while creating the cashier. Please try again.'
-            : 'An error occurred while updating the cashier. Please try again.',
-        showConfirmButton: false,
-      })
-    }
-  }
-
-  const requestReportToggle = (id: string) => {
-    const cashier = cashiers.find((item) => item.id === id)
-    if (!cashier) return
-    setConfirmReport({ id, name: cashier.name, report: !cashier.unauthorizedReported })
-    closeActionMenu()
-  }
-
-  const confirmReportToggle = () => {
-    if (!confirmReport) return
-    setCashiers((prev) =>
-      prev.map((cashier) =>
-        cashier.id === confirmReport.id
-          ? { ...cashier, unauthorizedReported: confirmReport.report }
-          : cashier,
-      ),
-    )
-    setConfirmReport(null)
+  const handleFormSubmit = (values: AgentEditableFields) => {
+    // AgentOnboarding already made the real POST/PUT call and only calls
+    // onSubmit on success, so this just reflects the result back into the list.
+    setView('list')
+    toast.success(formMode === 'create' ? 'Agent Created' : 'Agent Updated', {
+      description:
+        formMode === 'create'
+          ? `${values.fullName} has been registered successfully.`
+          : `${values.fullName}'s details have been updated.`,
+      duration: 1500,
+    })
+    reloadAgents()
   }
 
   const requestDelete = (id: string) => {
-    const cashier = cashiers.find((item) => item.id === id)
-    if (!cashier) return
-    setDeleteTarget(cashier)
+    const agent = agents.find((item) => item.agentId === id)
+    if (!agent) return
+    setDeleteTarget(agent)
     closeActionMenu()
   }
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteTarget) return
-    setCashiers((prev) => prev.filter((cashier) => cashier.id !== deleteTarget.id))
-    if (selectedId === deleteTarget.id) {
-      setDrawerOpen(false)
+    setIsDeleting(true)
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/agents/${encodeURIComponent(deleteTarget.agentId)}`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${user?.accessToken ?? ''}` },
+        },
+      )
+      if (!response.ok) throw new Error('Failed to delete agent')
+      if (selectedId === deleteTarget.agentId) {
+        setDrawerOpen(false)
+      }
+      toast.success('Agent Deleted', {
+        description: `${deleteTarget.fullName} has been removed.`,
+        duration: 1500,
+      })
+      setDeleteTarget(null)
+      reloadAgents()
+    } catch {
+      toast.error('Delete Failed', {
+        description: 'Could not delete this agent. Please try again.',
+        duration: 3000,
+      })
+    } finally {
+      setIsDeleting(false)
     }
-    setDeleteTarget(null)
   }
 
   const openTopUp = (id: string) => {
-    const cashier = cashiers.find((item) => item.id === id)
-    if (!cashier) return
-    setTopUpTarget(cashier)
+    const agent = agents.find((item) => item.agentId === id)
+    if (!agent) return
+    setTopUpTarget(agent)
     closeActionMenu()
   }
 
-  const handleTopUpSubmit = (amount: number) => {
+  const handleTopUpSubmit = async (amount: number, description: string) => {
     if (!topUpTarget) return
+    const targetId = topUpTarget.agentId
+    const name = topUpTarget.fullName
+    setIsToppingUp(true)
     try {
-      const targetId = topUpTarget.id
-      const name = topUpTarget.name
-      setCashiers((prev) =>
-        prev.map((cashier) =>
-          cashier.id === targetId
-            ? { ...cashier, openingFloatBalance: cashier.openingFloatBalance + amount }
-            : cashier,
-        ),
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/agents/${encodeURIComponent(targetId)}/float-topup`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${user?.accessToken ?? ''}`,
+          },
+          body: JSON.stringify({ amount, description }),
+        },
       )
+      if (!response.ok) throw new Error('Failed to top up float')
       setCompanyWalletBalance((prev) => prev - amount)
       setTopUpTarget(null)
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'success',
-        title: 'Float Top-Up Successful',
-        text: `TSh ${amount.toLocaleString()} added to ${name}'s float.`,
-        showConfirmButton: false,
-        timer: 1500,
+      toast.success('Float Top-Up Successful', {
+        description: `TSh ${amount.toLocaleString()} added to ${name}'s float.`,
+        duration: 1500,
       })
+      reloadAgents()
     } catch (error) {
-      console.error('Cashier top-up error:', error)
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'error',
-        title: 'Float Top-Up Failed',
-        text: 'An error occurred while transferring the float. Please try again.',
-        showConfirmButton: false,
+      console.error('Agent top-up error:', error)
+      toast.error('Float Top-Up Failed', {
+        description: 'An error occurred while transferring the float. Please try again.',
       })
+    } finally {
+      setIsToppingUp(false)
     }
-  }
-
-  if (view === 'history' && selected) {
-    return (
-      <TransactionHistoryView
-        subjectName={selected.name}
-        subjectPhone={selected.phone}
-        statusBadge={
-          selectedStatus ? { variant: statusVariant[selectedStatus], label: selectedStatus } : null
-        }
-        onBack={backToList}
-        backAriaLabel="Back to cashiers"
-        transactions={selectedTransactions}
-        emptyMessage="No transactions processed by this cashier yet."
-      />
-    )
   }
 
   if (view === 'form') {
     return (
-      <CashierRegisterForm
+      <AgentOnboarding
         mode={formMode}
-        initialCashier={formMode === 'edit' ? (selected ?? undefined) : undefined}
-        defaultCashierId={nextCashierId()}
+        initialAgent={formMode === 'edit' ? (selectedDetail ?? undefined) : undefined}
         onCancel={backToList}
         onSubmit={handleFormSubmit}
       />
@@ -418,9 +472,9 @@ export default function Cashiers() {
     <div className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-ink">Cashiers</h1>
+          <h1 className="text-2xl font-extrabold text-ink">Agents</h1>
           <p className="mt-1 text-sm text-muted">
-            Manage cashier accounts, float balances, and transaction activity.
+            Manage agent accounts, float balances, and transaction activity.
           </p>
         </div>
         <button
@@ -429,35 +483,34 @@ export default function Cashiers() {
           className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand/90"
         >
           <Plus size={16} />
-          Create cashier
+          Create agent
         </button>
       </div>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={Users} tone="brand" label="Total Cashiers" value={String(totalCashiers)} />
+        <StatCard icon={Users} tone="brand" label="Total Agents" value={String(totalAgents)} />
         <StatCard
           icon={UserCheck}
           tone="positive"
-          label="Active Cashiers"
+          label="Active Agents"
           value={String(activeCount)}
         />
         <StatCard
           icon={Clock}
           tone="warning"
-          label="Pending Cashiers"
+          label="Pending Agents"
           value={String(pendingCount)}
         />
         <StatCard
-          icon={PauseCircle}
+          icon={Lock}
           tone="warning"
-          label="Idle Cashiers"
-          value={String(idleCount)}
-          deltaLabel={`${dormantCount} dormant`}
+          label="PIN Change Required"
+          value={String(pinChangeRequiredCount)}
         />
         <StatCard
           icon={UserX}
           tone="negative"
-          label="Blocked Cashiers"
+          label="Blocked Agents"
           value={String(blockedCount)}
         />
         <StatCard
@@ -469,9 +522,9 @@ export default function Cashiers() {
         <StatCard
           icon={AlertTriangle}
           tone="negative"
-          label="Low-Float Cashiers"
+          label="Low-Float Agents"
           value={String(lowFloatCount)}
-          deltaLabel={`Below ${formatAmount(LOW_FLOAT_THRESHOLD)} float`}
+          deltaLabel="Float health below Healthy"
         />
         <StatCard
           icon={HandCoins}
@@ -510,7 +563,7 @@ export default function Cashiers() {
           >
             {statusOptions.map((option) => (
               <option key={option} value={option}>
-                {option === 'All' ? 'All statuses' : option}
+                {option === 'All' ? 'All statuses' : (statusLabel[option] ?? option)}
               </option>
             ))}
           </select>
@@ -544,7 +597,7 @@ export default function Cashiers() {
                     onClick={() => toggleSort('id')}
                     className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-ink"
                   >
-                    Cashier ID
+                    Agent ID
                     <SortIcon direction={sortKey === 'id' ? sortDir : null} />
                   </button>
                 </th>
@@ -602,16 +655,6 @@ export default function Cashiers() {
                 <th className="whitespace-nowrap px-4 py-3 font-semibold">
                   <button
                     type="button"
-                    onClick={() => toggleSort('lastActive')}
-                    className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-ink"
-                  >
-                    Last Active
-                    <SortIcon direction={sortKey === 'lastActive' ? sortDir : null} />
-                  </button>
-                </th>
-                <th className="whitespace-nowrap px-4 py-3 font-semibold">
-                  <button
-                    type="button"
                     onClick={() => toggleSort('status')}
                     className="inline-flex items-center gap-1 font-semibold transition-colors hover:text-ink"
                   >
@@ -623,70 +666,76 @@ export default function Cashiers() {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {pageItems.map((cashier, index) => {
-                const floatHealth = getFloatHealth(getCashierFloatBalance(cashier))
-                const txCount = transactions.filter(
-                  (tx) => tx.recipientName === cashier.name,
-                ).length
-                const cashierStatus = getCashierStatus(cashier)
-                const lastActiveDate = getLastActiveDate(cashier)
-                return (
+              {isLoading && (
+                <tr>
+                  <td colSpan={10} className="px-6 py-8 text-center text-sm text-muted">
+                    Loading agents...
+                  </td>
+                </tr>
+              )}
+              {!isLoading && loadError && (
+                <tr>
+                  <td colSpan={10} className="px-6 py-8 text-center text-sm text-red-600">
+                    {loadError}
+                  </td>
+                </tr>
+              )}
+              {!isLoading &&
+                !loadError &&
+                pageItems.map((agent, index) => (
                   <tr
-                    key={cashier.id}
-                    onClick={() => openCashier(cashier.id)}
+                    key={agent.agentId}
+                    onClick={() => openAgent(agent.agentId)}
                     className="cursor-pointer transition-colors hover:bg-surface"
                   >
                     <td className="whitespace-nowrap px-4 py-3.5 text-xs text-muted">
                       {(page - 1) * PAGE_SIZE + index + 1}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5 font-mono text-xs text-muted">
-                      {cashier.id}
+                      {agent.agentNumber}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5 font-medium text-ink">
-                      {cashier.name}
+                      {agent.fullName}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5 font-mono text-ink/70">
-                      {cashier.phone}
+                      {agent.phone}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5 text-right font-semibold text-ink">
-                      {formatAmount(getCashierFloatBalance(cashier))}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3.5">
-                      <StatusBadge status={floatHealth.variant} label={floatHealth.label} />
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3.5 text-right font-semibold text-ink">
-                      {formatAmount(cashier.commissionPayable)}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3.5 text-right">
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          openTransactions(cashier.id)
-                        }}
-                        className="font-semibold text-brand underline-offset-2 hover:underline"
-                      >
-                        {txCount} transaction{txCount === 1 ? '' : 's'}
-                      </button>
+                      {formatAmount(agent.floatBalance)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5">
                       <StatusBadge
-                        status={statusVariant[cashierStatus]}
-                        label={formatLastActive(lastActiveDate)}
+                        status={
+                          agent.floatHealth === 'Healthy'
+                            ? 'positive'
+                            : agent.floatHealth === 'Low'
+                              ? 'warning'
+                              : 'negative'
+                        }
+                        label={agent.floatHealth}
                       />
                     </td>
+                    <td className="whitespace-nowrap px-4 py-3.5 text-right font-semibold text-ink">
+                      {formatAmount(agent.commissionBalance)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5 text-right text-ink/80">
+                      {agent.transactions} transaction{agent.transactions === 1 ? '' : 's'}
+                    </td>
                     <td className="whitespace-nowrap px-4 py-3.5">
-                      <StatusBadge status={statusVariant[cashierStatus]} label={cashierStatus} />
+                      <StatusBadge
+                        status={statusVariant[agent.status]}
+                        label={statusLabel[agent.status] ?? agent.status}
+                      />
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5 text-right">
                       <button
                         type="button"
                         ref={(node) => {
-                          menuButtonRefs.current[cashier.id] = node
+                          menuButtonRefs.current[agent.agentId] = node
                         }}
                         onClick={(event) => {
                           event.stopPropagation()
-                          toggleActionMenu(cashier.id)
+                          toggleActionMenu(agent.agentId)
                         }}
                         aria-label="Row actions"
                         className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink/80 transition-colors hover:border-brand hover:bg-brand hover:text-white"
@@ -695,12 +744,11 @@ export default function Cashiers() {
                       </button>
                     </td>
                   </tr>
-                )
-              })}
-              {pageItems.length === 0 && (
+                ))}
+              {!isLoading && !loadError && pageItems.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="px-6 py-8 text-center text-sm text-muted">
-                    No cashiers match your filters.
+                  <td colSpan={10} className="px-6 py-8 text-center text-sm text-muted">
+                    No agents match your filters.
                   </td>
                 </tr>
               )}
@@ -748,7 +796,7 @@ export default function Cashiers() {
             >
               <button
                 type="button"
-                onClick={() => openCashier(actionMenu.id)}
+                onClick={() => openAgent(actionMenu.id)}
                 className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs font-medium text-ink transition-colors hover:bg-brand hover:text-white"
               >
                 <Eye size={14} /> View
@@ -781,29 +829,13 @@ export default function Cashiers() {
 
       <Drawer
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        title="Cashier detail"
-        footer={
-          selected ? (
-            selected.unauthorizedReported ? (
-              <button
-                type="button"
-                onClick={() => requestReportToggle(selected.id)}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-green-200 bg-green-50 py-2.5 text-sm font-semibold text-green-700"
-              >
-                <ShieldCheck size={16} /> Unblock
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => requestReportToggle(selected.id)}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-red-200 bg-red-50 py-2.5 text-sm font-semibold text-red-700"
-              >
-                <Ban size={16} /> Block
-              </button>
-            )
-          ) : null
-        }
+        onClose={() => {
+          setDrawerOpen(false)
+          setSelectedDetail(null)
+        }}
+        title="Agent detail"
+        footer={null}
+        size="xl"
       >
         {selected && (
           <div className="space-y-5">
@@ -812,11 +844,14 @@ export default function Cashiers() {
                 <UserCog size={20} />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-base font-bold text-ink">{selected.name}</p>
-                <p className="truncate font-mono text-xs text-muted">{selected.id}</p>
+                <p className="truncate text-base font-bold text-ink">{selected.fullName}</p>
+                <p className="truncate font-mono text-xs text-muted">{selected.agentNumber}</p>
               </div>
               {selectedStatus && (
-                <StatusBadge status={statusVariant[selectedStatus]} label={selectedStatus} />
+                <StatusBadge
+                  status={statusVariant[selectedStatus]}
+                  label={statusLabel[selectedStatus] ?? selectedStatus}
+                />
               )}
             </div>
 
@@ -827,31 +862,34 @@ export default function Cashiers() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => openTopUp(selected.id)}
+                  onClick={() => openTopUp(selected.agentId)}
                   className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-brand/10 px-3 py-1.5 text-xs font-semibold text-brand transition-colors hover:bg-brand hover:text-white"
                 >
                   <CirclePlus size={14} /> Top Up Float
                 </button>
               </div>
               <p className="mt-1 text-3xl font-extrabold text-ink">
-                {formatAmount(getCashierFloatBalance(selected))}
+                {formatAmount(selected.floatBalance)}
               </p>
             </div>
 
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                Cashier Information
+                Agent Information
               </p>
+              {detailLoading && !selectedDetail && (
+                <p className="mt-3 text-sm text-muted">Loading details...</p>
+              )}
               <div className="mt-3 divide-y divide-line rounded-xl ring-1 ring-line">
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
                       <Hash size={16} />
                     </span>
-                    <p className="text-xs text-muted">Cashier ID</p>
+                    <p className="text-xs text-muted">Agent ID</p>
                   </div>
                   <p className="shrink-0 truncate font-mono text-sm font-semibold text-ink">
-                    {selected.id}
+                    {selected.agentNumber}
                   </p>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">
@@ -865,57 +903,80 @@ export default function Cashiers() {
                     {selected.phone}
                   </p>
                 </div>
-                <div className="flex items-center justify-between gap-3 p-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                      <MapPin size={16} />
-                    </span>
-                    <p className="text-xs text-muted">Branch</p>
+                {selected.email && (
+                  <div className="flex items-center justify-between gap-3 p-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                        <Mail size={16} />
+                      </span>
+                      <p className="text-xs text-muted">Email</p>
+                    </div>
+                    <p className="shrink-0 truncate text-sm font-semibold text-ink">
+                      {selected.email}
+                    </p>
                   </div>
-                  <p className="shrink-0 truncate text-sm font-semibold text-ink">
-                    {selected.branch}
-                  </p>
-                </div>
+                )}
+                {selected.gender && (
+                  <div className="flex items-center justify-between gap-3 p-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                        <User size={16} />
+                      </span>
+                      <p className="text-xs text-muted">Gender</p>
+                    </div>
+                    <p className="shrink-0 truncate text-sm font-semibold text-ink">
+                      {selected.gender}
+                    </p>
+                  </div>
+                )}
+                {selected.dateOfBirth && (
+                  <div className="flex items-center justify-between gap-3 p-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                        <CalendarDays size={16} />
+                      </span>
+                      <p className="text-xs text-muted">Date of Birth</p>
+                    </div>
+                    <p className="shrink-0 text-sm font-semibold text-ink">
+                      {selected.dateOfBirth}
+                    </p>
+                  </div>
+                )}
+                {selected.region && (
+                  <div className="flex items-center justify-between gap-3 p-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                        <MapPin size={16} />
+                      </span>
+                      <p className="text-xs text-muted">Region</p>
+                    </div>
+                    <p className="shrink-0 truncate text-sm font-semibold text-ink">
+                      {selected.region}
+                    </p>
+                  </div>
+                )}
+                {selected.district && (
+                  <div className="flex items-center justify-between gap-3 p-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                        <MapPin size={16} />
+                      </span>
+                      <p className="text-xs text-muted">District</p>
+                    </div>
+                    <p className="shrink-0 truncate text-sm font-semibold text-ink">
+                      {selected.district}
+                    </p>
+                  </div>
+                )}
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
                       <HandCoins size={16} />
                     </span>
-                    <p className="text-xs text-muted">Commission Account</p>
+                    <p className="text-xs text-muted">Commission Balance</p>
                   </div>
                   <p className="shrink-0 font-mono text-sm font-semibold text-ink">
-                    {selected.commissionAccount}
-                  </p>
-                </div>
-                <div className="flex items-center justify-between gap-3 p-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                      <Landmark size={16} />
-                    </span>
-                    <p className="text-xs text-muted">Float Account</p>
-                  </div>
-                  <p className="shrink-0 font-mono text-sm font-semibold text-ink">
-                    {selected.floatAccount}
-                  </p>
-                </div>
-                <div className="flex items-center justify-between gap-3 p-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                      <CalendarDays size={16} />
-                    </span>
-                    <p className="text-xs text-muted">Joined</p>
-                  </div>
-                  <p className="shrink-0 text-sm font-semibold text-ink">{selected.joined}</p>
-                </div>
-                <div className="flex items-center justify-between gap-3 p-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                      <Clock size={16} />
-                    </span>
-                    <p className="text-xs text-muted">Last activity</p>
-                  </div>
-                  <p className="shrink-0 text-sm font-semibold text-ink">
-                    {formatLastActive(getLastActiveDate(selected))}
+                    {formatAmount(selected.commissionBalance)}
                   </p>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">
@@ -933,7 +994,9 @@ export default function Cashiers() {
                     </span>
                     <p className="text-xs text-muted">Status</p>
                   </div>
-                  <p className="shrink-0 text-sm font-semibold text-ink">{selectedStatus}</p>
+                  <p className="shrink-0 text-sm font-semibold text-ink">
+                    {selectedStatus ? (statusLabel[selectedStatus] ?? selectedStatus) : ''}
+                  </p>
                 </div>
                 <div className="flex items-center justify-between gap-3 p-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -942,75 +1005,15 @@ export default function Cashiers() {
                     </span>
                     <p className="text-xs text-muted">Total Transactions</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => openTransactions(selected.id)}
-                    className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
-                  >
-                    {selectedTransactions.length} transaction
-                    {selectedTransactions.length === 1 ? '' : 's'}
-                  </button>
+                  <p className="shrink-0 text-sm font-semibold text-ink">
+                    {selected.transactions} transaction{selected.transactions === 1 ? '' : 's'}
+                  </p>
                 </div>
               </div>
             </div>
           </div>
         )}
       </Drawer>
-
-      <Modal
-        open={!!confirmReport}
-        onClose={() => setConfirmReport(null)}
-        title={
-          <>
-            <span
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                confirmReport?.report ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'
-              }`}
-            >
-              {confirmReport?.report ? <Ban size={16} /> : <ShieldCheck size={16} />}
-            </span>
-            {confirmReport?.report ? 'Block cashier' : 'Unblock cashier'}
-          </>
-        }
-        footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setConfirmReport(null)}
-              className="flex-1 rounded-full border border-line py-2.5 text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={confirmReportToggle}
-              className={`flex-1 rounded-full py-2.5 text-sm font-semibold text-white transition-colors ${
-                confirmReport?.report
-                  ? 'bg-red-600 hover:bg-red-700'
-                  : 'bg-green-600 hover:bg-green-700'
-              }`}
-            >
-              {confirmReport?.report ? 'Block' : 'Unblock'}
-            </button>
-          </>
-        }
-      >
-        <p className="text-sm text-ink/80">
-          {confirmReport?.report ? (
-            <>
-              Are you sure you want to block{' '}
-              <span className="font-semibold text-ink">{confirmReport?.name}</span>? Their terminal
-              access will be blocked immediately.
-            </>
-          ) : (
-            <>
-              Are you sure you want to unblock{' '}
-              <span className="font-semibold text-ink">{confirmReport?.name}</span>? They will
-              regain terminal access immediately.
-            </>
-          )}
-        </p>
-      </Modal>
 
       <Modal
         open={!!deleteTarget}
@@ -1020,7 +1023,7 @@ export default function Cashiers() {
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
               <Trash2 size={16} />
             </span>
-            Delete cashier
+            Delete agent
           </>
         }
         footer={
@@ -1028,24 +1031,26 @@ export default function Cashiers() {
             <button
               type="button"
               onClick={() => setDeleteTarget(null)}
-              className="flex-1 rounded-full border border-line py-2.5 text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand"
+              disabled={isDeleting}
+              className="flex-1 rounded-full border border-line py-2.5 text-sm font-semibold text-ink transition-colors hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-60"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={confirmDelete}
-              className="flex-1 rounded-full bg-red-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+              disabled={isDeleting}
+              className="flex-1 rounded-full bg-red-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Delete
+              {isDeleting ? 'Deleting...' : 'Delete'}
             </button>
           </>
         }
       >
         <p className="text-sm text-ink/80">
           Are you sure you want to delete{' '}
-          <span className="font-semibold text-ink">{deleteTarget?.name}</span>? This will
-          permanently remove the cashier and their float wallet assignment. This action cannot be
+          <span className="font-semibold text-ink">{deleteTarget?.fullName}</span>? This will
+          permanently remove the agent and their float wallet assignment. This action cannot be
           undone.
         </p>
       </Modal>
@@ -1063,9 +1068,10 @@ export default function Cashiers() {
         }
       >
         {topUpTarget && (
-          <CashierTopUpForm
-            cashier={topUpTarget}
+          <AgentTopUpForm
+            agent={topUpTarget}
             companyWalletBalance={companyWalletBalance}
+            isSubmitting={isToppingUp}
             onSubmit={handleTopUpSubmit}
             onCancel={() => setTopUpTarget(null)}
           />

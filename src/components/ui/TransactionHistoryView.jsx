@@ -29,8 +29,8 @@ import {
   getAmountTone,
   getTxFromTo,
   formatTxDateTime,
-  isCashierServed,
-  getCashierId,
+  isAgentServed,
+  getAgentId,
 } from '../../features/transactions/data'
 import { maskAccount } from '../../utils/mask'
 
@@ -60,8 +60,8 @@ const typeTone = {
 
 const recipientLabel = {
   W2W: 'Recipient wallet',
-  'Cash In': 'Served by (cashier)',
-  'Cash Out': 'Served by (cashier)',
+  'Cash In': 'Served by (agent)',
+  'Cash Out': 'Served by (agent)',
   W2B: 'Bank account',
   'Loan Disbursement': 'Loan account',
   'Loan Repayment': 'Loan account',
@@ -505,7 +505,7 @@ export default function TransactionHistoryView({
                 </div>
                 {showRecipient &&
                   selectedTxDetail.recipientName &&
-                  !isCashierServed(selectedTxDetail) &&
+                  !isAgentServed(selectedTxDetail) &&
                   (() => {
                     const RecipientIcon = txTypeIcon[selectedTxDetail.type]
                     return (
@@ -549,17 +549,17 @@ export default function TransactionHistoryView({
                     {selectedTxDetail.channel}
                   </p>
                 </div>
-                {isCashierServed(selectedTxDetail) && (
+                {isAgentServed(selectedTxDetail) && (
                   <>
                     <div className="flex items-center justify-between gap-3 p-3">
                       <div className="flex min-w-0 items-center gap-3">
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
                           <Hash size={16} />
                         </span>
-                        <p className="text-xs text-muted">Cashier ID</p>
+                        <p className="text-xs text-muted">Agent ID</p>
                       </div>
                       <p className="shrink-0 truncate font-mono text-sm font-semibold text-ink">
-                        {getCashierId(selectedTxDetail.recipientName)}
+                        {getAgentId(selectedTxDetail.recipientName)}
                       </p>
                     </div>
                     <div className="flex items-center justify-between gap-3 p-3">
@@ -567,7 +567,7 @@ export default function TransactionHistoryView({
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
                           <UserCog size={16} />
                         </span>
-                        <p className="text-xs text-muted">Cashier Name</p>
+                        <p className="text-xs text-muted">Agent Name</p>
                       </div>
                       <p className="min-w-0 truncate text-sm font-semibold text-ink">
                         {selectedTxDetail.recipientName}

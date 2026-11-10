@@ -5,7 +5,7 @@ export interface FeeOverviewStats {
   totalFeeRevenueDelta: number
   netCompanyIncome: number
   totalCommissions: number
-  activeCashiers: number
+  activeAgents: number
 }
 
 export const feeOverviewStats: FeeOverviewStats = {
@@ -13,7 +13,7 @@ export const feeOverviewStats: FeeOverviewStats = {
   totalFeeRevenueDelta: 14,
   netCompanyIncome: 28120000,
   totalCommissions: 17080000,
-  activeCashiers: 5,
+  activeAgents: 5,
 }
 
 export interface FeeTier {

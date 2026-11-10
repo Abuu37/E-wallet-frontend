@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext'
 
 const initialNotifications = [
   { id: 1, title: 'Large withdrawal flagged for review', time: '5m ago', type: 'alert' },
-  { id: 2, title: 'New cashier float request from Mbeya branch', time: '32m ago', type: 'info' },
+  { id: 2, title: 'New agent float request from Mbeya branch', time: '32m ago', type: 'info' },
   { id: 3, title: 'Loan repayment overdue for 3 customers', time: '1h ago', type: 'warning' },
   { id: 4, title: 'New wallet application approved', time: '3h ago', type: 'info' },
 ]

@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Eye, EyeOff, Lock } from "lucide-react";
 import Button from "../../../../components/ui/Button";
 import { getFieldClass, errorClass, RequiredMark } from "../register/shared";
-import Swal from "sweetalert2";
+import { toast } from "../../../../lib/toast";
 
 const PIN_LENGTH = 4;
 
@@ -25,7 +24,6 @@ export default function SetPinStep({
   onBack,
   onSuccess,
 }: SetPinStepProps) {
-  const navigate = useNavigate();
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [showPin, setShowPin] = useState(false);
@@ -56,20 +54,14 @@ export default function SetPinStep({
           body: JSON.stringify({ email, otp, newPin: pin }),
         },
       );
-
-      navigate("/login");
     } catch {
       setPinError(
         "Could not reach the server. Check your connection and try again.",
       );
-      Swal.fire({
-        toast: true,
-        position: "top-end",
-        icon: "error",
-        title: "Network Error",
-        text: "Could not reach the server. Check your connection and try again.",
-        showConfirmButton: false,
-        timer: 3000,
+      toast.error("Network Error", {
+        description:
+          "Could not reach the server. Check your connection and try again.",
+        duration: 3000,
       });
       setSubmitting(false);
       return;
@@ -83,28 +75,15 @@ export default function SetPinStep({
       }
 
       setPinError("");
+      toast.success("PIN reset successful", { duration: 1500 });
+      // navigate only after a confirmed success — onSuccess() advances
+      // ForgotPin's own success screen, which has its own "Back to Login" button
       onSuccess();
-      Swal.fire({
-        toast: true,
-        position: "top-end",
-        icon: "success",
-        title: "PIN reset successful",
-        showConfirmButton: false,
-        timer: 1500,
-      });
     } catch (error) {
-      setPinError(
-        error instanceof Error ? error.message : "Could not reset PIN",
-      );
-
-      Swal.fire({
-        toast: true,
-        position: "top-end",
-        icon: "error",
-        title: "Reset Failed",
-        showConfirmButton: false,
-        timer: 3000,
-      });
+      const message =
+        error instanceof Error ? error.message : "Could not reset PIN";
+      setPinError(message);
+      toast.error("Reset Failed", { description: message, duration: 3000 });
     } finally {
       setSubmitting(false);
     }
@@ -148,8 +127,9 @@ export default function SetPinStep({
           <div className="relative mt-2">
             <Lock
               size={18}
-              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-brand"
             />
+            <span className="pointer-events-none absolute left-9 top-1/2 h-5 w-px -translate-y-1/2 bg-line" />
             <input
               id="pin"
               type={showPin ? "text" : "password"}
@@ -182,8 +162,9 @@ export default function SetPinStep({
           <div className="relative mt-2">
             <Lock
               size={18}
-              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-brand"
             />
+            <span className="pointer-events-none absolute left-9 top-1/2 h-5 w-px -translate-y-1/2 bg-line" />
             <input
               id="confirmPin"
               type={showConfirmPin ? "text" : "password"}

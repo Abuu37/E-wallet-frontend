@@ -88,7 +88,7 @@ export default function AccountWithdraw() {
             <UserCog size={18} />
           </span>
           <div>
-            <h2 className="text-sm font-bold text-ink">Via a Cashier (Cash Out)</h2>
+            <h2 className="text-sm font-bold text-ink">Via an Agent (Cash Out)</h2>
             <p className="text-xs text-muted">Get cash in hand, right now</p>
           </div>
         </div>
@@ -112,7 +112,7 @@ export default function AccountWithdraw() {
           </span>
           <div>
             <h2 className="text-sm font-bold text-ink">To Your Bank Account (W2B)</h2>
-            <p className="text-xs text-muted">Send it straight to your bank — no cashier needed</p>
+            <p className="text-xs text-muted">Send it straight to your bank — no agent needed</p>
           </div>
         </div>
 

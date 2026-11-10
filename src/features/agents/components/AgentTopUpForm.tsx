@@ -1,7 +1,7 @@
 import { useFormik } from 'formik'
 import * as Yup from 'yup'
-import { Landmark, Wallet, Lock } from 'lucide-react'
-import type { Cashier } from '../data'
+import { Landmark, Wallet, FileText } from 'lucide-react'
+import type { AgentSummary } from '../types'
 
 const getInputClass = (hasError: boolean) =>
   `w-full rounded-xl border bg-surface py-2.5 pl-10 pr-3.5 text-sm outline-none ring-1 transition-colors focus:border-brand ${
@@ -11,54 +11,47 @@ const errorClass = 'mt-1 text-xs font-medium text-red-600'
 
 const formatAmount = (value: number) => `TSh ${Math.round(value).toLocaleString()}`
 
-interface CashierTopUpFormProps {
-  cashier: Cashier
+interface AgentTopUpFormProps {
+  agent: AgentSummary
   companyWalletBalance: number
-  onSubmit: (amount: number) => void
+  isSubmitting?: boolean
+  onSubmit: (amount: number, description: string) => void
   onCancel: () => void
 }
 
-export default function CashierTopUpForm({
-  cashier,
+export default function AgentTopUpForm({
+  agent,
   companyWalletBalance,
+  isSubmitting = false,
   onSubmit,
   onCancel,
-}: CashierTopUpFormProps) {
-  const sessionPin = (() => {
-    try {
-      return JSON.parse(sessionStorage.getItem('user') ?? '{}').pin
-    } catch {
-      return undefined
-    }
-  })()
-
+}: AgentTopUpFormProps) {
   const topUpSchema = Yup.object({
     amount: Yup.number()
       .typeError('Enter a valid amount')
       .moreThan(0, 'Amount must be greater than zero')
       .max(companyWalletBalance, 'Amount exceeds the Company Wallet balance')
       .required('Float amount is required'),
-    pin: Yup.string()
-      .required('Admin PIN is required')
-      .test('correct-pin', 'Incorrect PIN', (value) => value === sessionPin),
+    description: Yup.string().trim().required('Description is required'),
   })
 
   const formik = useFormik({
-    initialValues: { amount: '', pin: '' },
+    initialValues: { amount: '', description: '' },
     validationSchema: topUpSchema,
     onSubmit: (values) => {
-      onSubmit(Number(values.amount))
+      onSubmit(Number(values.amount), values.description.trim())
     },
   })
 
-  const hasError = (field: 'amount' | 'pin') => Boolean(formik.touched[field] && formik.errors[field])
+  const hasError = (field: 'amount' | 'description') =>
+    Boolean(formik.touched[field] && formik.errors[field])
 
   const balanceAfterTransfer = companyWalletBalance - (Number(formik.values.amount) || 0)
 
   return (
     <form className="space-y-4" onSubmit={formik.handleSubmit}>
       <p className="text-sm text-muted">
-        Top up <span className="font-semibold text-ink">{cashier.name}</span>'s float from the
+        Top up <span className="font-semibold text-ink">{agent.fullName}</span>'s float from the
         Company Wallet.
       </p>
 
@@ -106,39 +99,41 @@ export default function CashierTopUpForm({
 
       <div>
         <label className="text-xs font-medium text-muted">
-          Admin PIN <span className="text-red-500">*</span>
+          Description <span className="text-red-500">*</span>
         </label>
         <div className="relative mt-1">
-          <Lock
+          <FileText
             size={16}
             className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
           />
           <input
-            type="password"
-            name="pin"
-            value={formik.values.pin}
+            type="text"
+            name="description"
+            value={formik.values.description}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
-            placeholder="Enter your PIN to approve"
-            className={getInputClass(hasError('pin'))}
+            placeholder="e.g. Weekly float top-up"
+            className={getInputClass(hasError('description'))}
           />
         </div>
-        {hasError('pin') && <p className={errorClass}>{formik.errors.pin}</p>}
+        {hasError('description') && <p className={errorClass}>{formik.errors.description}</p>}
       </div>
 
       <div className="flex items-center justify-end gap-3 pt-2">
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-red-600 hover:text-red-600"
+          disabled={isSubmitting}
+          className="rounded-full border border-line px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-red-600 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
           Cancel
         </button>
         <button
           type="submit"
-          className="inline-flex items-center gap-1.5 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand/90"
+          disabled={isSubmitting}
+          className="inline-flex items-center gap-1.5 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Transfer Float
+          {isSubmitting ? 'Transferring...' : 'Transfer Float'}
         </button>
       </div>
     </form>
