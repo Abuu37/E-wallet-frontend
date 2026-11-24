@@ -124,7 +124,7 @@ function CustomerPanel({ id, canUpdate, onClose, onChanged }: { id: string; canU
     if (!c) return
     setBusy(true); setError(null)
     try {
-      await api(`/customers/${id}/status`, { method: 'PATCH', body: { status: locking ? 'SUSPENDED' : 'ACTIVE' } })
+      await api(`/customers/${id}/status`, { method: 'PATCH', body: { status: locking ? 'SUSPENDED' : 'ACTIVE', reason: reason.trim() } })
       toast.success(locking ? 'Customer locked' : 'Customer unlocked')
       setReason('')
       detail.reload(); onChanged()
@@ -165,7 +165,7 @@ function CustomerPanel({ id, canUpdate, onClose, onChanged }: { id: string; canU
               ))}
             </ul>
           )}
-          <p className="mt-4 text-xs text-muted">The reason is required here and is stored with the audit log once that feature ships; the status API does not accept it yet.</p>
+          <p className="mt-4 text-xs text-muted">The reason is required and is recorded in the audit log with your name.</p>
         </>
       )}
     </SidePanel>

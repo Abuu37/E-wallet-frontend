@@ -176,7 +176,7 @@ function StatusPanel({ agent, canUpdate, onClose, onDone }: { agent: AgentRow; c
   async function submit() {
     setBusy(true); setError(null)
     try {
-      await api(`/agents/${agent.agentId}/status`, { method: 'PATCH', body: { status: next } })
+      await api(`/agents/${agent.agentId}/status`, { method: 'PATCH', body: { status: next, reason: reason.trim() } })
       toast.success(`Agent ${next.toLowerCase()}`)
       onDone()
     } catch (err) {
@@ -202,7 +202,7 @@ function StatusPanel({ agent, canUpdate, onClose, onDone }: { agent: AgentRow; c
             <option value="ACTIVE">Active</option><option value="SUSPENDED">Suspended</option><option value="DEACTIVATED">Deactivated</option></select></label>
         <label className="flex flex-col gap-1.5 text-sm font-semibold">Reason (required)
           <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} maxLength={255} className="rounded-xl border border-slate-300 p-3 text-sm font-normal" /></label>
-        <p className="text-xs text-muted">The reason is required here. It is stored with the audit log once that feature ships; the status API does not accept it yet.</p>
+        <p className="text-xs text-muted">The reason is required and is recorded in the audit log with your name.</p>
       </div>}
     </SidePanel>
   )

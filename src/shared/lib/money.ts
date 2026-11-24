@@ -68,3 +68,18 @@ export function subtractAmounts(a: string, b: string): string {
   const abs = (neg ? -diff : diff).toString().padStart(3, '0')
   return `${neg ? '-' : ''}${abs.slice(0, -2)}.${abs.slice(-2)}`
 }
+
+/** Sum of decimal strings, exact (BigInt over hundredths). */
+export function sumAmounts(values: (string | number | null | undefined)[]): string {
+  let total = 0n
+  for (const v of values) {
+    const n = normalizeAmount(amountOf(v))
+    const neg = n.startsWith('-')
+    const [w, f] = n.replace('-', '').split('.')
+    const cents = BigInt(w + f)
+    total += neg ? -cents : cents
+  }
+  const neg = total < 0n
+  const abs = (neg ? -total : total).toString().padStart(3, '0')
+  return `${neg ? '-' : ''}${abs.slice(0, -2)}.${abs.slice(-2)}`
+}

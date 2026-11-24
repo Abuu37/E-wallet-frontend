@@ -27,6 +27,9 @@ const CustomersPage = lazy(() => import('../features/console/customers/Customers
 const AgentsPage = lazy(() => import('../features/console/agents/AgentsPage'))
 const StaffPage = lazy(() => import('../features/console/staff/StaffPage'))
 const RolesPage = lazy(() => import('../features/console/roles/RolesPage'))
+const TransactionsPage = lazy(() => import('../features/console/transactions/TransactionsPage'))
+const TariffsPage = lazy(() => import('../features/console/tariffs/TariffsPage'))
+const AuditPage = lazy(() => import('../features/console/audit/AuditPage'))
 
 const CustomerLayout = lazy(() => import('./layouts/CustomerLayout'))
 const CustomerHome = lazy(() => import('../features/customer/CustomerHome'))
@@ -91,6 +94,9 @@ const router = createBrowserRouter([
           children: [
             { element: <RequirePermission permission="DASHBOARD_VIEW" />, children: [{ index: true, element: <Suspense fallback={fallback}><OverviewPage /></Suspense> }] },
             { element: <RequirePermission permission="FLOAT_VIEW" />, children: [{ path: 'treasury', element: <Suspense fallback={fallback}><TreasuryPage /></Suspense> }] },
+            { element: <RequirePermission permission="TRANSACTION_VIEW_ALL" />, children: [{ path: 'transactions', element: <Suspense fallback={fallback}><TransactionsPage /></Suspense> }] },
+            { element: <RequirePermission permission="CHARGE_VIEW" />, children: [{ path: 'tariffs', element: <Suspense fallback={fallback}><TariffsPage /></Suspense> }] },
+            { element: <RequirePermission permission="AUDIT_VIEW" />, children: [{ path: 'audit', element: <Suspense fallback={fallback}><AuditPage /></Suspense> }] },
             { element: <RequirePermission permission="ROLE_VIEW" />, children: [{ path: 'roles', element: <Suspense fallback={fallback}><RolesPage /></Suspense> }] },
             { element: <RequirePermission permission="USER_VIEW" />, children: [
               { path: 'customers', element: <Suspense fallback={fallback}><CustomersPage /></Suspense> },
