@@ -91,7 +91,7 @@ export default function AgentsPage() {
                     <td>{a.regionName ?? '—'}</td>
                     <td className="tabular-nums">{maskPhone(a.phone)}</td>
                     <td className="text-right font-bold tabular-nums">{formatTzs(a.floatAccount?.balance, { symbol: false })}</td>
-                    <td><td><StatusBadge status={a.status} label={a.status.charAt(0) + a.status.slice(1).toLowerCase()} /></td></td>
+                    <td><StatusBadge status={a.status} label={a.status.charAt(0) + a.status.slice(1).toLowerCase()} /></td>
                     <td className="px-5 text-xs">{formatDate(a.createdAt)}</td>
                   </tr>
                 ))}

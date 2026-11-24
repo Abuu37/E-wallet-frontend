@@ -21,6 +21,7 @@ interface CustomerRow {
   status: 'PENDING' | 'ACTIVE' | 'SUSPENDED'
   wallet: { accountNumber: string; availableBalance: number | string; status: string } | null
   createdAt: string
+  kycStatus: 'NOT_STARTED' | 'PENDING' | 'VERIFIED' | 'FAILED'
 }
 interface CustomerList {
   summary: { totalCustomers: number; activeCustomers: number; suspendedCustomers: number; totalCustomerWalletBalance: number | string }
@@ -38,7 +39,11 @@ interface CustomerProfile {
   wallet: { accountNumber: string; availableBalance: number | string; currency: string; status: string } | null
   transactions: { reference: string; type: string; direction: string; amount: number | string; status: string; createdAt: string }[]
   createdAt: string
+  kycStatus: 'NOT_STARTED' | 'PENDING' | 'VERIFIED' | 'FAILED'
 }
+
+const KYC_LABEL: Record<string, string> = { NOT_STARTED: 'Not started', PENDING: 'Pending', VERIFIED: 'Verified', FAILED: 'Failed' }
+const KYC_TONE: Record<string, string> = { NOT_STARTED: 'bg-slate-100 text-slate-700', PENDING: 'bg-amber-50 text-amber-800', VERIFIED: 'bg-teal-50 text-teal-800', FAILED: 'bg-rose-50 text-rose-800' }
 
 /** The API says SUSPENDED; the staff console calls it Locked. */
 const STATUS_LABEL: Record<string, string> = { ACTIVE: 'Active', SUSPENDED: 'Locked', PENDING: 'Pending' }
@@ -48,13 +53,14 @@ export default function CustomersPage() {
   const [status, setStatus] = useState('')
   const [search, setSearch] = useState('')
   const [date, setDate] = useState('')
+  const [kyc, setKyc] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
   const state = useApi<CustomerList>((signal) => api('/customers', { query: { status: status || undefined, size: 100 }, signal }), [status])
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase()
-    return (state.data?.customers ?? []).filter((c) => (!date || c.createdAt?.slice(0, 10) === date) && (!q || [c.fullName, c.phoneNumber, c.wallet?.accountNumber].some((v) => v?.toLowerCase().includes(q))))
-  }, [state.data, search, date])
+    return (state.data?.customers ?? []).filter((c) => (!date || c.createdAt?.slice(0, 10) === date) && (!kyc || c.kycStatus === kyc) && (!q || [c.fullName, c.phoneNumber, c.wallet?.accountNumber].some((v) => v?.toLowerCase().includes(q))))
+  }, [state.data, search, date, kyc])
 
   const s = state.data?.summary
   return (
@@ -68,9 +74,10 @@ export default function CustomersPage() {
         { label: 'Wallet balances', value: formatTzs(s.totalCustomerWalletBalance, { symbol: false }), unit: 'TZS', icon: Banknote },
       ]} />}
 
-      <FilterBar label="Filter customers" active={Boolean(search || status || date)} onClear={() => { setSearch(''); setStatus(''); setDate('') }}>
+      <FilterBar label="Filter customers" active={Boolean(search || status || date || kyc)} onClear={() => { setSearch(''); setStatus(''); setDate(''); setKyc('') }}>
         <SearchField id="f-q" value={search} onChange={setSearch} placeholder="Search by name, phone or account number" />
         <SelectField id="f-status" label="Status" value={status} onChange={setStatus} options={[['', 'All statuses'], ['ACTIVE', 'Active'], ['SUSPENDED', 'Locked'], ['PENDING', 'Pending']]} />
+        <SelectField id="f-kyc" label="Identity" value={kyc} onChange={setKyc} options={[['', 'All'], ['NOT_STARTED', 'Not started'], ['PENDING', 'Pending'], ['VERIFIED', 'Verified'], ['FAILED', 'Failed']]} />
         <DateField id="f-date" value={date} onChange={setDate} />
       </FilterBar>
 
@@ -79,8 +86,8 @@ export default function CustomersPage() {
           <EmptyState title="Nobody matches these filters." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-left text-sm">
-              <thead><tr className="text-xs text-muted"><th className="px-5 py-2 font-semibold">#</th><th className="font-semibold">Customer</th><th className="font-semibold">Phone</th><th className="font-semibold">Account number</th><th className="text-right font-semibold">Balance (TZS)</th><th className="font-semibold">Status</th><th className="px-5 font-semibold">Joined</th></tr></thead>
+            <table className="w-full min-w-[920px] text-left text-sm">
+              <thead><tr className="text-xs text-muted"><th className="px-5 py-2 font-semibold">#</th><th className="font-semibold">Customer</th><th className="font-semibold">Phone</th><th className="font-semibold">Account number</th><th className="text-right font-semibold">Balance (TZS)</th><th className="font-semibold">Identity</th><th className="font-semibold">Status</th><th className="px-5 font-semibold">Joined</th></tr></thead>
               <tbody>
                 {rows.map((c, i) => (
                   <tr key={c.customerId} {...rowProps(() => setOpenId(c.customerId), `Open ${c.fullName}`)}>
@@ -89,7 +96,8 @@ export default function CustomersPage() {
                     <td className="tabular-nums">{maskPhone(c.phoneNumber)}</td>
                     <td className="font-mono text-xs">{c.wallet ? `•••• ${c.wallet.accountNumber.slice(-4)}` : '—'}</td>
                     <td className="text-right font-bold tabular-nums">{formatTzs(c.wallet?.availableBalance, { symbol: false })}</td>
-                    <td><td className="px-5"><StatusBadge status={c.status === 'SUSPENDED' ? 'LOCKED' : c.status} label={STATUS_LABEL[c.status]} /></td></td>
+                    <td><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${KYC_TONE[c.kycStatus] ?? KYC_TONE.NOT_STARTED}`}>{KYC_LABEL[c.kycStatus] ?? '—'}</span></td>
+                    <td><StatusBadge status={c.status === 'SUSPENDED' ? 'LOCKED' : c.status} label={STATUS_LABEL[c.status]} /></td>
                     <td className="px-5 text-xs">{formatDate(c.createdAt)}</td>
                   </tr>
                 ))}
@@ -143,6 +151,7 @@ function CustomerPanel({ id, canUpdate, onClose, onChanged }: { id: string; canU
           <DetailRow label="Phone">{maskPhone(c.phoneNumber)}</DetailRow>
           <DetailRow label="Email">{maskEmail(c.email)}</DetailRow>
           <DetailRow label="NIDA">{maskNida(c.nida)}</DetailRow>
+          <DetailRow label="Identity check">{KYC_LABEL[c.kycStatus] ?? '—'} (Plaid Sandbox)</DetailRow>
           <DetailRow label="Date of birth">{formatDate(c.dateOfBirth)}</DetailRow>
           <DetailRow label="Registered">{formatDateTime(c.createdAt)}</DetailRow>
           <h3 className="mb-1 mt-5 text-sm font-extrabold">Recent transactions</h3>
@@ -165,7 +174,7 @@ function CustomerPanel({ id, canUpdate, onClose, onChanged }: { id: string; canU
 
 function exportCsv(rows: CustomerRow[]) {
   downloadCsv('customers.csv',
-    ['Customer', 'Phone', 'Email', 'Account number', 'Balance (TZS)', 'Status', 'Joined'],
+    ['Customer', 'Phone', 'Email', 'Account number', 'Balance (TZS)', 'Identity', 'Status', 'Joined'],
     rows.map((c) => [c.fullName, maskPhone(c.phoneNumber), maskEmail(c.email), c.wallet ? `•••• ${c.wallet.accountNumber.slice(-4)}` : '',
-      formatTzs(c.wallet?.availableBalance, { symbol: false }), STATUS_LABEL[c.status], formatDate(c.createdAt)]))
+      formatTzs(c.wallet?.availableBalance, { symbol: false }), KYC_LABEL[c.kycStatus], STATUS_LABEL[c.status], formatDate(c.createdAt)]))
 }

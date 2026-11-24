@@ -30,6 +30,7 @@ const RolesPage = lazy(() => import('../features/console/roles/RolesPage'))
 
 const CustomerLayout = lazy(() => import('./layouts/CustomerLayout'))
 const CustomerHome = lazy(() => import('../features/customer/CustomerHome'))
+const VerifyIdentityPage = lazy(() => import('../features/customer/VerifyIdentityPage'))
 const AgentLayout = lazy(() => import('./layouts/AgentLayout'))
 const AgentHome = lazy(() => import('../features/agent/AgentHome'))
 const AgentCashIn = lazy(() => import('../features/agent/AgentCashIn'))
@@ -68,7 +69,7 @@ const router = createBrowserRouter([
         children: [{
           path: '/app',
           element: <Suspense fallback={fallback}><CustomerLayout /></Suspense>,
-          children: [{ index: true, element: <Suspense fallback={fallback}><CustomerHome /></Suspense> }],
+          children: [{ index: true, element: <Suspense fallback={fallback}><CustomerHome /></Suspense> }, { path: 'verify', element: <Suspense fallback={fallback}><VerifyIdentityPage /></Suspense> }],
         }],
       },
       {
