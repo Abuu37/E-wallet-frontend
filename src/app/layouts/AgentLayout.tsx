@@ -1,25 +1,37 @@
-import { ArrowDownToLine, LayoutGrid, LogOut, Menu, X } from 'lucide-react'
+import { ArrowDownToLine, Coins, Droplet, LayoutGrid, List, Settings } from 'lucide-react'
 import { useState } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
+import { api } from '../../shared/api/client'
+import { useApi } from '../../shared/api/useApi'
 import { useSession } from '../../shared/auth/context'
-import { useT } from '../../shared/i18n'
 import { maskEmail } from '../../shared/lib/phone'
 import { SideNav, type SideNavItem } from './SideNav'
+import { TopBar } from './TopBar'
 
-/** Only screens with a working backend are listed; Withdrawals, Float and Commission arrive with their endpoints. */
+/** Order and labels follow the design. Withdrawals appear in Transactions once customer withdrawals exist. */
 const ITEMS: SideNavItem[] = [
   { to: '/agent', label: 'Dashboard', icon: LayoutGrid, end: true },
   { to: '/agent/cash-in', label: 'Cash-in', icon: ArrowDownToLine },
+  { to: '/agent/transactions', label: 'Transactions', icon: List },
+  { to: '/agent/float', label: 'Float', icon: Droplet },
+  { to: '/agent/commission', label: 'Commission', icon: Coins },
+  { to: '/agent/settings', label: 'Settings', icon: Settings },
 ]
+
+interface Identity { agentProfile: { agentCode: string; businessName: string } }
 
 export default function AgentLayout() {
   const { session, signOut } = useSession()
-  const { t } = useT()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
+  const identity = useApi<Identity>((signal) => api('/agent/dashboard/overview', { signal }), [])
+
+  const business = identity.data?.agentProfile.businessName ?? 'Agent'
+  const code = identity.data?.agentProfile.agentCode
+  const initials = business.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase() || 'A'
 
   const nav = <SideNav surface="Agent portal" items={ITEMS} onNavigate={() => setMenuOpen(false)}
-    who={{ initials: (session?.email ?? 'A').slice(0, 2).toUpperCase(), name: 'Agent', role: maskEmail(session?.email) }} />
+    who={{ initials, name: business, role: code ?? maskEmail(session?.email) }} />
 
   return (
     <div className="flex min-h-screen bg-surface text-ink">
@@ -31,19 +43,10 @@ export default function AgentLayout() {
         </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-line bg-white px-4 py-2 lg:px-8">
-          <button type="button" className="rounded-xl p-2 hover:bg-slate-100 lg:hidden" aria-label={menuOpen ? 'Close menu' : 'Open menu'} onClick={() => setMenuOpen((v) => !v)}>
-            {menuOpen ? <X aria-hidden="true" size={20} /> : <Menu aria-hidden="true" size={20} />}
-          </button>
-          <span className="hidden items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800 sm:flex">
-            <span aria-hidden="true" className="h-2 w-2 rounded-full bg-amber-500" /> Sandbox · demo money
-          </span>
-          <button type="button" onClick={() => { void signOut().then(() => navigate('/login', { replace: true })) }}
-            className="ml-auto flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200">
-            <LogOut aria-hidden="true" size={16} /> {t('common.signOut')}
-          </button>
-        </header>
-        <main id="main" className="flex-1 px-4 py-7 lg:px-8"><Outlet /></main>
+        <TopBar roleLine={`Agent · ${business}${code ? ` · ${code}` : ''}`} name={business} initials={initials} email={maskEmail(session?.email)}
+          settingsTo="/agent/settings" menuOpen={menuOpen} onToggleMenu={() => setMenuOpen((v) => !v)}
+          onSignOut={() => { void signOut().then(() => navigate('/login', { replace: true })) }} />
+        <main id="main" className="flex-1 px-4 py-6 lg:px-8"><Outlet /></main>
       </div>
     </div>
   )

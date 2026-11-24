@@ -114,8 +114,8 @@ function OnboardPanel({ onClose, onDone }: { onClose: () => void; onDone: () => 
   const [busy, setBusy] = useState(false)
   const set = (k: keyof typeof v) => (e: { target: { value: string } }) => setV((p) => ({ ...p, [k]: e.target.value, ...(k === 'regionId' ? { districtId: '' } : {}) }))
 
-  const regions = useApi<Region[]>((signal) => api('/locations/regions', { anonymous: true, signal }), [])
-  const districts = useApi<District[]>((signal) => v.regionId ? api('/locations/districts', { anonymous: true, query: { regionId: v.regionId }, signal }) : Promise.resolve([]), [v.regionId])
+  const regions = useApi<Region[]>((signal) => api('/locations/regions', { signal }), [])
+  const districts = useApi<District[]>((signal) => v.regionId ? api('/locations/districts', { query: { regionId: v.regionId }, signal }) : Promise.resolve([]), [v.regionId])
 
   async function submit(e: FormEvent) {
     e.preventDefault()

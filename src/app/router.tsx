@@ -37,6 +37,10 @@ const VerifyIdentityPage = lazy(() => import('../features/customer/VerifyIdentit
 const AgentLayout = lazy(() => import('./layouts/AgentLayout'))
 const AgentHome = lazy(() => import('../features/agent/AgentHome'))
 const AgentCashIn = lazy(() => import('../features/agent/AgentCashIn'))
+const AgentTransactions = lazy(() => import('../features/agent/AgentTransactions'))
+const AgentFloat = lazy(() => import('../features/agent/AgentFloat'))
+const AgentCommission = lazy(() => import('../features/agent/AgentCommission'))
+const AgentSettings = lazy(() => import('../features/agent/AgentSettings'))
 
 const fallback = <LoadingState />
 
@@ -83,6 +87,10 @@ const router = createBrowserRouter([
           children: [
             { index: true, element: <Suspense fallback={fallback}><AgentHome /></Suspense> },
             { path: 'cash-in', element: <Suspense fallback={fallback}><AgentCashIn /></Suspense> },
+            { path: 'transactions', element: <Suspense fallback={fallback}><AgentTransactions /></Suspense> },
+            { path: 'float', element: <Suspense fallback={fallback}><AgentFloat /></Suspense> },
+            { path: 'commission', element: <Suspense fallback={fallback}><AgentCommission /></Suspense> },
+            { path: 'settings', element: <Suspense fallback={fallback}><AgentSettings /></Suspense> },
           ],
         }],
       },
