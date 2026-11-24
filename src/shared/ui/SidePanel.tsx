@@ -58,11 +58,11 @@ export function DetailRow({ label, children }: { label: string; children: ReactN
   )
 }
 
-export function StatusBadge({ status }: { status: string }) {
+export function StatusBadge({ status, label }: { status: string; label?: string }) {
   const tone: Record<string, string> = {
     PENDING: 'bg-amber-50 text-amber-800', APPROVED: 'bg-teal-50 text-teal-800', ACTIVE: 'bg-teal-50 text-teal-800',
     COMPLETED: 'bg-teal-50 text-teal-800', REJECTED: 'bg-rose-50 text-rose-800', FAILED: 'bg-rose-50 text-rose-800',
     SUSPENDED: 'bg-rose-50 text-rose-800', LOCKED: 'bg-rose-50 text-rose-800', DEACTIVATED: 'bg-slate-100 text-slate-700', INACTIVE: 'bg-slate-100 text-slate-700',
   }
-  return <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${tone[status] ?? 'bg-slate-100 text-slate-700'}`}>{status}</span>
+  return <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${tone[status] ?? 'bg-slate-100 text-slate-700'}`}>{label ?? status}</span>
 }

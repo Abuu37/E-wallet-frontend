@@ -1,10 +1,13 @@
-import { useState, type FormEvent } from 'react'
+import { Ban, ShieldCheck, UserCog, UserX } from 'lucide-react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { ApiError, api } from '../../../shared/api/client'
 import { useApi } from '../../../shared/api/useApi'
 import { useSession } from '../../../shared/auth/context'
 import { formatDateTime } from '../../../shared/lib/dates'
 import { maskEmail, maskPhone, toE164Tz } from '../../../shared/lib/phone'
 import { Button, EmptyState, ErrorState, Field, LoadingState } from '../../../shared/ui/controls'
+import { FilterBar, KpiRow, PageHeader, PersonCell, SearchField, SelectField, TableCard } from '../../../shared/ui/console'
+import { rowProps } from '../../../shared/ui/rowProps'
 import { DetailRow, SidePanel, StatusBadge } from '../../../shared/ui/SidePanel'
 import { toast } from '../../../shared/ui/toast'
 
@@ -16,38 +19,58 @@ type Panel = { kind: 'add' } | { kind: 'edit'; id: string } | null
 export default function StaffPage() {
   const { has } = useSession()
   const [panel, setPanel] = useState<Panel>(null)
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('')
   const state = useApi<StaffRow[] | { staff?: StaffRow[] }>((signal) => api('/staff', { signal }), [])
-  const rows: StaffRow[] = Array.isArray(state.data) ? state.data : state.data?.staff ?? []
+  const all: StaffRow[] = useMemo(() => (Array.isArray(state.data) ? state.data : state.data?.staff ?? []), [state.data])
+
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return all.filter((s) => (!status || s.status === status)
+      && (!q || [`${s.firstName} ${s.lastName}`, s.staffNo, s.phoneNumber, s.jobTitle].some((v) => v?.toLowerCase().includes(q))))
+  }, [all, search, status])
+  const count = (st: string) => all.filter((s) => s.status === st).length
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-extrabold tracking-tight">Staff</h1>
-        {has('USER_CREATE') && <Button onClick={() => setPanel({ kind: 'add' })}>Add staff member</Button>}
-      </div>
+      <PageHeader title="Staff" subtitle="Back-office users. Each person has one role; permissions come from the role."
+        action={has('USER_CREATE') ? <Button onClick={() => setPanel({ kind: 'add' })}>Add staff</Button> : undefined} />
 
-      <section aria-label="Staff" className="rounded-2xl border border-line bg-white">
+      {state.data && <KpiRow items={[
+        { label: 'Total staff', value: String(all.length), icon: UserCog },
+        { label: 'Active', value: String(count('ACTIVE')), icon: ShieldCheck },
+        { label: 'Suspended', value: String(count('SUSPENDED')), icon: Ban },
+        { label: 'Disabled', value: String(count('DISABLED')), icon: UserX },
+      ]} />}
+
+      <FilterBar label="Filter staff" active={Boolean(search || status)} onClear={() => { setSearch(''); setStatus('') }}>
+        <SearchField id="kf-q" value={search} onChange={setSearch} placeholder="Search by name, staff number or phone" />
+        <SelectField id="kf-status" label="Status" value={status} onChange={setStatus} options={[['', 'All statuses'], ['ACTIVE', 'Active'], ['SUSPENDED', 'Suspended'], ['DISABLED', 'Disabled']]} />
+      </FilterBar>
+
+      <TableCard title="All staff" countText={state.data ? `${rows.length} of ${all.length} staff` : undefined}>
         {state.loading && !state.data ? <LoadingState /> : state.error && !state.data ? <ErrorState error={state.error} onRetry={state.reload} /> : rows.length === 0 ? (
-          <EmptyState title="No staff members yet" />
+          <EmptyState title="Nothing matches these filters." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead><tr className="text-xs text-muted"><th className="p-3 font-semibold">Staff</th><th className="font-semibold">Job title</th><th className="font-semibold">Phone</th><th className="font-semibold">Status</th><th className="p-3"><span className="sr-only">Actions</span></th></tr></thead>
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead><tr className="text-xs text-muted"><th className="px-5 py-2 font-semibold">#</th><th className="font-semibold">Staff member</th><th className="font-semibold">Staff no</th><th className="font-semibold">Job title</th><th className="font-semibold">Phone</th><th className="px-5 font-semibold">Status</th></tr></thead>
               <tbody>
-                {rows.map((s) => (
-                  <tr key={s.staffId} className="border-t border-line hover:bg-surface">
-                    <td className="p-3"><b className="block">{s.firstName} {s.lastName}</b><span className="text-xs text-muted">{s.staffNo}</span></td>
+                {rows.map((s, i) => (
+                  <tr key={s.staffId} {...rowProps(() => setPanel({ kind: 'edit', id: s.staffId }), `Open ${s.firstName} ${s.lastName}`)}>
+                    <td className="px-5 py-3 text-muted">{i + 1}</td>
+                    <td><PersonCell name={`${s.firstName} ${s.lastName}`} sub={s.jobTitle} /></td>
+                    <td className="font-mono text-xs">{s.staffNo}</td>
                     <td>{s.jobTitle}</td>
                     <td className="tabular-nums">{maskPhone(s.phoneNumber)}</td>
-                    <td><StatusBadge status={s.status} /></td>
-                    <td className="p-3 text-right"><Button variant="secondary" className="h-9 px-4 text-sm" onClick={() => setPanel({ kind: 'edit', id: s.staffId })}>{has('USER_UPDATE') ? 'Edit' : 'View'}</Button></td>
+                    <td className="px-5"><StatusBadge status={s.status} label={s.status.charAt(0) + s.status.slice(1).toLowerCase()} /></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-      </section>
+      </TableCard>
 
       {panel?.kind === 'add' && <AddPanel onClose={() => setPanel(null)} onDone={() => { setPanel(null); state.reload() }} />}
       {panel?.kind === 'edit' && <EditPanel id={panel.id} canEdit={has('USER_UPDATE')} onClose={() => setPanel(null)} onDone={() => { setPanel(null); state.reload() }} />}

@@ -48,7 +48,7 @@ export function PinPad({ value, onChange, label, length = 4, disabled, tone = 'l
       <div className="grid grid-cols-3 gap-2.5">
         {KEYS.map((k, i) =>
           k === '' ? (
-            <span key={i} aria-hidden="true" />
+            <span key={`gap-${i}`} aria-hidden="true" />
           ) : (
             <button
               key={k}

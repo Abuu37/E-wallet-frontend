@@ -24,7 +24,7 @@ const STATUS_STYLE: Record<string, string> = {
 function Card({ title, children, aside }: { title: string; children: React.ReactNode; aside?: React.ReactNode }) {
   return (
     <section aria-label={title} className="rounded-2xl border border-line bg-white p-5">
-      <div className="mb-3 flex items-center justify-between gap-3"><h2 className="text-base font-extrabold">{title}</h2>{aside}</div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><h2 className="text-base font-extrabold">{title}</h2>{aside}</div>
       {children}
     </section>
   )
@@ -84,7 +84,7 @@ export default function OverviewPage() {
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <div className="flex flex-col gap-5">
           <Card title="Transaction volume" aside={
-            <div role="group" aria-label="Period" className="flex rounded-full bg-slate-100 p-1">
+            <div role="group" aria-label="Period" className="flex max-w-full overflow-x-auto rounded-full bg-slate-100 p-1">
               {PERIODS.map((p) => (
                 <button key={p.key} type="button" aria-pressed={period === p.key} onClick={() => setPeriod(p.key)}
                   className={`rounded-full px-3 py-1 text-xs font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${period === p.key ? 'bg-white text-ink shadow-sm' : 'text-muted'}`}>{p.label}</button>
