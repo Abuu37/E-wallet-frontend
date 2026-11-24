@@ -7,7 +7,7 @@ import { formatTzs } from '../../../shared/lib/money'
 import { maskEmail, maskNida, maskPhone } from '../../../shared/lib/phone'
 import { Button, EmptyState, ErrorState, LoadingState } from '../../../shared/ui/controls'
 import { DetailRow, SidePanel, StatusBadge } from '../../../shared/ui/SidePanel'
-import { toast } from '../../../lib/toast'
+import { toast } from '../../../shared/ui/toast'
 
 interface CustomerRow {
   customerId: string

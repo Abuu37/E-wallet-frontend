@@ -1,5 +1,5 @@
 import { Send, ShieldCheck, Zap } from 'lucide-react'
-import ServiceLayout from '../../components/ui/ServiceLayout'
+import ServiceLayout from '../../components/ServiceLayout'
 
 export default function SendMoney() {
   return (

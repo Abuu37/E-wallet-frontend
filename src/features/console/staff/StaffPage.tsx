@@ -6,7 +6,7 @@ import { formatDateTime } from '../../../shared/lib/dates'
 import { maskEmail, maskPhone, toE164Tz } from '../../../shared/lib/phone'
 import { Button, EmptyState, ErrorState, Field, LoadingState } from '../../../shared/ui/controls'
 import { DetailRow, SidePanel, StatusBadge } from '../../../shared/ui/SidePanel'
-import { toast } from '../../../lib/toast'
+import { toast } from '../../../shared/ui/toast'
 
 interface StaffRow { staffId: string; staffNo: string; firstName: string; middleName: string | null; lastName: string; phoneNumber: string; jobTitle: string; status: string }
 interface StaffDetail extends StaffRow { userId: string; email: string; createdAt: string; updatedAt: string }

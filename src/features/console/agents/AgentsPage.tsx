@@ -7,7 +7,7 @@ import { maskPhone } from '../../../shared/lib/phone'
 import { toE164Tz } from '../../../shared/lib/phone'
 import { Button, EmptyState, ErrorState, Field, LoadingState } from '../../../shared/ui/controls'
 import { DetailRow, SidePanel, StatusBadge } from '../../../shared/ui/SidePanel'
-import { toast } from '../../../lib/toast'
+import { toast } from '../../../shared/ui/toast'
 
 interface AgentRow {
   agentId: string

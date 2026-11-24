@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import SectionHeading from '../../components/ui/SectionHeading'
-import CtaBanner from '../../components/ui/CtaBanner'
+import SectionHeading from '../../components/SectionHeading'
+import CtaBanner from '../../components/CtaBanner'
 
 const ussdSteps: ReactNode[] = [
   <>

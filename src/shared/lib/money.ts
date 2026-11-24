@@ -53,3 +53,18 @@ export function compareAmounts(a: string, b: string): number {
   const cmp = av === bv ? 0 : av > bv ? 1 : -1
   return aNeg ? -cmp : cmp
 }
+
+/** a - b on decimal strings, exact (BigInt over hundredths). */
+export function subtractAmounts(a: string, b: string): string {
+  const toCents = (s: string) => {
+    const n = normalizeAmount(s)
+    const neg = n.startsWith('-')
+    const [w, f] = n.replace('-', '').split('.')
+    const v = BigInt(w + f)
+    return neg ? -v : v
+  }
+  const diff = toCents(a) - toCents(b)
+  const neg = diff < 0n
+  const abs = (neg ? -diff : diff).toString().padStart(3, '0')
+  return `${neg ? '-' : ''}${abs.slice(0, -2)}.${abs.slice(-2)}`
+}

@@ -1,10 +1,11 @@
 import { Bell, ChevronDown, LayoutGrid, LogOut, Menu, Store, Users, UserCog, Vault, X } from 'lucide-react'
 import { useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useNavigate } from 'react-router-dom'
 import { useSession } from '../../shared/auth/context'
+import { SideNav, type SideNavItem } from './SideNav'
 import { maskEmail } from '../../shared/lib/phone'
 
-interface NavItem { to: string; label: string; permission: string; icon: typeof LayoutGrid; end?: boolean }
+interface NavItem extends SideNavItem { permission: string }
 
 /** Only screens with a working backend are listed. */
 const NAV: NavItem[] = [
@@ -30,20 +31,8 @@ export default function ConsoleLayout() {
   const today = new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Dar_es_Salaam', weekday: 'short', day: '2-digit', month: 'short' }).format(new Date())
 
   const nav = (
-    <nav aria-label="Console" className="flex h-full w-64 flex-col gap-6 bg-ink px-4 py-6 text-white">
-      <div className="flex items-center gap-3 px-2">
-        <span className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-brand font-extrabold">W</span>
-        <span className="flex flex-col"><span className="text-base font-extrabold">WalletPesa</span><span className="text-xs font-semibold text-slate-400">Staff console</span></span>
-      </div>
-      <div className="flex flex-1 flex-col gap-1">
-        {items.map(({ to, label, icon: Icon, end }) => (
-          <NavLink key={to} to={to} end={end} onClick={() => setMenuOpen(false)}
-            className={({ isActive }) => `flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-400 ${isActive ? 'bg-[#1E3A8A] text-white' : 'text-slate-300 hover:bg-[#111A2E]'}`}>
-            <Icon aria-hidden="true" size={18} /> {label}
-          </NavLink>
-        ))}
-      </div>
-    </nav>
+    <SideNav surface="Staff console" items={items} onNavigate={() => setMenuOpen(false)}
+      who={{ initials: (session?.email ?? "S").slice(0, 2).toUpperCase(), name: "Staff", role: maskEmail(session?.email) }} />
   )
 
   return (

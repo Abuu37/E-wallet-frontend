@@ -3,13 +3,13 @@ import { api, apiWithCsrf, refreshSession, setAccessToken, setSessionLostHandler
 import { SessionContext, type SessionContextValue } from './context'
 import { STAFF_IDLE_MINUTES, type Role, type Session, type SessionStatus } from './types'
 
-function emailClaim(token: string): string | null {
+function claimsOf(token: string): { email: string | null; userId: string | null } {
   try {
-    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
-    const claims = JSON.parse(atob(payload)) as { email?: string }
-    return claims.email ?? null
+    const payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")
+    const claims = JSON.parse(atob(payload)) as { email?: string; sub?: string }
+    return { email: claims.email ?? null, userId: claims.sub ?? null }
   } catch {
-    return null
+    return { email: null, userId: null }
   }
 }
 
@@ -18,7 +18,7 @@ function toSession(tokens: SessionTokens): Session {
     roles: tokens.roles as Role[],
     permissions: tokens.permissions,
     mustChangePin: tokens.mustChangePin,
-    email: emailClaim(tokens.accessToken),
+    ...claimsOf(tokens.accessToken),
   }
 }
 

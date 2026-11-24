@@ -4,10 +4,9 @@ import { Link } from 'react-router-dom'
 import { ApiError, api, newIdempotencyKey } from '../../shared/api/client'
 import { useApi } from '../../shared/api/useApi'
 import { formatDateTime } from '../../shared/lib/dates'
-import { formatTzs, normalizeAmount } from '../../shared/lib/money'
+import { amountOf, compareAmounts, formatTzs, normalizeAmount, subtractAmounts } from '../../shared/lib/money'
 import { maskPhone, toE164Tz } from '../../shared/lib/phone'
-import { Button, ErrorState, Field, LoadingState } from '../../shared/ui/controls'
-import { PinPad } from '../../shared/ui/PinPad'
+import { Button, ErrorState, LoadingState } from '../../shared/ui/controls'
 import type { AgentOverview } from './AgentHome'
 
 type Amount = number | string
@@ -23,11 +22,10 @@ interface CashInResult {
   createdAt: string
 }
 
-type Step = 'form' | 'pin' | 'receipt'
+const INPUT = 'h-[52px] rounded-[14px] border border-slate-300 px-4 text-[17px] font-semibold text-ink focus-visible:border-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200'
 
 export default function AgentCashIn() {
   const overview = useApi<AgentOverview>((signal) => api('/agent/dashboard/overview', { signal }), [])
-  const [step, setStep] = useState<Step>('form')
   const [phone, setPhone] = useState('')
   const [account, setAccount] = useState('')
   const [amount, setAmount] = useState('')
@@ -35,38 +33,34 @@ export default function AgentCashIn() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [receipt, setReceipt] = useState<CashInResult | null>(null)
-  // One key per attempt: created when the PIN step opens and reused if the same attempt is re-sent.
-  const attemptKey = useRef<string>('')
+  // One key per attempt: it is created on the first submit and reused if the same attempt is re-sent.
+  const attemptKey = useRef('')
   const inFlight = useRef(false)
 
   if (overview.loading && !overview.data) return <LoadingState />
   if (overview.error && !overview.data) return <ErrorState error={overview.error} onRetry={overview.reload} />
-  const agentAccount = overview.data!.wallets.floatAccount.accountNumber
-
+  const float = overview.data!.wallets.floatAccount
   const clean = normalizeAmount(amount)
-  const formValid = phone.replace(/\D/g, '').length >= 9 && account.trim().length > 0 && clean !== '' && Number(clean) >= 1000
+  const amountOk = clean !== '' && compareAmounts(clean, '1000.00') >= 0
+  const floatAfter = amountOk ? subtractAmounts(amountOf(float.balance), clean) : null // display only; the server is the authority
+  const valid = phone.replace(/\D/g, '').length >= 9 && account.trim().length > 0 && amountOk && /^[0-9]{4}$/.test(pin)
 
-  function toPin(e: FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault()
-    if (!formValid) return
-    attemptKey.current = newIdempotencyKey()
-    setPin(''); setError(null); setStep('pin')
-  }
-
-  async function submit() {
-    if (inFlight.current || pin.length !== 4) return // a double tap cannot post twice
+    if (!valid || inFlight.current) return // a double tap cannot post twice
     inFlight.current = true
+    if (!attemptKey.current) attemptKey.current = newIdempotencyKey()
     setBusy(true); setError(null)
     try {
       const result = await api<CashInResult>('/transactions/cash-in', {
         method: 'POST',
         idempotencyKey: attemptKey.current,
-        body: { agentAccountNumber: agentAccount, accountNumber: account.trim(), amount: clean, phone: toE164Tz(phone), agentPin: pin },
+        body: { agentAccountNumber: float.accountNumber, accountNumber: account.trim(), amount: clean, phone: toE164Tz(phone), agentPin: pin },
       })
       setReceipt(result)
-      setStep('receipt')
     } catch (err) {
       setPin('')
+      attemptKey.current = '' // a failed attempt may be corrected and retried as a new attempt
       setError(err instanceof ApiError ? err.message : 'Could not complete the cash-in.')
     } finally {
       inFlight.current = false
@@ -74,46 +68,24 @@ export default function AgentCashIn() {
     }
   }
 
-  function reset() { setPhone(''); setAccount(''); setAmount(''); setPin(''); setReceipt(null); setError(null); setStep('form'); overview.reload() }
+  function reset() { setPhone(''); setAccount(''); setAmount(''); setPin(''); setReceipt(null); setError(null); attemptKey.current = ''; overview.reload() }
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-5">
-      <h1 className="text-2xl font-extrabold tracking-tight">Cash-in</h1>
+    <div className="mx-auto flex max-w-5xl flex-col gap-5 tabular-nums">
+      <div className="flex flex-col gap-1">
+        <Link to="/agent" className="text-sm font-bold text-brand-dark">← Dashboard</Link>
+        <h1 className="text-[28px] font-extrabold tracking-tight">Cash-in</h1>
+        <p className="text-sm text-slate-600">Customer gives you cash, you move it from your float to their wallet.</p>
+      </div>
 
-      {step === 'form' && (
-        <form onSubmit={toPin} className="flex flex-col gap-4 rounded-2xl border border-line bg-white p-5">
-          <Field label="Customer phone" inputMode="tel" autoComplete="off" value={phone} onChange={(e) => setPhone(e.target.value)} hint="+255 is added automatically" required />
-          <Field label="Customer wallet account number" inputMode="numeric" autoComplete="off" value={account} onChange={(e) => setAccount(e.target.value)} required />
-          <Field label="Amount (TZS)" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} hint="Minimum 1,000 TZS" required />
-          <p className="text-xs text-muted">Float available: {formatTzs(overview.data!.wallets.floatAccount.balance)}</p>
-          <Button type="submit" block disabled={!formValid}>Continue</Button>
-        </form>
-      )}
-
-      {step === 'pin' && (
-        <div className="flex flex-col gap-4 rounded-2xl border border-line bg-white p-5">
-          <dl className="flex flex-col gap-1.5 text-sm">
-            <div className="flex justify-between"><dt className="text-muted">Customer</dt><dd className="font-bold tabular-nums">{maskPhone(toE164Tz(phone))}</dd></div>
-            <div className="flex justify-between"><dt className="text-muted">Amount</dt><dd className="font-bold tabular-nums">{formatTzs(clean)}</dd></div>
-          </dl>
-          <p className="text-sm font-semibold">Enter your agent PIN to confirm</p>
-          <PinPad value={pin} onChange={setPin} label="Agent PIN" disabled={busy} />
-          {error && <p role="alert" className="text-center text-sm font-medium text-[#BE123C]">{error}</p>}
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => setStep('form')} disabled={busy}>Back</Button>
-            <Button block loading={busy} disabled={pin.length !== 4} onClick={() => void submit()}>Confirm cash-in</Button>
-          </div>
-        </div>
-      )}
-
-      {step === 'receipt' && receipt && (
-        <section aria-label="Receipt" className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-5">
+      {receipt ? (
+        <section aria-label="Receipt" className="flex max-w-xl flex-col gap-3 rounded-3xl border border-line bg-white p-7">
           <div className="flex items-center gap-2 text-[#16A34A]"><CheckCircle2 aria-hidden="true" size={24} /><h2 className="text-lg font-extrabold">Cash-in complete</h2></div>
           <dl className="flex flex-col gap-2 text-sm">
             {[['Reference', receipt.transactionReference], ['Date', formatDateTime(receipt.createdAt)], ['Customer', maskPhone(receipt.customer.phone)],
               ['Amount', formatTzs(receipt.amount)], ['Fee', formatTzs(receipt.fee)], ['Your commission', formatTzs(receipt.commission)],
               ['Your float now', formatTzs(receipt.agent.newFloatBalance)]].map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-4 border-b border-line pb-2 last:border-0"><dt className="text-muted">{k}</dt><dd className="text-right font-bold tabular-nums">{v}</dd></div>
+              <div key={k} className="flex justify-between gap-4 border-b border-line pb-2 last:border-0"><dt className="text-muted">{k}</dt><dd className="text-right font-bold">{v}</dd></div>
             ))}
           </dl>
           <div className="mt-2 flex gap-2">
@@ -121,6 +93,40 @@ export default function AgentCashIn() {
             <Link to="/agent" className="inline-flex h-12 items-center rounded-full border border-line px-6 font-bold hover:bg-slate-50">Dashboard</Link>
           </div>
         </section>
+      ) : (
+        <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
+          <form onSubmit={submit} className="flex flex-col gap-[18px] rounded-3xl border border-line bg-white p-7">
+            <div className="flex flex-col gap-1.5"><label htmlFor="ci-phone" className="text-sm font-semibold">Customer phone</label>
+              <input id="ci-phone" inputMode="tel" autoComplete="off" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0712 345 678" className={INPUT} /></div>
+            <div className="flex flex-col gap-1.5"><label htmlFor="ci-acc" className="text-sm font-semibold">Customer wallet account number</label>
+              <input id="ci-acc" inputMode="numeric" autoComplete="off" value={account} onChange={(e) => setAccount(e.target.value)} className={INPUT} />
+              <span className="text-[13px] text-slate-600">Ask the customer to show it in their app. Name lookup arrives with send money.</span></div>
+            <div className="flex flex-col gap-1.5"><label htmlFor="ci-amt" className="text-sm font-semibold">Cash received</label>
+              <input id="ci-amt" inputMode="decimal" autoComplete="off" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="50,000"
+                className="h-[60px] rounded-[14px] border-2 border-brand px-4 text-[28px] font-extrabold text-ink shadow-[0_0_0_4px_#DBEAFE] focus-visible:outline-none" />
+              <span className="text-[13px] text-slate-600">Minimum 1,000 TZS</span></div>
+            <div className="flex flex-col gap-1.5"><label htmlFor="ci-pin" className="text-sm font-semibold">Your agent PIN</label>
+              <input id="ci-pin" type="password" inputMode="numeric" autoComplete="off" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} className={`${INPUT} w-44 tracking-[0.3em]`} /></div>
+            {error && <p role="alert" className="text-sm font-medium text-[#BE123C]">{error}</p>}
+            <Button type="submit" block loading={busy} disabled={!valid} className="h-14 rounded-[14px] text-[17px]">
+              {amountOk ? `Confirm cash-in of ${formatTzs(clean)}` : 'Confirm cash-in'}
+            </Button>
+          </form>
+
+          <aside className="flex flex-col gap-4">
+            <div className="flex flex-col rounded-3xl bg-ink p-6 text-white">
+              <span className="mb-2 text-sm font-bold text-slate-400">Before you confirm</span>
+              <div className="flex justify-between py-3 text-base"><span className="text-slate-300">Customer receives</span><b>{amountOk ? formatTzs(clean) : '—'}</b></div>
+              <div className="flex justify-between border-t border-slate-800 py-3 text-base"><span className="text-slate-300">Your float after</span><b>{floatAfter ? formatTzs(floatAfter) : '—'}</b></div>
+              <div className="flex justify-between border-t border-slate-800 py-3 text-base"><span className="text-slate-300">Your commission</span><b className="text-accent">On receipt</b></div>
+              <div className="flex justify-between border-t border-slate-800 py-3 text-base"><span className="text-slate-300">Customer fee</span><b>On receipt</b></div>
+            </div>
+            <div className="flex flex-col gap-2.5 rounded-[20px] border border-line bg-white p-5">
+              <span className="text-[15px] font-extrabold">Good practice</span>
+              <span className="text-sm leading-relaxed text-slate-600">Count the cash before you confirm. Ask the customer to say their name. Never ask for their PIN: cash-in never needs it.</span>
+            </div>
+          </aside>
+        </div>
       )}
     </div>
   )

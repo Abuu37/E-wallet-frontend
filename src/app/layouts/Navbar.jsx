@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { Menu, X, CreditCard, ChevronDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import Button from '../ui/Button'
+import Button from '../../features/public/components/Button'
 
 const links = [
   { to: '/', label: 'Home' },

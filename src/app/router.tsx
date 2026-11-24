@@ -1,16 +1,16 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
-import Layout from '../components/layout/Layout'
-import Contact from '../pages/Contact/Contact'
-import Faq from '../pages/Faq/Faq'
-import Fees from '../pages/Fees/Fees'
-import Home from '../pages/Home/Home'
-import AirtimeDataBundles from '../pages/services/AirtimeDataBundles'
-import BankTransfers from '../pages/services/BankTransfers'
-import BecomeAnAgent from '../pages/services/BecomeAnAgent'
-import MainService from '../pages/services/MainService'
-import PayBills from '../pages/services/PayBills'
-import SendMoney from '../pages/services/SendMoney'
+import Layout from './layouts/PublicLayout'
+import Contact from '../features/public/pages/Contact/Contact'
+import Faq from '../features/public/pages/Faq/Faq'
+import Fees from '../features/public/pages/Fees/Fees'
+import Home from '../features/public/pages/Home/Home'
+import AirtimeDataBundles from '../features/public/pages/services/AirtimeDataBundles'
+import BankTransfers from '../features/public/pages/services/BankTransfers'
+import BecomeAnAgent from '../features/public/pages/services/BecomeAnAgent'
+import MainService from '../features/public/pages/services/MainService'
+import PayBills from '../features/public/pages/services/PayBills'
+import SendMoney from '../features/public/pages/services/SendMoney'
 import { RequirePermission, RequireRole, RequireSession } from '../shared/auth/guards'
 import { LoadingState } from '../shared/ui/controls'
 import RouteError from './RouteError'
@@ -20,16 +20,16 @@ const RegisterPage = lazy(() => import('../features/auth/RegisterPage'))
 const ForgotPinPage = lazy(() => import('../features/auth/ForgotPinPage'))
 const ChangePinPage = lazy(() => import('../features/auth/ChangePinPage'))
 
-const ConsoleLayout = lazy(() => import('../features/console/ConsoleLayout'))
+const ConsoleLayout = lazy(() => import('./layouts/ConsoleLayout'))
 const OverviewPage = lazy(() => import('../features/console/overview/OverviewPage'))
 const TreasuryPage = lazy(() => import('../features/console/treasury/TreasuryPage'))
 const CustomersPage = lazy(() => import('../features/console/customers/CustomersPage'))
 const AgentsPage = lazy(() => import('../features/console/agents/AgentsPage'))
 const StaffPage = lazy(() => import('../features/console/staff/StaffPage'))
 
-const CustomerLayout = lazy(() => import('../features/customer/CustomerLayout'))
+const CustomerLayout = lazy(() => import('./layouts/CustomerLayout'))
 const CustomerHome = lazy(() => import('../features/customer/CustomerHome'))
-const AgentLayout = lazy(() => import('../features/agent/AgentLayout'))
+const AgentLayout = lazy(() => import('./layouts/AgentLayout'))
 const AgentHome = lazy(() => import('../features/agent/AgentHome'))
 const AgentCashIn = lazy(() => import('../features/agent/AgentCashIn'))
 

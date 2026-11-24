@@ -1,4 +1,4 @@
-import checkIcon from '../../assets/icons/check-mark.png'
+import checkIcon from '../../../assets/icons/check-mark.png'
 
 interface CheckIconProps {
   className?: string

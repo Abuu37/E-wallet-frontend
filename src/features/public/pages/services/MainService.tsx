@@ -11,9 +11,9 @@ import {
   UserPlus,
   Wallet,
 } from 'lucide-react'
-import SectionHeading from '../../components/ui/SectionHeading'
-import ServiceCard from '../../components/ui/ServiceCard'
-import CtaBanner from '../../components/ui/CtaBanner'
+import SectionHeading from '../../components/SectionHeading'
+import ServiceCard from '../../components/ServiceCard'
+import CtaBanner from '../../components/CtaBanner'
 
 const personal = [
   {

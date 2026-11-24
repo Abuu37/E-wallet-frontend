@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Formik, Form, Field, ErrorMessage } from 'formik'
 import * as Yup from 'yup'
 import { Mail, Phone, MapPin, Clock, User, MessageSquare } from 'lucide-react'
-import SectionHeading from '../../components/ui/SectionHeading'
-import Button from '../../components/ui/Button'
+import SectionHeading from '../../components/SectionHeading'
+import Button from '../../components/Button'
 
 const info = [
   { icon: Phone, label: 'Phone', value: '+255 617 812 845' },

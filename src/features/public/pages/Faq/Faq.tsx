@@ -1,6 +1,6 @@
-import SectionHeading from '../../components/ui/SectionHeading'
-import FaqAccordion, { type FaqItem } from '../../components/ui/FaqAccordion'
-import CtaBanner from '../../components/ui/CtaBanner'
+import SectionHeading from '../../components/SectionHeading'
+import FaqAccordion, { type FaqItem } from '../../components/FaqAccordion'
+import CtaBanner from '../../components/CtaBanner'
 
 const faqs: FaqItem[] = [
   {

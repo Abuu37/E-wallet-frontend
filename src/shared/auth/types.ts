@@ -6,6 +6,8 @@ export interface Session {
   mustChangePin: boolean
   /** Display-only claim decoded from the access token; never used for authorization. */
   email: string | null
+  /** The token subject (user id). Used only to recognise "you requested this"; the server enforces it. */
+  userId: string | null
 }
 
 export type SessionStatus = 'loading' | 'anonymous' | 'authenticated'

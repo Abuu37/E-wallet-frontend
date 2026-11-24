@@ -1,7 +1,7 @@
 import { MessageCircle, Phone } from 'lucide-react'
-import SectionHeading from '../../components/ui/SectionHeading'
-import CtaBanner from '../../components/ui/CtaBanner'
-import CheckIcon from '../../components/ui/CheckIcon'
+import SectionHeading from '../../components/SectionHeading'
+import CtaBanner from '../../components/CtaBanner'
+import CheckIcon from '../../components/CheckIcon'
 
 const benefits = [
   'Earn competitive commissions on every transaction, higher than most other networks.',

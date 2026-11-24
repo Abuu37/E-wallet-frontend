@@ -19,7 +19,7 @@ export default function CustomerLayout() {
           </button>
         </div>
       </header>
-      <main id="main" className="mx-auto w-full max-w-3xl p-4"><Outlet /></main>
+      <main id="main" className="mx-auto w-full max-w-[1240px] p-4"><Outlet /></main>
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { useCountUp } from '../../hooks/useCountUp'
+import { useCountUp } from '../hooks/useCountUp'
 
 export default function AnimatedNumber({ value }: { value: string }) {
   const match = value.match(/^(\D*)([\d,]+\.?\d*)(.*)$/)

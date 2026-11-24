@@ -1,7 +1,7 @@
-import SectionHeading from '../../components/ui/SectionHeading'
-import PricingTable from '../../components/ui/PricingTable'
-import CtaBanner from '../../components/ui/CtaBanner'
-import CheckIcon from '../../components/ui/CheckIcon'
+import SectionHeading from '../../components/SectionHeading'
+import PricingTable from '../../components/PricingTable'
+import CtaBanner from '../../components/CtaBanner'
+import CheckIcon from '../../components/CheckIcon'
 
 const cardFees = [
   { service: 'Virtual card issuance', fee: 'Free', note: 'Instant, unlimited' },

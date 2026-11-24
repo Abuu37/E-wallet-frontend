@@ -11,14 +11,14 @@ import {
   ArrowRight,
   Wifi,
 } from 'lucide-react'
-import Button from '../../components/ui/Button'
-import SectionHeading from '../../components/ui/SectionHeading'
-import ServiceCard from '../../components/ui/ServiceCard'
-import StepCard from '../../components/ui/StepCard'
-import StatsBar from '../../components/ui/StatsBar'
-import CtaBanner from '../../components/ui/CtaBanner'
-import { CardChip, CardTexture, CardBrandMark } from '../../components/ui/CardDecor'
-import digitalWallet from '../../assets/imgs/Digital-wallet.png.webp'
+import Button from '../../components/Button'
+import SectionHeading from '../../components/SectionHeading'
+import ServiceCard from '../../components/ServiceCard'
+import StepCard from '../../components/StepCard'
+import StatsBar from '../../components/StatsBar'
+import CtaBanner from '../../components/CtaBanner'
+import { CardChip, CardTexture, CardBrandMark } from '../../components/CardDecor'
+import digitalWallet from '../../../../assets/imgs/Digital-wallet.png.webp'
 
 const services = [
   {
