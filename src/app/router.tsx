@@ -26,6 +26,7 @@ const TreasuryPage = lazy(() => import('../features/console/treasury/TreasuryPag
 const CustomersPage = lazy(() => import('../features/console/customers/CustomersPage'))
 const AgentsPage = lazy(() => import('../features/console/agents/AgentsPage'))
 const StaffPage = lazy(() => import('../features/console/staff/StaffPage'))
+const RolesPage = lazy(() => import('../features/console/roles/RolesPage'))
 
 const CustomerLayout = lazy(() => import('./layouts/CustomerLayout'))
 const CustomerHome = lazy(() => import('../features/customer/CustomerHome'))
@@ -89,6 +90,7 @@ const router = createBrowserRouter([
           children: [
             { element: <RequirePermission permission="DASHBOARD_VIEW" />, children: [{ index: true, element: <Suspense fallback={fallback}><OverviewPage /></Suspense> }] },
             { element: <RequirePermission permission="FLOAT_VIEW" />, children: [{ path: 'treasury', element: <Suspense fallback={fallback}><TreasuryPage /></Suspense> }] },
+            { element: <RequirePermission permission="ROLE_VIEW" />, children: [{ path: 'roles', element: <Suspense fallback={fallback}><RolesPage /></Suspense> }] },
             { element: <RequirePermission permission="USER_VIEW" />, children: [
               { path: 'customers', element: <Suspense fallback={fallback}><CustomersPage /></Suspense> },
               { path: 'agents', element: <Suspense fallback={fallback}><AgentsPage /></Suspense> },

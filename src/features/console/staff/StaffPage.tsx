@@ -12,7 +12,7 @@ import { rowProps } from '../../../shared/ui/rowProps'
 import { DetailRow, SidePanel, StatusBadge } from '../../../shared/ui/SidePanel'
 import { toast } from '../../../shared/ui/toast'
 
-interface StaffRow { staffId: string; staffNo: string; firstName: string; middleName: string | null; lastName: string; phoneNumber: string; jobTitle: string; status: string }
+interface StaffRow { staffId: string; staffNo: string; firstName: string; middleName: string | null; lastName: string; phoneNumber: string; jobTitle: string; status: string; roleName: string | null }
 interface StaffDetail extends StaffRow { userId: string; email: string; createdAt: string; updatedAt: string }
 
 type Panel = { kind: 'add' } | { kind: 'edit'; id: string } | null
@@ -54,8 +54,8 @@ export default function StaffPage() {
           <EmptyState title="Nothing matches these filters." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead><tr className="text-xs text-muted"><th className="px-5 py-2 font-semibold">#</th><th className="font-semibold">Staff member</th><th className="font-semibold">Staff no</th><th className="font-semibold">Job title</th><th className="font-semibold">Phone</th><th className="px-5 font-semibold">Status</th></tr></thead>
+            <table className="w-full min-w-[820px] text-left text-sm">
+              <thead><tr className="text-xs text-muted"><th className="px-5 py-2 font-semibold">#</th><th className="font-semibold">Staff member</th><th className="font-semibold">Staff no</th><th className="font-semibold">Job title</th><th className="font-semibold">Role</th><th className="font-semibold">Phone</th><th className="px-5 font-semibold">Status</th></tr></thead>
               <tbody>
                 {rows.map((s, i) => (
                   <tr key={s.staffId} {...rowProps(() => setPanel({ kind: 'edit', id: s.staffId }), `Open ${s.firstName} ${s.lastName}`)}>
@@ -63,6 +63,7 @@ export default function StaffPage() {
                     <td><PersonCell name={`${s.firstName} ${s.lastName}`} sub={s.jobTitle} /></td>
                     <td className="font-mono text-xs">{s.staffNo}</td>
                     <td>{s.jobTitle}</td>
+                    <td><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold">{s.roleName ?? '—'}</span></td>
                     <td className="tabular-nums">{maskPhone(s.phoneNumber)}</td>
                     <td className="px-5"><StatusBadge status={s.status} label={s.status.charAt(0) + s.status.slice(1).toLowerCase()} /></td>
                   </tr>
@@ -162,6 +163,6 @@ function EditPanel({ id, canEdit, onClose, onDone }: { id: string; canEdit: bool
 
 function exportCsv(rows: StaffRow[]) {
   downloadCsv('staff.csv',
-    ['Staff number', 'Staff member', 'Job title', 'Phone', 'Status'],
-    rows.map((s) => [s.staffNo, `${s.firstName} ${s.lastName}`, s.jobTitle, maskPhone(s.phoneNumber), s.status]))
+    ['Staff number', 'Staff member', 'Job title', 'Role', 'Phone', 'Status'],
+    rows.map((s) => [s.staffNo, `${s.firstName} ${s.lastName}`, s.jobTitle, s.roleName, maskPhone(s.phoneNumber), s.status]))
 }

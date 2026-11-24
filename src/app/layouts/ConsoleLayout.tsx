@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, LayoutGrid, LogOut, Menu, Store, Users, UserCog, Vault, X } from 'lucide-react'
+import { Bell, ChevronDown, KeyRound, LayoutGrid, LogOut, Menu, Store, Users, UserCog, Vault, X } from 'lucide-react'
 import { useState } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 import { useSession } from '../../shared/auth/context'
@@ -14,6 +14,7 @@ const NAV: NavItem[] = [
   { to: '/console/customers', label: 'Customers', permission: 'USER_VIEW', icon: Users },
   { to: '/console/agents', label: 'Agents', permission: 'USER_VIEW', icon: Store },
   { to: '/console/staff', label: 'Staff', permission: 'USER_VIEW', icon: UserCog },
+  { to: '/console/roles', label: 'Roles & access', permission: 'ROLE_VIEW', icon: KeyRound },
 ]
 
 function greeting(): string {
