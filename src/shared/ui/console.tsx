@@ -67,12 +67,12 @@ export function SelectField({ id, label, value, onChange, options }: { id: strin
   )
 }
 
-export function TableCard({ title, countText, children }: { title: string; countText?: string; children: ReactNode }) {
+export function TableCard({ title, countText, action, children }: { title: string; countText?: string; action?: ReactNode; children: ReactNode }) {
   return (
     <section aria-label={title} className="rounded-2xl border border-line bg-white">
       <div className="flex items-baseline justify-between p-5 pb-2">
         <h2 className="text-base font-extrabold">{title}</h2>
-        {countText && <span className="text-xs text-muted">{countText}</span>}
+        <div className="flex items-center gap-3">{countText && <span className="text-xs text-muted">{countText}</span>}{action}</div>
       </div>
       {children}
     </section>
@@ -104,5 +104,22 @@ export function BalanceBlock({ label, value, note }: { label: string; value: str
       <div className="flex flex-col"><span className="text-xs font-semibold text-slate-400">{label}</span><b className="text-2xl tabular-nums">{value}</b></div>
       {note && <span className="text-right text-xs text-slate-400">{note}</span>}
     </div>
+  )
+}
+
+export function DateField({ id, label = 'Joined', value, onChange }: { id: string; label?: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="text-xs font-semibold">{label}</label>
+      <input id={id} type="date" value={value} onChange={(e) => onChange(e.target.value)}
+        className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200" />
+    </div>
+  )
+}
+
+/** Exports the rows currently shown (after filters). Disabled when there is nothing to export. */
+export function ExportButton({ disabled, onClick }: { disabled?: boolean; onClick: () => void }) {
+  return (
+    <Button variant="secondary" className="h-9 px-4 text-sm" disabled={disabled} onClick={onClick}>Export CSV</Button>
   )
 }

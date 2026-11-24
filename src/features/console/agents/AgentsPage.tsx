@@ -3,10 +3,12 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { ApiError, api } from '../../../shared/api/client'
 import { useApi } from '../../../shared/api/useApi'
 import { useSession } from '../../../shared/auth/context'
+import { formatDate } from '../../../shared/lib/dates'
+import { downloadCsv } from '../../../shared/lib/csv'
 import { formatTzs } from '../../../shared/lib/money'
 import { maskPhone, toE164Tz } from '../../../shared/lib/phone'
 import { Button, EmptyState, ErrorState, Field, LoadingState } from '../../../shared/ui/controls'
-import { Avatar, BalanceBlock, FilterBar, KpiRow, PageHeader, PersonCell, SearchField, SelectField, TableCard } from '../../../shared/ui/console'
+import { Avatar, BalanceBlock, DateField, ExportButton, FilterBar, KpiRow, PageHeader, PersonCell, SearchField, SelectField, TableCard } from '../../../shared/ui/console'
 import { rowProps } from '../../../shared/ui/rowProps'
 import { DetailRow, SidePanel, StatusBadge } from '../../../shared/ui/SidePanel'
 import { toast } from '../../../shared/ui/toast'
@@ -23,6 +25,7 @@ interface AgentRow {
   status: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED'
   floatAccount: { accountNumber: string; balance: number | string } | null
   commissionAccount: { accountNumber: string; balance: number | string } | null
+  createdAt: string
 }
 interface AgentList {
   summary: { totalAgents: number; activeAgents: number; suspendedAgents: number; totalAgentFloatBalance: number | string }
@@ -38,6 +41,7 @@ export default function AgentsPage() {
   const { has } = useSession()
   const [status, setStatus] = useState('')
   const [region, setRegion] = useState('')
+  const [date, setDate] = useState('')
   const [search, setSearch] = useState('')
   const [panel, setPanel] = useState<Panel>(null)
   const state = useApi<AgentList>((signal) => api('/agents', { query: { status: status || undefined, size: 100 }, signal }), [status])
@@ -46,9 +50,9 @@ export default function AgentsPage() {
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase()
     return (state.data?.agents ?? []).filter((a) =>
-      (!region || a.regionName === region)
+      (!region || a.regionName === region) && (!date || a.createdAt?.slice(0, 10) === date)
       && (!q || [`${a.firstName} ${a.lastName}`, a.agentNumber, a.phone].some((v) => v?.toLowerCase().includes(q))))
-  }, [state.data, search, region])
+  }, [state.data, search, region, date])
 
   const s = state.data?.summary
   const canUpdate = has('USER_UPDATE')
@@ -64,19 +68,20 @@ export default function AgentsPage() {
         { label: 'Total float', value: formatTzs(s.totalAgentFloatBalance, { symbol: false }), unit: 'TZS', icon: Banknote },
       ]} />}
 
-      <FilterBar label="Filter agents" active={Boolean(search || status || region)} onClear={() => { setSearch(''); setStatus(''); setRegion('') }}>
+      <FilterBar label="Filter agents" active={Boolean(search || status || region || date)} onClear={() => { setSearch(''); setStatus(''); setRegion(''); setDate('') }}>
         <SearchField id="f-q" value={search} onChange={setSearch} placeholder="Search by agent ID, name or phone" />
         <SelectField id="f-status" label="Status" value={status} onChange={setStatus} options={[['', 'All statuses'], ['ACTIVE', 'Active'], ['SUSPENDED', 'Suspended'], ['DEACTIVATED', 'Deactivated']]} />
         <SelectField id="f-region" label="Region" value={region} onChange={setRegion} options={[['', 'All regions'], ...regions.map((r): [string, string] => [r, r])]} />
+        <DateField id="f-date" value={date} onChange={setDate} />
       </FilterBar>
 
-      <TableCard title="All agents" countText={state.data ? `${rows.length} of ${s?.totalAgents ?? rows.length} agents` : undefined}>
+      <TableCard title="All agents" countText={state.data ? `${rows.length} of ${s?.totalAgents ?? rows.length} agents` : undefined} action={<ExportButton disabled={rows.length === 0} onClick={() => exportCsv(rows)} />}>
         {state.loading && !state.data ? <LoadingState /> : state.error && !state.data ? <ErrorState error={state.error} onRetry={state.reload} /> : rows.length === 0 ? (
           <EmptyState title="Nobody matches these filters." />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[860px] text-left text-sm">
-              <thead><tr className="text-xs text-muted"><th className="px-5 py-2 font-semibold">#</th><th className="font-semibold">Agent ID</th><th className="font-semibold">Agent</th><th className="font-semibold">Region</th><th className="font-semibold">Phone</th><th className="text-right font-semibold">Float (TZS)</th><th className="px-5 font-semibold">Status</th></tr></thead>
+              <thead><tr className="text-xs text-muted"><th className="px-5 py-2 font-semibold">#</th><th className="font-semibold">Agent ID</th><th className="font-semibold">Agent</th><th className="font-semibold">Region</th><th className="font-semibold">Phone</th><th className="text-right font-semibold">Float (TZS)</th><th className="font-semibold">Status</th><th className="px-5 font-semibold">Joined</th></tr></thead>
               <tbody>
                 {rows.map((a, i) => (
                   <tr key={a.agentId} {...rowProps(() => setPanel({ kind: 'status', agent: a }), `Open ${a.firstName} ${a.lastName}`)}>
@@ -86,7 +91,8 @@ export default function AgentsPage() {
                     <td>{a.regionName ?? '—'}</td>
                     <td className="tabular-nums">{maskPhone(a.phone)}</td>
                     <td className="text-right font-bold tabular-nums">{formatTzs(a.floatAccount?.balance, { symbol: false })}</td>
-                    <td className="px-5"><StatusBadge status={a.status} label={a.status.charAt(0) + a.status.slice(1).toLowerCase()} /></td>
+                    <td><td><StatusBadge status={a.status} label={a.status.charAt(0) + a.status.slice(1).toLowerCase()} /></td></td>
+                    <td className="px-5 text-xs">{formatDate(a.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -200,4 +206,11 @@ function StatusPanel({ agent, canUpdate, onClose, onDone }: { agent: AgentRow; c
       </div>}
     </SidePanel>
   )
+}
+
+function exportCsv(rows: AgentRow[]) {
+  downloadCsv('agents.csv',
+    ['Agent ID', 'Agent', 'District', 'Region', 'Phone', 'Float (TZS)', 'Commission (TZS)', 'Status', 'Joined'],
+    rows.map((a) => [a.agentNumber, `${a.firstName} ${a.lastName}`, a.districtName, a.regionName, maskPhone(a.phone),
+      formatTzs(a.floatAccount?.balance, { symbol: false }), formatTzs(a.commissionAccount?.balance, { symbol: false }), a.status, formatDate(a.createdAt)]))
 }

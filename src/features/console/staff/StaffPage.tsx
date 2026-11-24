@@ -4,9 +4,10 @@ import { ApiError, api } from '../../../shared/api/client'
 import { useApi } from '../../../shared/api/useApi'
 import { useSession } from '../../../shared/auth/context'
 import { formatDateTime } from '../../../shared/lib/dates'
+import { downloadCsv } from '../../../shared/lib/csv'
 import { maskEmail, maskPhone, toE164Tz } from '../../../shared/lib/phone'
 import { Button, EmptyState, ErrorState, Field, LoadingState } from '../../../shared/ui/controls'
-import { FilterBar, KpiRow, PageHeader, PersonCell, SearchField, SelectField, TableCard } from '../../../shared/ui/console'
+import { ExportButton, FilterBar, KpiRow, PageHeader, PersonCell, SearchField, SelectField, TableCard } from '../../../shared/ui/console'
 import { rowProps } from '../../../shared/ui/rowProps'
 import { DetailRow, SidePanel, StatusBadge } from '../../../shared/ui/SidePanel'
 import { toast } from '../../../shared/ui/toast'
@@ -48,7 +49,7 @@ export default function StaffPage() {
         <SelectField id="kf-status" label="Status" value={status} onChange={setStatus} options={[['', 'All statuses'], ['ACTIVE', 'Active'], ['SUSPENDED', 'Suspended'], ['DISABLED', 'Disabled']]} />
       </FilterBar>
 
-      <TableCard title="All staff" countText={state.data ? `${rows.length} of ${all.length} staff` : undefined}>
+      <TableCard title="All staff" countText={state.data ? `${rows.length} of ${all.length} staff` : undefined} action={<ExportButton disabled={rows.length === 0} onClick={() => exportCsv(rows)} />}>
         {state.loading && !state.data ? <LoadingState /> : state.error && !state.data ? <ErrorState error={state.error} onRetry={state.reload} /> : rows.length === 0 ? (
           <EmptyState title="Nothing matches these filters." />
         ) : (
@@ -157,4 +158,10 @@ function EditPanel({ id, canEdit, onClose, onDone }: { id: string; canEdit: bool
       )}
     </SidePanel>
   )
+}
+
+function exportCsv(rows: StaffRow[]) {
+  downloadCsv('staff.csv',
+    ['Staff number', 'Staff member', 'Job title', 'Phone', 'Status'],
+    rows.map((s) => [s.staffNo, `${s.firstName} ${s.lastName}`, s.jobTitle, maskPhone(s.phoneNumber), s.status]))
 }

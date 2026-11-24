@@ -4,10 +4,11 @@ import { ApiError, api } from '../../../shared/api/client'
 import { useApi } from '../../../shared/api/useApi'
 import { useSession } from '../../../shared/auth/context'
 import { formatDate, formatDateTime } from '../../../shared/lib/dates'
+import { downloadCsv } from '../../../shared/lib/csv'
 import { formatTzs } from '../../../shared/lib/money'
 import { maskEmail, maskNida, maskPhone } from '../../../shared/lib/phone'
 import { Button, EmptyState, ErrorState, LoadingState } from '../../../shared/ui/controls'
-import { Avatar, BalanceBlock, FilterBar, KpiRow, PageHeader, PersonCell, SearchField, SelectField, TableCard } from '../../../shared/ui/console'
+import { Avatar, BalanceBlock, DateField, ExportButton, FilterBar, KpiRow, PageHeader, PersonCell, SearchField, SelectField, TableCard } from '../../../shared/ui/console'
 import { rowProps } from '../../../shared/ui/rowProps'
 import { DetailRow, SidePanel, StatusBadge } from '../../../shared/ui/SidePanel'
 import { toast } from '../../../shared/ui/toast'
@@ -19,6 +20,7 @@ interface CustomerRow {
   email: string
   status: 'PENDING' | 'ACTIVE' | 'SUSPENDED'
   wallet: { accountNumber: string; availableBalance: number | string; status: string } | null
+  createdAt: string
 }
 interface CustomerList {
   summary: { totalCustomers: number; activeCustomers: number; suspendedCustomers: number; totalCustomerWalletBalance: number | string }
@@ -45,13 +47,14 @@ export default function CustomersPage() {
   const { has } = useSession()
   const [status, setStatus] = useState('')
   const [search, setSearch] = useState('')
+  const [date, setDate] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
   const state = useApi<CustomerList>((signal) => api('/customers', { query: { status: status || undefined, size: 100 }, signal }), [status])
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase()
-    return (state.data?.customers ?? []).filter((c) => !q || [c.fullName, c.phoneNumber, c.wallet?.accountNumber].some((v) => v?.toLowerCase().includes(q)))
-  }, [state.data, search])
+    return (state.data?.customers ?? []).filter((c) => (!date || c.createdAt?.slice(0, 10) === date) && (!q || [c.fullName, c.phoneNumber, c.wallet?.accountNumber].some((v) => v?.toLowerCase().includes(q))))
+  }, [state.data, search, date])
 
   const s = state.data?.summary
   return (
@@ -65,18 +68,19 @@ export default function CustomersPage() {
         { label: 'Wallet balances', value: formatTzs(s.totalCustomerWalletBalance, { symbol: false }), unit: 'TZS', icon: Banknote },
       ]} />}
 
-      <FilterBar label="Filter customers" active={Boolean(search || status)} onClear={() => { setSearch(''); setStatus('') }}>
+      <FilterBar label="Filter customers" active={Boolean(search || status || date)} onClear={() => { setSearch(''); setStatus(''); setDate('') }}>
         <SearchField id="f-q" value={search} onChange={setSearch} placeholder="Search by name, phone or account number" />
         <SelectField id="f-status" label="Status" value={status} onChange={setStatus} options={[['', 'All statuses'], ['ACTIVE', 'Active'], ['SUSPENDED', 'Locked'], ['PENDING', 'Pending']]} />
+        <DateField id="f-date" value={date} onChange={setDate} />
       </FilterBar>
 
-      <TableCard title="All customers" countText={state.data ? `${rows.length} of ${s?.totalCustomers ?? rows.length} customers` : undefined}>
+      <TableCard title="All customers" countText={state.data ? `${rows.length} of ${s?.totalCustomers ?? rows.length} customers` : undefined} action={<ExportButton disabled={rows.length === 0} onClick={() => exportCsv(rows)} />}>
         {state.loading && !state.data ? <LoadingState /> : state.error && !state.data ? <ErrorState error={state.error} onRetry={state.reload} /> : rows.length === 0 ? (
           <EmptyState title="Nobody matches these filters." />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[820px] text-left text-sm">
-              <thead><tr className="text-xs text-muted"><th className="px-5 py-2 font-semibold">#</th><th className="font-semibold">Customer</th><th className="font-semibold">Phone</th><th className="font-semibold">Account number</th><th className="text-right font-semibold">Balance (TZS)</th><th className="px-5 font-semibold">Status</th></tr></thead>
+              <thead><tr className="text-xs text-muted"><th className="px-5 py-2 font-semibold">#</th><th className="font-semibold">Customer</th><th className="font-semibold">Phone</th><th className="font-semibold">Account number</th><th className="text-right font-semibold">Balance (TZS)</th><th className="font-semibold">Status</th><th className="px-5 font-semibold">Joined</th></tr></thead>
               <tbody>
                 {rows.map((c, i) => (
                   <tr key={c.customerId} {...rowProps(() => setOpenId(c.customerId), `Open ${c.fullName}`)}>
@@ -85,7 +89,8 @@ export default function CustomersPage() {
                     <td className="tabular-nums">{maskPhone(c.phoneNumber)}</td>
                     <td className="font-mono text-xs">{c.wallet ? `•••• ${c.wallet.accountNumber.slice(-4)}` : '—'}</td>
                     <td className="text-right font-bold tabular-nums">{formatTzs(c.wallet?.availableBalance, { symbol: false })}</td>
-                    <td className="px-5"><StatusBadge status={c.status === 'SUSPENDED' ? 'LOCKED' : c.status} label={STATUS_LABEL[c.status]} /></td>
+                    <td><td className="px-5"><StatusBadge status={c.status === 'SUSPENDED' ? 'LOCKED' : c.status} label={STATUS_LABEL[c.status]} /></td></td>
+                    <td className="px-5 text-xs">{formatDate(c.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -156,4 +161,11 @@ function CustomerPanel({ id, canUpdate, onClose, onChanged }: { id: string; canU
       )}
     </SidePanel>
   )
+}
+
+function exportCsv(rows: CustomerRow[]) {
+  downloadCsv('customers.csv',
+    ['Customer', 'Phone', 'Email', 'Account number', 'Balance (TZS)', 'Status', 'Joined'],
+    rows.map((c) => [c.fullName, maskPhone(c.phoneNumber), maskEmail(c.email), c.wallet ? `•••• ${c.wallet.accountNumber.slice(-4)}` : '',
+      formatTzs(c.wallet?.availableBalance, { symbol: false }), STATUS_LABEL[c.status], formatDate(c.createdAt)]))
 }
