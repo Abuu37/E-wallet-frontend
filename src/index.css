@@ -206,3 +206,8 @@ input:-webkit-autofill:active {
 .Toastify__toast--error .Toastify__toast-icon {
   background: var(--color-chart-red);
 }
+
+@keyframes slide-in {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}

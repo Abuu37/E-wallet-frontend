@@ -20,4 +20,6 @@ export const toast = {
     toastify.success(content(title, extra.description), buildOptions(extra)),
   error: (title: string, extra: ToastExtra = {}) =>
     toastify.error(content(title, extra.description), buildOptions(extra)),
+  info: (title: string, extra: ToastExtra = {}) =>
+    toastify.info(content(title, extra.description), buildOptions(extra)),
 }
