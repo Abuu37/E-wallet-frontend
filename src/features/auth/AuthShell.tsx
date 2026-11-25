@@ -44,7 +44,7 @@ export function AuthShell({ cta, side, children }: { cta: 'login' | 'register'; 
         </div>
       </header>
 
-      <main className="flex flex-1 items-center justify-center bg-gradient-to-br from-brand to-brand-dark bg-[radial-gradient(rgba(255,255,255,0.09)_1px,transparent_1px)] bg-[length:22px_22px] px-4 py-6 sm:py-10">
+      <main className="flex flex-1 items-center justify-center bg-[radial-gradient(rgba(255,255,255,0.09)_1px,transparent_1px),linear-gradient(160deg,#2563EB,#1D4ED8)] bg-[length:22px_22px,auto] px-4 py-6 sm:py-10">
         <div className="grid w-full max-w-[1080px] grid-cols-1 overflow-hidden rounded-3xl bg-white shadow-[0_40px_80px_-30px_rgba(11,18,32,0.55)] md:grid-cols-2">
           <aside aria-label="About WalletPesa" className="hidden flex-col gap-6 bg-ink bg-[radial-gradient(rgba(255,255,255,0.09)_1px,transparent_1px)] bg-[length:22px_22px] p-9 text-white md:flex">
             <Logo light />
