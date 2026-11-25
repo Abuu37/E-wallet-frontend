@@ -13,28 +13,38 @@ function ageOn(dobIso: string): number {
   return age
 }
 
-/** Checks the staff member's entries before the server sees them. The server stays the authority. */
+/** Checks the staff member's entries before the server sees them (messages follow the S09e design). The server stays the authority. */
 export const onboardAgentSchema = yup.object({
-  businessName: yup.string().default('').trim().required('Business name is required').max(150, 'Keep it under 150 characters'),
-  tinNumber: yup.string().default('').trim().required('TIN is required').matches(/^\d{9}$/, 'TIN has 9 digits'),
-  username: yup.string().default('').trim().required('Username is required')
-    .matches(/^[A-Za-z0-9._-]{3,30}$/, '3 to 30 letters, numbers, dots, dashes or underscores'),
-  firstName: yup.string().default('').trim().required('First name is required').matches(NAME, NAME_MSG),
+  businessName: yup.string().default('').trim().required('Required').max(150, 'Keep it under 150 characters'),
+  tinNumber: yup.string().default('').trim().required('Required').matches(/^\d{3}-?\d{3}-?\d{3}$/, 'TIN is 9 digits, e.g. 123-456-789'),
+  firstName: yup.string().default('').trim().required('Required').matches(NAME, NAME_MSG),
   middleName: yup.string().default('').trim().test('name', NAME_MSG, (v) => !v || NAME.test(v)),
-  lastName: yup.string().default('').trim().required('Last name is required').matches(NAME, NAME_MSG),
-  gender: yup.string().default('').oneOf(['MALE', 'FEMALE', 'OTHER'], 'Select a gender'),
-  dateOfBirth: yup.string().default('').required('Date of birth is required').test('age', (v, ctx) => {
+  lastName: yup.string().default('').trim().required('Required').matches(NAME, NAME_MSG),
+  gender: yup.string().default('').required('Required').oneOf(['FEMALE', 'MALE'], 'Required'),
+  dateOfBirth: yup.string().default('').required('Required').test('age', (v, ctx) => {
     const a = ageOn(v ?? '')
     if (Number.isNaN(a) || a < 0) return ctx.createError({ message: 'Date of birth must be in the past' })
-    return a >= 18 || ctx.createError({ message: 'The agent must be 18 or older' })
+    return a >= 18 || ctx.createError({ message: 'The owner must be 18 or older' })
   }),
   phone: yup.string().default('').test('phone', (v, ctx) => {
-    if (!tzDigits(v ?? '')) return ctx.createError({ message: 'Phone number is required' })
-    return isTzMobile(v ?? '') || ctx.createError({ message: 'Use a Tanzanian mobile number: 9 digits starting with 6 or 7' })
+    if (!tzDigits(v ?? '')) return ctx.createError({ message: 'Required' })
+    return isTzMobile(v ?? '') || ctx.createError({ message: 'Use a Tanzanian mobile number, e.g. 0713 880 412' })
   }),
-  email: yup.string().default('').trim().required('Email is required').matches(/^[^@\s]+@[^@\s]+\.[^@\s]+$/, 'Enter a valid email, like name@example.com'),
-  regionId: yup.string().default('').required('Select a region'),
-  districtId: yup.string().default('').required('Select a district'),
+  email: yup.string().default('').trim().required('Required').matches(/^[^@\s]+@[^@\s]+\.[^@\s]+$/, 'Enter a valid email'),
+  regionId: yup.string().default('').required('Required'),
+  districtId: yup.string().default('').required('Required'),
 })
 
 export type OnboardAgentValues = yup.InferType<typeof onboardAgentSchema>
+
+/** A technical login name staff never type: the business name plus random digits. */
+export function makeAgentUsername(businessName: string): string {
+  const base = businessName.toLowerCase().replace(/[^a-z]/g, '').slice(0, 20) || 'agent'
+  return `${base}${Math.floor(1000 + Math.random() * 9000)}`
+}
+
+/** "123456789" or "123-456-789" -> "123-456-789" */
+export function formatTin(input: string): string {
+  const d = input.replace(/\D/g, '')
+  return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6, 9)}`
+}

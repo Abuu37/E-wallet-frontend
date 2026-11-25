@@ -7,13 +7,14 @@ import { useSession } from '../../../shared/auth/context'
 import { formatDate } from '../../../shared/lib/dates'
 import { downloadCsv } from '../../../shared/lib/csv'
 import { formatTzs } from '../../../shared/lib/money'
-import { maskPhone, toE164Tz } from '../../../shared/lib/phone'
+import { maskEmail, maskPhone, toE164Tz } from '../../../shared/lib/phone'
 import { Button, EmptyState, ErrorState, Field, LoadingState } from '../../../shared/ui/controls'
 import { Avatar, BalanceBlock, DateField, ExportButton, FilterBar, KpiRow, PageHeader, PersonCell, SearchField, SelectField, TableCard } from '../../../shared/ui/console'
 import { rowProps } from '../../../shared/ui/rowProps'
+import { Modal } from '../../../shared/ui/Modal'
 import { DetailRow, SidePanel, StatusBadge } from '../../../shared/ui/SidePanel'
 import { reportError, toast } from '../../../shared/ui/toast'
-import { onboardAgentSchema, type OnboardAgentValues } from './onboardSchema'
+import { formatTin, makeAgentUsername, onboardAgentSchema, type OnboardAgentValues } from './onboardSchema'
 
 interface AgentRow {
   agentId: string
@@ -103,31 +104,61 @@ export default function AgentsPage() {
         )}
       </TableCard>
 
-      {panel?.kind === 'onboard' && <OnboardPanel onClose={() => setPanel(null)} onDone={() => { setPanel(null); state.reload() }} />}
+      {panel?.kind === 'onboard' && <OnboardDialog onClose={() => setPanel(null)} onDone={() => { setPanel(null); state.reload() }} />}
       {panel?.kind === 'status' && <StatusPanel agent={panel.agent} canUpdate={canUpdate} onClose={() => setPanel(null)} onDone={() => { setPanel(null); state.reload() }} />}
     </div>
   )
 }
 
-const INITIAL: OnboardAgentValues = { businessName: '', tinNumber: '', username: '', firstName: '', middleName: '', lastName: '', gender: '', dateOfBirth: '', phone: '', email: '', regionId: '', districtId: '' }
+const INITIAL: OnboardAgentValues = { businessName: '', tinNumber: '', firstName: '', middleName: '', lastName: '', gender: '', dateOfBirth: '', phone: '', email: '', regionId: '', districtId: '' }
 const SELECT = 'h-12 rounded-xl border bg-white px-3 text-base font-semibold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 disabled:bg-slate-100'
 
-function OnboardPanel({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+function SectionTitle({ children }: { children: string }) {
+  return <h3 className="col-span-2 mb-0.5 mt-3 text-xs font-bold uppercase tracking-wider text-muted first:mt-0">{children}</h3>
+}
+
+function OnboardDialog({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const f = useFormik<OnboardAgentValues>({
     initialValues: INITIAL,
     validationSchema: onboardAgentSchema,
     onSubmit: async (values, { setErrors }) => {
-      const body = onboardAgentSchema.cast(values)
+      const v = onboardAgentSchema.cast(values)
       try {
-        await api('/agents/onboard', { method: 'POST', body: { ...body, middleName: body.middleName || undefined, phone: toE164Tz(body.phone) } })
-        toast.success('Agent onboarded', { description: 'A one-time PIN was sent to the agent.' })
+        let attempt = 0
+        for (;;) {
+          try {
+            await api('/agents/onboard', {
+              method: 'POST',
+              body: {
+                username: makeAgentUsername(v.businessName), businessName: v.businessName, tinNumber: formatTin(v.tinNumber),
+                firstName: v.firstName, middleName: v.middleName || undefined, lastName: v.lastName, gender: v.gender,
+                dateOfBirth: v.dateOfBirth, phone: toE164Tz(v.phone), email: v.email.toLowerCase(), regionId: v.regionId, districtId: v.districtId,
+              },
+            })
+            break
+          } catch (err) {
+            // The generated login name collided with someone else's: try another one.
+            if (err instanceof ApiError && err.status === 409 && /username/i.test(err.message) && attempt++ < 3) continue
+            throw err
+          }
+        }
+        toast.success('Agent onboarded', { description: `${v.businessName} is active. A one-time PIN was emailed to ${maskEmail(v.email)}.` })
         onDone()
       } catch (err) {
-        // Field problems the server found go under their fields; anything else is a toast.
-        if (err instanceof ApiError && Object.keys(err.fieldErrors).length) {
-          setErrors(err.fieldErrors)
-          toast.error('Please check the highlighted fields', { description: Object.values(err.fieldErrors)[0] })
-        } else reportError(err, 'Could not onboard the agent', 'Could not onboard the agent.')
+        if (err instanceof ApiError) {
+          // Duplicates come back as a message; put them under the field they belong to.
+          const fields: Record<string, string> = { ...err.fieldErrors }
+          if (!Object.keys(fields).length && err.status === 409) {
+            if (/phone/i.test(err.message)) fields.phone = 'This phone already belongs to another user'
+            else if (/email/i.test(err.message)) fields.email = 'Email already exists'
+          }
+          if (Object.keys(fields).length) {
+            setErrors(fields)
+            toast.error('Please check the highlighted fields', { description: Object.values(fields)[0] })
+            return
+          }
+        }
+        reportError(err, 'Could not onboard the agent', 'Could not onboard the agent.')
       }
     },
   })
@@ -137,44 +168,51 @@ function OnboardPanel({ onClose, onDone }: { onClose: () => void; onDone: () => 
 
   // Errors show once a submit was attempted, like the other forms.
   const err = (k: keyof OnboardAgentValues) => (f.submitCount > 0 ? f.errors[k] : undefined)
-  const text = (k: keyof OnboardAgentValues) => ({ id: `ag-${k}`, name: k, value: f.values[k], onChange: f.handleChange, error: err(k) })
+  const bad = f.submitCount > 0 ? Object.keys(f.errors).length : 0
+  const text = (k: keyof OnboardAgentValues) => ({ id: `ob-${k}`, name: k, value: f.values[k], onChange: f.handleChange, error: err(k) })
 
   return (
-    <SidePanel open title="Onboard agent" subtitle="Staff-led onboarding" onClose={onClose}>
-      <form onSubmit={f.handleSubmit} noValidate className="flex flex-col gap-3.5">
-        <Field label="Business name" {...text('businessName')} />
-        <Field label="TIN" inputMode="numeric" maxLength={9} {...text('tinNumber')} hint="9 digits" />
-        <Field label="Username" {...text('username')} autoComplete="off" />
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="First name" {...text('firstName')} />
-          <Field label="Last name" {...text('lastName')} />
+    <Modal open title="Onboard agent" onClose={onClose}
+      subtitle="The agent is active as soon as you save. A one-time PIN is emailed to the owner."
+      footer={<>
+        <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+        <Button type="submit" form="onboard-form" loading={f.isSubmitting}>Onboard agent and send PIN</Button>
+      </>}>
+      <form id="onboard-form" onSubmit={f.handleSubmit} noValidate className="grid grid-cols-2 gap-x-4 gap-y-3.5">
+        <SectionTitle>Business</SectionTitle>
+        <Field label="Business name" placeholder="e.g. Tegeta Mobile Point" {...text('businessName')} />
+        <Field label="TIN" inputMode="numeric" placeholder="123-456-789" {...text('tinNumber')} />
+
+        <SectionTitle>Owner</SectionTitle>
+        <Field label="First name" autoComplete="off" {...text('firstName')} />
+        <Field label="Middle name (optional)" autoComplete="off" {...text('middleName')} />
+        <Field label="Last name" autoComplete="off" {...text('lastName')} />
+        <label className="flex flex-col gap-1.5 text-sm font-semibold">Gender
+          <select name="gender" value={f.values.gender} onChange={f.handleChange} aria-invalid={err('gender') ? true : undefined} className={`${SELECT} ${err('gender') ? 'border-[#E11D48]' : 'border-slate-300'}`}>
+            <option value="">Choose</option><option value="FEMALE">Female</option><option value="MALE">Male</option></select>
+          {err('gender') && <span role="alert" className="text-xs font-medium text-[#BE123C]">{err('gender')}</span>}</label>
+        <Field label="Date of birth" type="date" {...text('dateOfBirth')} />
+        <Field label="Phone" type="tel" inputMode="tel" placeholder="0713 880 412" {...text('phone')} />
+        <div className="col-span-2"><Field label="Email" type="email" inputMode="email" placeholder="owner@example.com" {...text('email')} /></div>
+
+        <SectionTitle>Location</SectionTitle>
+        <label className="flex flex-col gap-1.5 text-sm font-semibold">Region
+          <select name="regionId" value={f.values.regionId} onChange={(e) => { void f.setValues({ ...f.values, regionId: e.target.value, districtId: '' }) }}
+            aria-invalid={err('regionId') ? true : undefined} className={`${SELECT} ${err('regionId') ? 'border-[#E11D48]' : 'border-slate-300'}`}>
+            <option value="">{regions.loading ? 'Loading…' : 'Choose region'}</option>{regions.data?.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select>
+          {err('regionId') && <span role="alert" className="text-xs font-medium text-[#BE123C]">{err('regionId')}</span>}</label>
+        <label className="flex flex-col gap-1.5 text-sm font-semibold">District
+          <select name="districtId" value={f.values.districtId} onChange={f.handleChange} disabled={!f.values.regionId}
+            aria-invalid={err('districtId') ? true : undefined} className={`${SELECT} ${err('districtId') ? 'border-[#E11D48]' : 'border-slate-300'}`}>
+            <option value="">{!f.values.regionId ? 'Choose a region first' : districts.loading ? 'Loading…' : 'Choose district'}</option>{districts.data?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select>
+          {err('districtId') && <span role="alert" className="text-xs font-medium text-[#BE123C]">{err('districtId')}</span>}</label>
+
+        <div className="col-span-2 mt-1 rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-3 text-[13px] leading-normal text-blue-900">
+          The agent gets an agent number, a float wallet at 0 TZS and a commission wallet. They can serve customers after their first float top-up. Saving is written to the audit log.
         </div>
-        <Field label="Middle name (optional)" {...text('middleName')} />
-        <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-1.5 text-sm font-semibold">Gender
-            <select name="gender" value={f.values.gender} onChange={f.handleChange} aria-invalid={err('gender') ? true : undefined} className={`${SELECT} ${err('gender') ? 'border-[#E11D48]' : 'border-slate-300'}`}>
-              <option value="">Select</option><option value="MALE">Male</option><option value="FEMALE">Female</option><option value="OTHER">Other</option></select>
-            {err('gender') && <span role="alert" className="text-xs font-medium text-[#BE123C]">{err('gender')}</span>}</label>
-          <Field label="Date of birth" type="date" {...text('dateOfBirth')} />
-        </div>
-        <Field label="Phone" inputMode="tel" {...text('phone')} hint="+255 is added automatically" />
-        <Field label="Email" type="email" {...text('email')} />
-        <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-1.5 text-sm font-semibold">Region
-            <select name="regionId" value={f.values.regionId} onChange={(e) => { void f.setValues({ ...f.values, regionId: e.target.value, districtId: '' }) }}
-              aria-invalid={err('regionId') ? true : undefined} className={`${SELECT} ${err('regionId') ? 'border-[#E11D48]' : 'border-slate-300'}`}>
-              <option value="">{regions.loading ? 'Loading…' : 'Select'}</option>{regions.data?.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select>
-            {err('regionId') && <span role="alert" className="text-xs font-medium text-[#BE123C]">{err('regionId')}</span>}</label>
-          <label className="flex flex-col gap-1.5 text-sm font-semibold">District
-            <select name="districtId" value={f.values.districtId} onChange={f.handleChange} disabled={!f.values.regionId}
-              aria-invalid={err('districtId') ? true : undefined} className={`${SELECT} ${err('districtId') ? 'border-[#E11D48]' : 'border-slate-300'}`}>
-              <option value="">{districts.loading && f.values.regionId ? 'Loading…' : 'Select'}</option>{districts.data?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select>
-            {err('districtId') && <span role="alert" className="text-xs font-medium text-[#BE123C]">{err('districtId')}</span>}</label>
-        </div>
-        <Button type="submit" block loading={f.isSubmitting}>Onboard agent</Button>
-        <p className="text-xs text-muted">The agent receives a one-time PIN and must change it at first sign-in.</p>
+        <p role="alert" className="col-span-2 min-h-[20px] text-[13px] font-semibold text-[#DC2626]">{bad ? `Fix the ${bad} highlighted field${bad > 1 ? 's' : ''}.` : ''}</p>
       </form>
-    </SidePanel>
+    </Modal>
   )
 }
 
