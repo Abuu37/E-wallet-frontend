@@ -10,7 +10,7 @@ import { Button, EmptyState, ErrorState, Field, LoadingState } from '../../../sh
 import { ExportButton, FilterBar, KpiRow, PageHeader, PersonCell, SearchField, SelectField, TableCard } from '../../../shared/ui/console'
 import { rowProps } from '../../../shared/ui/rowProps'
 import { DetailRow, SidePanel, StatusBadge } from '../../../shared/ui/SidePanel'
-import { toast } from '../../../shared/ui/toast'
+import { reportError, toast } from '../../../shared/ui/toast'
 
 interface StaffRow { staffId: string; staffNo: string; firstName: string; middleName: string | null; lastName: string; phoneNumber: string; jobTitle: string; status: string; roleName: string | null }
 interface StaffDetail extends StaffRow { userId: string; email: string; createdAt: string; updatedAt: string }
@@ -95,7 +95,8 @@ function AddPanel({ onClose, onDone }: { onClose: () => void; onDone: () => void
       toast.success('Staff member added', { description: 'Their one-time PIN was emailed to them.' })
       onDone()
     } catch (err) {
-      if (err instanceof ApiError) { setErrors(err.fieldErrors); setFormError(err.message) } else setFormError('Could not add the staff member.')
+      if (err instanceof ApiError) setErrors(err.fieldErrors)
+      setFormError(reportError(err, 'Staff member not added', 'Could not add the staff member.'))
     } finally { setBusy(false) }
   }
 
@@ -136,7 +137,7 @@ function EditPanel({ id, canEdit, onClose, onDone }: { id: string; canEdit: bool
       toast.success('Staff member updated')
       onDone()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not save the changes.')
+      setError(reportError(err, 'Changes not saved', 'Could not save the changes.'))
     } finally { setBusy(false) }
   }
 

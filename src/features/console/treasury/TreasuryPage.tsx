@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
-import { ApiError, api, newIdempotencyKey } from '../../../shared/api/client'
+import { api, newIdempotencyKey } from '../../../shared/api/client'
 import { useApi } from '../../../shared/api/useApi'
 import { useSession } from '../../../shared/auth/context'
 import { formatDate, formatDateTime } from '../../../shared/lib/dates'
 import { formatTzs, normalizeAmount } from '../../../shared/lib/money'
-import { toast } from '../../../shared/ui/toast'
+import { reportError, toast } from '../../../shared/ui/toast'
 import { Button, EmptyState, ErrorState, Field, LoadingState } from '../../../shared/ui/controls'
 import { DetailRow, SidePanel, StatusBadge } from '../../../shared/ui/SidePanel'
 import { needsSecondStaff, TYPE_LABEL, type TreasuryList, type TreasuryRequest } from './types'
@@ -130,14 +130,19 @@ function ReviewPanel({ request: r, canManage, onClose, onDone }: { request: Trea
   const canDecide = pending && canManage && !own
 
   async function decide(kind: 'approve' | 'reject') {
-    if (kind === 'reject' && note.trim().length < 3) { setError('A decision note is required to reject.'); return }
+    if (kind === 'reject' && note.trim().length < 3) {
+      setError('A decision note is required to reject.')
+      toast.warning('Add a decision note', { description: 'A note is required to reject a request.' })
+      return
+    }
     setBusy(true); setError(null)
     try {
       await api(`/treasury/requests/${r.requestId}/${kind}`, { method: 'POST', body: kind === 'reject' ? { reason: note.trim() } : undefined, idempotencyKey: newIdempotencyKey() })
-      toast.success(kind === 'approve' ? 'Request approved' : 'Request rejected')
+      if (kind === 'approve') toast.success('Request approved', { description: 'The money has moved.' })
+      else toast.warning('Request rejected', { description: 'No money moved. The requester can see your note.' })
       onDone()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not complete the action.')
+      setError(reportError(err, kind === 'approve' ? 'Approval failed' : 'Rejection failed', 'Could not complete the action.'))
     } finally { setBusy(false) }
   }
 
@@ -199,7 +204,7 @@ function RaisePanel({ kind, onClose, onDone }: { kind: 'mint' | 'commission'; on
       toast.success('Request submitted', { description: 'Another staff member must approve it before any money moves.' })
       onDone()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not submit the request.')
+      setError(reportError(err, 'Request not submitted', 'Could not submit the request.'))
     } finally { setBusy(false) }
   }
 

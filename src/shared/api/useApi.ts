@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { toast } from '../ui/toast'
 
 export interface ApiState<T> {
   data: T | undefined
@@ -22,6 +23,8 @@ export function useApi<T>(fetcher: (signal: AbortSignal) => Promise<T>, deps: un
   useEffect(() => {
     const controller = new AbortController()
     let first = true
+    let warned = false
+    let loaded = false
     const run = async () => {
       if (first) setLoading(true)
       try {
@@ -29,9 +32,13 @@ export function useApi<T>(fetcher: (signal: AbortSignal) => Promise<T>, deps: un
         if (controller.signal.aborted) return
         setData(result)
         setError(undefined)
+        loaded = true
+        warned = false
       } catch (err) {
         if (controller.signal.aborted) return
         setError(err)
+        // Data is already on screen and a refresh failed: say so once, not on every poll.
+        if (loaded && !warned) { warned = true; toast.warning('Could not refresh', { description: 'Showing the last data we have. We will keep trying.' }) }
       } finally {
         if (!controller.signal.aborted) setLoading(false)
         first = false

@@ -5,7 +5,7 @@ import { useSession } from '../../../shared/auth/context'
 import { Button, ErrorState, Field, LoadingState } from '../../../shared/ui/controls'
 import { PageHeader } from '../../../shared/ui/console'
 import { SidePanel } from '../../../shared/ui/SidePanel'
-import { toast } from '../../../shared/ui/toast'
+import { reportError, toast } from '../../../shared/ui/toast'
 
 interface RoleItem { id: string; name: string; description: string; permissionCount: number; userCount: number; permissions: string[] }
 interface ModuleGroup { name: string; description: string; permissions: { name: string; description: string }[] }
@@ -124,7 +124,8 @@ function NewRolePanel({ onClose, onDone }: { onClose: () => void; onDone: (id: s
       toast.success('Role created', { description: 'It has no permissions yet. Tick the ones it needs, then save.' })
       onDone(created.id)
     } catch (err) {
-      if (err instanceof ApiError) { setErrors(err.fieldErrors); setError(err.message) } else setError('Could not create the role.')
+      if (err instanceof ApiError) setErrors(err.fieldErrors)
+      setError(reportError(err, 'Role not created', 'Could not create the role.'))
     } finally { setBusy(false) }
   }
 
@@ -163,7 +164,10 @@ function SavePanel({ diffs, drafts, onClose, onDone }: {
       onDone()
     } catch (err) {
       const failedAt = diffs[done.length]?.role.name
-      setError(`${failedAt ? `${failedAt}: ` : ''}${err instanceof ApiError ? err.message : 'Could not save.'}${done.length ? ` Already saved: ${done.join(', ')}.` : ''}`)
+      const msg = `${failedAt ? `${failedAt}: ` : ''}${err instanceof ApiError ? err.message : 'Could not save.'}${done.length ? ` Already saved: ${done.join(', ')}.` : ''}`
+      setError(msg)
+      if (done.length) toast.warning('Only some roles were saved', { description: msg })
+      else toast.error('Roles not saved', { description: msg })
     } finally { setBusy(false) }
   }
 

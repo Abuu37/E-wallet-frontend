@@ -1,9 +1,9 @@
 import { useRef, useState, type FormEvent } from 'react'
-import { ApiError, api, newIdempotencyKey } from '../../shared/api/client'
+import { api, newIdempotencyKey } from '../../shared/api/client'
 import { useApi } from '../../shared/api/useApi'
 import { formatDate, formatDateTime } from '../../shared/lib/dates'
 import { formatTzs, normalizeAmount } from '../../shared/lib/money'
-import { toast } from '../../shared/ui/toast'
+import { reportError, toast } from '../../shared/ui/toast'
 import { Button, ErrorState, LoadingState } from '../../shared/ui/controls'
 import type { AgentOverview } from './AgentHome'
 
@@ -71,7 +71,7 @@ export default function AgentFloat() {
       setAmount(''); setSlip(''); setReason('')
       requests.reload()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not send the request.')
+      setError(reportError(err, 'Request not sent', 'Could not send the request.'))
     } finally { setBusy(false) }
   }
 

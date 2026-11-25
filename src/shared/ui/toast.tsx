@@ -38,9 +38,10 @@ export function errorMessage(err: unknown, fallback = 'Something went wrong. Ple
   return err instanceof ApiError && err.message ? err.message : fallback
 }
 
-/** Show a failed call as an error toast and return the message used. */
+/** Show a failed call as a toast and return the message used. Rate limits and permission problems are warnings, the rest errors. */
 export function reportError(err: unknown, title: string, fallback?: string): string {
   const message = errorMessage(err, fallback)
-  toast.error(title, { description: message })
+  if (err instanceof ApiError && (err.status === 429 || err.status === 403)) toast.warning(title, { description: message })
+  else toast.error(title, { description: message })
   return message
 }

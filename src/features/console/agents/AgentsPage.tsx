@@ -226,10 +226,11 @@ function StatusPanel({ agent, canUpdate, onClose, onDone }: { agent: AgentRow; c
     setBusy(true); setError(null)
     try {
       await api(`/agents/${agent.agentId}/status`, { method: 'PATCH', body: { status: next, reason: reason.trim() } })
-      toast.success(`Agent ${next.toLowerCase()}`)
+      if (next === 'ACTIVE') toast.success('Agent reactivated', { description: 'They can serve customers again.' })
+      else toast.warning(`Agent ${next.toLowerCase()}`, { description: 'They cannot serve customers until reactivated.' })
       onDone()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not change the status.')
+      setError(reportError(err, 'Status not changed', 'Could not change the status.'))
     } finally { setBusy(false) }
   }
 

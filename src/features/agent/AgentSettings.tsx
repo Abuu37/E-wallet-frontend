@@ -1,14 +1,14 @@
 import { Check, Copy, Minus } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ApiError, api } from '../../shared/api/client'
+import { api } from '../../shared/api/client'
 import { useApi } from '../../shared/api/useApi'
 import { useSession } from '../../shared/auth/context'
 import { useT } from '../../shared/i18n'
 import { formatDate } from '../../shared/lib/dates'
 import { isWeakPin } from '../../shared/lib/pin'
 import { maskEmail, maskPhone } from '../../shared/lib/phone'
-import { toast } from '../../shared/ui/toast'
+import { reportError, toast } from '../../shared/ui/toast'
 import { Button, ComingSoon, ErrorState, LoadingState } from '../../shared/ui/controls'
 import { PageHeader } from '../../shared/ui/console'
 import { DetailRow, StatusBadge } from '../../shared/ui/SidePanel'
@@ -135,7 +135,7 @@ function SecurityTab() {
       toast.success('PIN changed', { description: 'Sign in again with your new PIN.' })
       navigate('/login', { replace: true })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not change your PIN.')
+      setError(reportError(err, 'PIN not changed', 'Could not change your PIN.'))
       setCurrent('')
     } finally { setBusy(false) }
   }

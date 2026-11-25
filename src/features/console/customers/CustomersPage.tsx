@@ -1,6 +1,6 @@
 import { Banknote, Lock, UserCheck, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { ApiError, api } from '../../../shared/api/client'
+import { api } from '../../../shared/api/client'
 import { useApi } from '../../../shared/api/useApi'
 import { useSession } from '../../../shared/auth/context'
 import { formatDate, formatDateTime } from '../../../shared/lib/dates'
@@ -11,7 +11,7 @@ import { Button, EmptyState, ErrorState, LoadingState } from '../../../shared/ui
 import { Avatar, BalanceBlock, DateField, ExportButton, FilterBar, KpiRow, PageHeader, PersonCell, SearchField, SelectField, TableCard } from '../../../shared/ui/console'
 import { rowProps } from '../../../shared/ui/rowProps'
 import { DetailRow, SidePanel, StatusBadge } from '../../../shared/ui/SidePanel'
-import { toast } from '../../../shared/ui/toast'
+import { reportError, toast } from '../../../shared/ui/toast'
 
 interface CustomerRow {
   customerId: string
@@ -125,11 +125,12 @@ function CustomerPanel({ id, canUpdate, onClose, onChanged }: { id: string; canU
     setBusy(true); setError(null)
     try {
       await api(`/customers/${id}/status`, { method: 'PATCH', body: { status: locking ? 'SUSPENDED' : 'ACTIVE', reason: reason.trim() } })
-      toast.success(locking ? 'Customer locked' : 'Customer unlocked')
+      if (locking) toast.warning('Customer locked', { description: 'Their wallet is suspended until you unlock it.' })
+      else toast.success('Customer unlocked', { description: 'Their wallet is active again.' })
       setReason('')
       detail.reload(); onChanged()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not change the status.')
+      setError(reportError(err, 'Status not changed', 'Could not change the status.'))
     } finally { setBusy(false) }
   }
 
