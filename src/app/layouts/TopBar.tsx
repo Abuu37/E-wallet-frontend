@@ -69,7 +69,7 @@ export function TopBar({ roleLine, name, initials, email, settingsTo, menuOpen, 
                 <Settings aria-hidden="true" size={16} /> Settings
               </Link>
             )}
-            <button type="button" onClick={onSignOut} className="flex h-10 w-full items-center gap-2.5 rounded-[10px] px-3 text-left text-sm font-medium text-red-700 hover:bg-red-50">
+            <button type="button" onClick={() => { setProfileOpen(false); onSignOut() }} className="flex h-10 w-full items-center gap-2.5 rounded-[10px] px-3 text-left text-sm font-medium text-red-700 hover:bg-red-50">
               <LogOut aria-hidden="true" size={16} /> Log out
             </button>
           </section>

@@ -1,10 +1,11 @@
 import { KeyRound, LayoutGrid, List, ScrollText, Store, Tag, Users, UserCog, Vault } from 'lucide-react'
 import { useState } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import { api } from '../../shared/api/client'
 import { useApi } from '../../shared/api/useApi'
 import { useSession } from '../../shared/auth/context'
 import { maskEmail } from '../../shared/lib/phone'
+import { LogoutConfirm } from '../../shared/ui/LogoutConfirm'
 import { SideNav, type SideNavItem } from './SideNav'
 import { TopBar } from './TopBar'
 
@@ -24,9 +25,9 @@ const NAV: NavItem[] = [
 ]
 
 export default function ConsoleLayout() {
-  const { session, has, signOut } = useSession()
-  const navigate = useNavigate()
+  const { session, has } = useSession()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [logoutOpen, setLogoutOpen] = useState(false)
   // Pending float and mint requests, shown as a badge on Treasury (refreshed every 30 s).
   const canSeeTreasury = has('FLOAT_VIEW')
   const pending = useApi<{ summary: { pending: { count: number } } } | null>(
@@ -53,9 +54,10 @@ export default function ConsoleLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar roleLine="Staff" name="Staff" initials={initials} email={maskEmail(session?.email)}
           menuOpen={menuOpen} onToggleMenu={() => setMenuOpen((v) => !v)}
-          onSignOut={() => { void signOut().then(() => navigate('/login', { replace: true })) }} />
+          onSignOut={() => setLogoutOpen(true)} />
         <main id="main" className="flex-1 p-4 lg:p-8"><Outlet /></main>
       </div>
+      <LogoutConfirm open={logoutOpen} onClose={() => setLogoutOpen(false)} />
     </div>
   )
 }

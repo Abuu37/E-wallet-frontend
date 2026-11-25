@@ -1,10 +1,11 @@
 import { ArrowDownToLine, Coins, Droplet, LayoutGrid, List, Settings } from 'lucide-react'
 import { useState } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import { api } from '../../shared/api/client'
 import { useApi } from '../../shared/api/useApi'
 import { useSession } from '../../shared/auth/context'
 import { maskEmail } from '../../shared/lib/phone'
+import { LogoutConfirm } from '../../shared/ui/LogoutConfirm'
 import { SideNav, type SideNavItem } from './SideNav'
 import { TopBar } from './TopBar'
 
@@ -21,9 +22,9 @@ const ITEMS: SideNavItem[] = [
 interface Identity { agentProfile: { agentCode: string; businessName: string } }
 
 export default function AgentLayout() {
-  const { session, signOut } = useSession()
-  const navigate = useNavigate()
+  const { session } = useSession()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [logoutOpen, setLogoutOpen] = useState(false)
   const identity = useApi<Identity>((signal) => api('/agent/dashboard/overview', { signal }), [])
 
   const business = identity.data?.agentProfile.businessName ?? 'Agent'
@@ -45,9 +46,10 @@ export default function AgentLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar roleLine={`Agent · ${business}${code ? ` · ${code}` : ''}`} name={business} initials={initials} email={maskEmail(session?.email)}
           settingsTo="/agent/settings" menuOpen={menuOpen} onToggleMenu={() => setMenuOpen((v) => !v)}
-          onSignOut={() => { void signOut().then(() => navigate('/login', { replace: true })) }} />
+          onSignOut={() => setLogoutOpen(true)} />
         <main id="main" className="flex-1 px-4 py-6 lg:px-8"><Outlet /></main>
       </div>
+      <LogoutConfirm open={logoutOpen} onClose={() => setLogoutOpen(false)} />
     </div>
   )
 }
