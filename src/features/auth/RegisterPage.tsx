@@ -6,6 +6,7 @@ import { useSession } from '../../shared/auth/context'
 import { formatTzs } from '../../shared/lib/money'
 import { groupedTz, isTzMobile, maskEmail, toE164Tz, tzDigits } from '../../shared/lib/phone'
 import { Button } from '../../shared/ui/controls'
+import { toast } from '../../shared/ui/toast'
 import { AuthShell, type AuthSide, type SideStep } from './AuthShell'
 import { FieldError, PhoneField, PinField, TextField } from './authFields'
 
@@ -150,6 +151,7 @@ export default function RegisterPage() {
         }
       }
       setCode(''); setCodeError(null); setResendIn(60); setStep('code')
+      toast.success('Account created', { description: `We emailed a 6-digit code to ${maskEmail(v.email)}.` })
     } catch (err) {
       if (err instanceof ApiError) {
         const mapped: Record<string, string> = {}
@@ -168,6 +170,7 @@ export default function RegisterPage() {
     try {
       await api('/otp/verify', { method: 'POST', anonymous: true, body: { email: v.email.trim(), otp: code } })
       setStep('pin')
+      toast.success('Email verified')
     } catch (err) {
       setCode('')
       setCodeError(err instanceof ApiError ? err.message : 'Could not verify the code.')
@@ -180,6 +183,7 @@ export default function RegisterPage() {
     try {
       await api('/otp/resend', { method: 'POST', anonymous: true, body: { email: v.email.trim() } })
       setCode(''); setResendIn(60)
+      toast.info('New code sent', { description: `Check ${maskEmail(v.email)}.` })
     } catch (err) { setCodeError(err instanceof ApiError ? err.message : 'Could not send a new code.') } finally { setBusy(false) }
   }
 
@@ -196,8 +200,11 @@ export default function RegisterPage() {
       // The PIN only ever lives in this page's memory. Use it once to open the new wallet, then drop it.
       try { await signIn(toE164Tz(phone), pin); setAutoSignedIn(true) } catch { setAutoSignedIn(false) }
       setPin(''); setPin2(''); setStep('done')
+      toast.success('Your wallet is ready')
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : 'Could not create your PIN.')
+      const msg = err instanceof ApiError ? err.message : 'Could not create your PIN.'
+      setFormError(msg)
+      toast.error('PIN not saved', { description: msg })
     } finally { setBusy(false) }
   }
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { api, apiWithCsrf, refreshSession, setAccessToken, setSessionLostHandler, type SessionTokens } from '../api/client'
+import { toast } from '../ui/toast'
 import { SessionContext, type SessionContextValue } from './context'
 import { STAFF_IDLE_MINUTES, type Role, type Session, type SessionStatus } from './types'
 
@@ -82,10 +83,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isStaff) return
     const limit = STAFF_IDLE_MINUTES * 60_000
-    let timer = window.setTimeout(() => { void signOut() }, limit)
+    const idleOut = () => { toast.info('Signed out', { description: `No activity for ${STAFF_IDLE_MINUTES} minutes.` }); void signOut() }
+    let timer = window.setTimeout(idleOut, limit)
     const reset = () => {
       window.clearTimeout(timer)
-      timer = window.setTimeout(() => { void signOut() }, limit)
+      timer = window.setTimeout(idleOut, limit)
     }
     ACTIVITY_EVENTS.forEach((e) => window.addEventListener(e, reset, { passive: true }))
     return () => {

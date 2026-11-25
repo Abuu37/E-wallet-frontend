@@ -7,6 +7,7 @@ import { formatDateTime } from '../../shared/lib/dates'
 import { amountOf, compareAmounts, formatTzs, normalizeAmount, subtractAmounts } from '../../shared/lib/money'
 import { maskPhone, toE164Tz } from '../../shared/lib/phone'
 import { Button, ErrorState, LoadingState } from '../../shared/ui/controls'
+import { toast } from '../../shared/ui/toast'
 import type { AgentOverview } from './AgentHome'
 
 type Amount = number | string
@@ -58,10 +59,13 @@ export default function AgentCashIn() {
         body: { agentAccountNumber: float.accountNumber, accountNumber: account.trim(), amount: clean, phone: toE164Tz(phone), agentPin: pin },
       })
       setReceipt(result)
+      toast.success('Cash-in complete', { description: 'The receipt is on screen.' })
     } catch (err) {
       setPin('')
       attemptKey.current = '' // a failed attempt may be corrected and retried as a new attempt
-      setError(err instanceof ApiError ? err.message : 'Could not complete the cash-in.')
+      const msg = err instanceof ApiError ? err.message : 'Could not complete the cash-in.'
+      setError(msg)
+      toast.error('Cash-in failed', { description: msg })
     } finally {
       inFlight.current = false
       setBusy(false)

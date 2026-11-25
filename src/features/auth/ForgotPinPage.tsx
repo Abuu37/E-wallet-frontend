@@ -4,6 +4,7 @@ import { ApiError, api } from '../../shared/api/client'
 import { isWeakPin, WEAK_PIN_MESSAGE } from '../../shared/lib/pin'
 import { maskEmail } from '../../shared/lib/phone'
 import { Button } from '../../shared/ui/controls'
+import { toast } from '../../shared/ui/toast'
 import { AuthShell, type AuthSide, type SideStep } from './AuthShell'
 import { FieldError, PinField, TextField } from './authFields'
 
@@ -65,9 +66,11 @@ export default function ForgotPinPage() {
     try {
       await api('/auth/forgot-pin', { method: 'POST', anonymous: true, body: { email: email.trim() } })
       setCode(''); setResendIn(60); setStep('code')
+      toast.success('Code sent', { description: `Check ${maskEmail(email)}. It is valid for 5 minutes.` })
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.'
       if (step === 'code') setCodeError(msg); else setFormError(msg)
+      toast.error('Could not send the code', { description: msg })
     } finally { setBusy(false) }
   }
 
@@ -85,10 +88,12 @@ export default function ForgotPinPage() {
     try {
       await api('/auth/reset-pin', { method: 'POST', anonymous: true, body: { email: email.trim(), otp: code, newPin: pin } })
       setPin(''); setPin2(''); setCode(''); setStep('done')
+      toast.success('PIN reset', { description: 'Other devices were signed out.' })
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Something went wrong. Please try again.'
       // The code is only checked when the new PIN is sent, so a bad code sends the person back to retype it.
       if (err instanceof ApiError && /otp|code|expired/i.test(msg)) { setCode(''); setCodeError(msg); setStep('code') } else setFormError(msg)
+      toast.error('PIN not reset', { description: msg })
     } finally { setBusy(false) }
   }
 

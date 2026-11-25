@@ -5,6 +5,7 @@ import { useSession } from '../../shared/auth/context'
 import { isWeakPin, WEAK_PIN_MESSAGE } from '../../shared/lib/pin'
 import { Button } from '../../shared/ui/controls'
 import { PinPad } from '../../shared/ui/PinPad'
+import { toast } from '../../shared/ui/toast'
 
 type Phase = 'current' | 'new' | 'again'
 
@@ -45,9 +46,12 @@ export default function ChangePinPage() {
       await api('/auth/change-pin', { method: 'POST', body: { currentPin: current, newPin: next } })
       // The server revoked every session on a PIN change; sign in again with the new PIN.
       endSession()
+      toast.success('PIN changed', { description: 'Sign in again with your new PIN.' })
       navigate('/login', { replace: true })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not change your PIN.')
+      const msg = err instanceof ApiError ? err.message : 'Could not change your PIN.'
+      setError(msg)
+      toast.error('PIN not changed', { description: msg })
       setCurrent(''); setNext(''); setAgain(''); setPhase('current')
     } finally { setBusy(false) }
   }

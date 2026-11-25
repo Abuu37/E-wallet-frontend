@@ -5,6 +5,7 @@ import { useSession } from '../../shared/auth/context'
 import { homePathFor } from '../../shared/auth/types'
 import { isTzMobile, tzDigits, toE164Tz } from '../../shared/lib/phone'
 import { Button } from '../../shared/ui/controls'
+import { toast } from '../../shared/ui/toast'
 import { AuthShell } from './AuthShell'
 import { PhoneField, PinField } from './authFields'
 
@@ -39,11 +40,14 @@ export default function SignInPage() {
     setError(null)
     try {
       const session = await signIn(toE164Tz(phone), pin)
+      toast.success('Signed in')
       navigate(session.mustChangePin ? '/change-pin' : location.state?.from ?? homePathFor(session.roles), { replace: true })
     } catch (err) {
       setPin('')
       setShown(false)
-      setError(messageFor(err))
+      const msg = messageFor(err)
+      setError(msg)
+      toast.error('Could not sign in', { description: msg })
     } finally {
       setBusy(false)
     }

@@ -6,6 +6,7 @@ import { ApiError, api } from '../../shared/api/client'
 import { useApi } from '../../shared/api/useApi'
 import { formatTzs } from '../../shared/lib/money'
 import { Button, ErrorState, LoadingState } from '../../shared/ui/controls'
+import { toast } from '../../shared/ui/toast'
 
 interface Limits { perPayment: number | string; daily: number | string; maxBalance: number | string }
 export interface KycStatus {
@@ -74,7 +75,9 @@ export default function VerifyIdentityPage() {
       setToken(linkToken)
     } catch (err) {
       setPhase('idle')
-      setMessage(err instanceof ApiError ? err.message : 'Could not start verification.')
+      const msg = err instanceof ApiError ? err.message : 'Could not start verification.'
+      setMessage(msg)
+      toast.error('Could not start verification', { description: msg })
     }
   }
 
@@ -83,10 +86,16 @@ export default function VerifyIdentityPage() {
     setToken(null); setPhase('checking'); polls.current = 0
     try {
       const result = await api<KycStatus>('/kyc/plaid/complete', { method: 'POST' })
-      if (result.status !== 'PENDING') { setPhase('idle'); status.reload() }
+      if (result.status !== 'PENDING') {
+        setPhase('idle'); status.reload()
+        if (result.status === 'VERIFIED') toast.success('Identity verified', { description: 'Your higher limits are now active.' })
+        else toast.error('Verification not approved', { description: 'You can try again.' })
+      } else toast.info('Checking your verification', { description: 'This can take a minute.' })
     } catch (err) {
       setPhase('idle')
-      setMessage(err instanceof ApiError ? err.message : 'Could not check your verification.')
+      const msg = err instanceof ApiError ? err.message : 'Could not check your verification.'
+      setMessage(msg)
+      toast.error('Verification check failed', { description: msg })
     }
   }
 
@@ -96,7 +105,11 @@ export default function VerifyIdentityPage() {
       polls.current += 1
       try {
         const latest = await api<KycStatus>('/kyc/status')
-        if (latest.status === 'VERIFIED' || latest.status === 'FAILED') { setPhase('idle'); status.reload() }
+        if (latest.status === 'VERIFIED' || latest.status === 'FAILED') {
+          setPhase('idle'); status.reload()
+          if (latest.status === 'VERIFIED') toast.success('Identity verified', { description: 'Your higher limits are now active.' })
+          else toast.error('Verification not approved', { description: 'You can try again.' })
+        }
         else if (polls.current >= POLL_LIMIT) { setPhase('timeout') }
       } catch { /* keep trying until the limit */ }
     }, POLL_MS)
