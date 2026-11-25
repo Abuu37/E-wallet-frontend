@@ -1,5 +1,6 @@
 import { Banknote, Store, UserCheck, UserX } from 'lucide-react'
-import { useMemo, useState, type FormEvent } from 'react'
+import { useFormik } from 'formik'
+import { useMemo, useState } from 'react'
 import { ApiError, api } from '../../../shared/api/client'
 import { useApi } from '../../../shared/api/useApi'
 import { useSession } from '../../../shared/auth/context'
@@ -11,7 +12,8 @@ import { Button, EmptyState, ErrorState, Field, LoadingState } from '../../../sh
 import { Avatar, BalanceBlock, DateField, ExportButton, FilterBar, KpiRow, PageHeader, PersonCell, SearchField, SelectField, TableCard } from '../../../shared/ui/console'
 import { rowProps } from '../../../shared/ui/rowProps'
 import { DetailRow, SidePanel, StatusBadge } from '../../../shared/ui/SidePanel'
-import { toast } from '../../../shared/ui/toast'
+import { reportError, toast } from '../../../shared/ui/toast'
+import { onboardAgentSchema, type OnboardAgentValues } from './onboardSchema'
 
 interface AgentRow {
   agentId: string
@@ -107,60 +109,69 @@ export default function AgentsPage() {
   )
 }
 
+const INITIAL: OnboardAgentValues = { businessName: '', tinNumber: '', username: '', firstName: '', middleName: '', lastName: '', gender: '', dateOfBirth: '', phone: '', email: '', regionId: '', districtId: '' }
+const SELECT = 'h-12 rounded-xl border bg-white px-3 text-base font-semibold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 disabled:bg-slate-100'
+
 function OnboardPanel({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const [v, setV] = useState({ businessName: '', tinNumber: '', username: '', firstName: '', middleName: '', lastName: '', gender: '', dateOfBirth: '', phone: '', email: '', regionId: '', districtId: '' })
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [formError, setFormError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  const set = (k: keyof typeof v) => (e: { target: { value: string } }) => setV((p) => ({ ...p, [k]: e.target.value, ...(k === 'regionId' ? { districtId: '' } : {}) }))
+  const f = useFormik<OnboardAgentValues>({
+    initialValues: INITIAL,
+    validationSchema: onboardAgentSchema,
+    onSubmit: async (values, { setErrors }) => {
+      const body = onboardAgentSchema.cast(values)
+      try {
+        await api('/agents/onboard', { method: 'POST', body: { ...body, middleName: body.middleName || undefined, phone: toE164Tz(body.phone) } })
+        toast.success('Agent onboarded', { description: 'A one-time PIN was sent to the agent.' })
+        onDone()
+      } catch (err) {
+        // Field problems the server found go under their fields; anything else is a toast.
+        if (err instanceof ApiError && Object.keys(err.fieldErrors).length) {
+          setErrors(err.fieldErrors)
+          toast.error('Please check the highlighted fields', { description: Object.values(err.fieldErrors)[0] })
+        } else reportError(err, 'Could not onboard the agent', 'Could not onboard the agent.')
+      }
+    },
+  })
 
   const regions = useApi<Region[]>((signal) => api('/locations/regions', { signal }), [])
-  const districts = useApi<District[]>((signal) => v.regionId ? api('/locations/districts', { query: { regionId: v.regionId }, signal }) : Promise.resolve([]), [v.regionId])
+  const districts = useApi<District[]>((signal) => f.values.regionId ? api('/locations/districts', { query: { regionId: f.values.regionId }, signal }) : Promise.resolve([]), [f.values.regionId])
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    setBusy(true); setErrors({}); setFormError(null)
-    try {
-      await api('/agents/onboard', { method: 'POST', body: { ...v, middleName: v.middleName || undefined, phone: toE164Tz(v.phone) } })
-      toast.success('Agent onboarded', { description: 'A one-time PIN was sent to the agent.' })
-      onDone()
-    } catch (err) {
-      if (err instanceof ApiError) { setErrors(err.fieldErrors); setFormError(err.message) } else setFormError('Could not onboard the agent.')
-    } finally { setBusy(false) }
-  }
+  // Errors show once a submit was attempted, like the other forms.
+  const err = (k: keyof OnboardAgentValues) => (f.submitCount > 0 ? f.errors[k] : undefined)
+  const text = (k: keyof OnboardAgentValues) => ({ id: `ag-${k}`, name: k, value: f.values[k], onChange: f.handleChange, error: err(k) })
 
   return (
     <SidePanel open title="Onboard agent" subtitle="Staff-led onboarding" onClose={onClose}>
-      <form onSubmit={submit} className="flex flex-col gap-3.5">
-        <Field label="Business name" value={v.businessName} onChange={set('businessName')} error={errors.businessName} required />
-        <Field label="TIN" value={v.tinNumber} onChange={set('tinNumber')} error={errors.tinNumber} inputMode="numeric" required />
-        <Field label="Username" value={v.username} onChange={set('username')} error={errors.username} required />
+      <form onSubmit={f.handleSubmit} noValidate className="flex flex-col gap-3.5">
+        <Field label="Business name" {...text('businessName')} />
+        <Field label="TIN" inputMode="numeric" maxLength={9} {...text('tinNumber')} hint="9 digits" />
+        <Field label="Username" {...text('username')} autoComplete="off" />
         <div className="grid grid-cols-2 gap-3">
-          <Field label="First name" value={v.firstName} onChange={set('firstName')} error={errors.firstName} required />
-          <Field label="Last name" value={v.lastName} onChange={set('lastName')} error={errors.lastName} required />
+          <Field label="First name" {...text('firstName')} />
+          <Field label="Last name" {...text('lastName')} />
         </div>
-        <Field label="Middle name (optional)" value={v.middleName} onChange={set('middleName')} error={errors.middleName} />
+        <Field label="Middle name (optional)" {...text('middleName')} />
         <div className="grid grid-cols-2 gap-3">
           <label className="flex flex-col gap-1.5 text-sm font-semibold">Gender
-            <select value={v.gender} onChange={set('gender')} required className="h-12 rounded-xl border border-slate-300 px-3 text-base font-semibold">
+            <select name="gender" value={f.values.gender} onChange={f.handleChange} aria-invalid={err('gender') ? true : undefined} className={`${SELECT} ${err('gender') ? 'border-[#E11D48]' : 'border-slate-300'}`}>
               <option value="">Select</option><option value="MALE">Male</option><option value="FEMALE">Female</option><option value="OTHER">Other</option></select>
-            {errors.gender && <span role="alert" className="text-xs text-[#BE123C]">{errors.gender}</span>}</label>
-          <Field label="Date of birth" type="date" value={v.dateOfBirth} onChange={set('dateOfBirth')} error={errors.dateOfBirth} required />
+            {err('gender') && <span role="alert" className="text-xs font-medium text-[#BE123C]">{err('gender')}</span>}</label>
+          <Field label="Date of birth" type="date" {...text('dateOfBirth')} />
         </div>
-        <Field label="Phone" inputMode="tel" value={v.phone} onChange={set('phone')} error={errors.phone} hint="+255 is added automatically" required />
-        <Field label="Email" type="email" value={v.email} onChange={set('email')} error={errors.email} required />
+        <Field label="Phone" inputMode="tel" {...text('phone')} hint="+255 is added automatically" />
+        <Field label="Email" type="email" {...text('email')} />
         <div className="grid grid-cols-2 gap-3">
           <label className="flex flex-col gap-1.5 text-sm font-semibold">Region
-            <select value={v.regionId} onChange={set('regionId')} required className="h-12 rounded-xl border border-slate-300 px-3 text-base font-semibold">
+            <select name="regionId" value={f.values.regionId} onChange={(e) => { void f.setFieldValue('regionId', e.target.value); void f.setFieldValue('districtId', '') }}
+              aria-invalid={err('regionId') ? true : undefined} className={`${SELECT} ${err('regionId') ? 'border-[#E11D48]' : 'border-slate-300'}`}>
               <option value="">{regions.loading ? 'Loading…' : 'Select'}</option>{regions.data?.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select>
-            {errors.regionId && <span role="alert" className="text-xs text-[#BE123C]">{errors.regionId}</span>}</label>
+            {err('regionId') && <span role="alert" className="text-xs font-medium text-[#BE123C]">{err('regionId')}</span>}</label>
           <label className="flex flex-col gap-1.5 text-sm font-semibold">District
-            <select value={v.districtId} onChange={set('districtId')} required disabled={!v.regionId} className="h-12 rounded-xl border border-slate-300 px-3 text-base font-semibold disabled:bg-slate-100">
-              <option value="">{districts.loading && v.regionId ? 'Loading…' : 'Select'}</option>{districts.data?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select>
-            {errors.districtId && <span role="alert" className="text-xs text-[#BE123C]">{errors.districtId}</span>}</label>
+            <select name="districtId" value={f.values.districtId} onChange={f.handleChange} disabled={!f.values.regionId}
+              aria-invalid={err('districtId') ? true : undefined} className={`${SELECT} ${err('districtId') ? 'border-[#E11D48]' : 'border-slate-300'}`}>
+              <option value="">{districts.loading && f.values.regionId ? 'Loading…' : 'Select'}</option>{districts.data?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select>
+            {err('districtId') && <span role="alert" className="text-xs font-medium text-[#BE123C]">{err('districtId')}</span>}</label>
         </div>
-        {formError && <p role="alert" className="text-sm font-medium text-[#BE123C]">{formError}</p>}
-        <Button type="submit" block loading={busy}>Onboard agent</Button>
+        <Button type="submit" block loading={f.isSubmitting}>Onboard agent</Button>
         <p className="text-xs text-muted">The agent receives a one-time PIN and must change it at first sign-in.</p>
       </form>
     </SidePanel>
