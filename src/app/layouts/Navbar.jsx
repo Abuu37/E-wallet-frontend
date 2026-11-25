@@ -153,7 +153,7 @@ export default function Navbar() {
 
         <button
           type="button"
-          className="relative text-ink md:hidden"
+          className="relative text-ink transition-colors hover:text-brand md:hidden"
           onClick={() => setOpen((prev) => !prev)}
           aria-label="Toggle menu"
         >

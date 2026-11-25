@@ -29,7 +29,7 @@ export function TopBar({ roleLine, name, initials, email, settingsTo, menuOpen, 
 
   return (
     <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-white/95 px-4 py-3 backdrop-blur lg:px-8">
-      <button type="button" className="rounded-xl p-2 hover:bg-slate-100 lg:hidden" aria-label={menuOpen ? 'Close menu' : 'Open menu'} onClick={onToggleMenu}>
+      <button type="button" className="rounded-xl p-2 transition-colors hover:bg-blue-50 hover:text-brand lg:hidden" aria-label={menuOpen ? 'Close menu' : 'Open menu'} onClick={onToggleMenu}>
         {menuOpen ? <X aria-hidden="true" size={20} /> : <Menu aria-hidden="true" size={20} />}
       </button>
       <div className="mr-auto flex min-w-0 flex-col">

@@ -38,7 +38,7 @@ export function SidePanel({ open, title, subtitle, onClose, children, footer }: 
             {subtitle && <p className="truncate text-xs font-semibold text-muted">{subtitle}</p>}
             <h2 className="text-xl font-extrabold tracking-tight">{title}</h2>
           </div>
-          <button type="button" aria-label="Close" onClick={onClose} className="rounded-xl p-2 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200">
+          <button type="button" aria-label="Close" onClick={onClose} className="rounded-xl p-2 transition-colors hover:bg-blue-50 hover:text-brand focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200">
             <X aria-hidden="true" size={20} />
           </button>
         </header>

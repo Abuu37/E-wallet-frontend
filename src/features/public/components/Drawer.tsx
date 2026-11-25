@@ -47,7 +47,7 @@ export default function Drawer({ open, onClose, title, children, footer, size = 
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
-                className="flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-brand-dark hover:text-white"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-blue-50 hover:text-brand"
               >
                 <X size={20} />
               </button>

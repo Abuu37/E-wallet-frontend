@@ -176,6 +176,15 @@ input:-webkit-autofill:active {
   color: white;
 }
 
+.Toastify__close-button {
+  transition: color 0.15s, opacity 0.15s;
+}
+.Toastify__close-button:hover,
+.Toastify__close-button:focus-visible {
+  color: var(--color-brand);
+  opacity: 1;
+}
+
 .Toastify__toast-icon svg {
   width: 16px;
   height: 16px;

@@ -30,8 +30,7 @@ export default function SignInPage() {
       setRejected(false)
       try {
         const session = await signIn(toE164Tz(values.phone), values.pin)
-        const where = session.roles.includes('ADMIN') ? 'the staff console' : session.roles.includes('AGENT') ? 'the agent portal' : 'your wallet'
-        toast.success('Signed in', { description: `Welcome back. Opening ${where}.` })
+        toast.success('Login successful', { description: 'Welcome back' })
         navigate(session.mustChangePin ? '/change-pin' : location.state?.from ?? homePathFor(session.roles), { replace: true })
       } catch (err) {
         void setFieldValue('pin', '', false)
