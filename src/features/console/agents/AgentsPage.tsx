@@ -161,7 +161,7 @@ function OnboardPanel({ onClose, onDone }: { onClose: () => void; onDone: () => 
         <Field label="Email" type="email" {...text('email')} />
         <div className="grid grid-cols-2 gap-3">
           <label className="flex flex-col gap-1.5 text-sm font-semibold">Region
-            <select name="regionId" value={f.values.regionId} onChange={(e) => { void f.setFieldValue('regionId', e.target.value); void f.setFieldValue('districtId', '') }}
+            <select name="regionId" value={f.values.regionId} onChange={(e) => { void f.setValues({ ...f.values, regionId: e.target.value, districtId: '' }) }}
               aria-invalid={err('regionId') ? true : undefined} className={`${SELECT} ${err('regionId') ? 'border-[#E11D48]' : 'border-slate-300'}`}>
               <option value="">{regions.loading ? 'Loading…' : 'Select'}</option>{regions.data?.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select>
             {err('regionId') && <span role="alert" className="text-xs font-medium text-[#BE123C]">{err('regionId')}</span>}</label>
