@@ -32,3 +32,18 @@ export function maskNida(nida: string | null | undefined): string {
   const digits = nida.replace(/\D/g, '')
   return `•••• •••• ${digits.slice(-4)}`
 }
+
+/** The 9 national digits of a Tanzanian number typed as 0712…, 712…, or +255712…. */
+export function tzDigits(input: string): string {
+  return input.replace(/\D/g, '').replace(/^255/, '').replace(/^0/, '')
+}
+
+/** A Tanzanian mobile number: 9 digits starting with 6 or 7. The server is still the authority. */
+export function isTzMobile(input: string): boolean {
+  return /^[67]\d{8}$/.test(tzDigits(input))
+}
+
+export function groupedTz(input: string): string {
+  const d = tzDigits(input)
+  return `+255 ${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}`.trim()
+}
