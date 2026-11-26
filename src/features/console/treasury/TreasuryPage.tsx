@@ -3,11 +3,13 @@ import { api, newIdempotencyKey } from '../../../shared/api/client'
 import { useApi } from '../../../shared/api/useApi'
 import { useSession } from '../../../shared/auth/context'
 import { formatDate, formatDateTime } from '../../../shared/lib/dates'
-import { formatTzs, normalizeAmount } from '../../../shared/lib/money'
+import { amountOf, formatTzs, normalizeAmount } from '../../../shared/lib/money'
 import { reportError, toast } from '../../../shared/ui/toast'
 import { Button, EmptyState, ErrorState, Field, LoadingState } from '../../../shared/ui/controls'
 import { DetailRow, SidePanel, StatusBadge } from '../../../shared/ui/SidePanel'
-import { isRetired, TYPE_LABEL, type TreasuryList, type TreasuryRequest } from './types'
+import { OperationsSection } from './OperationsSection'
+import { SlipView } from './SlipView'
+import { isRetired, POOL_LOW, TYPE_LABEL, type TreasuryBalances, type TreasuryList, type TreasuryRequest } from './types'
 
 type Panel = { kind: 'review'; request: TreasuryRequest } | { kind: 'refill' } | null
 
@@ -22,6 +24,7 @@ export default function TreasuryPage() {
   const [date, setDate] = useState('')
   const [panel, setPanel] = useState<Panel>(null)
 
+  const balances = useApi<TreasuryBalances | null>((signal) => (has('COMPANY_WALLET_VIEW') ? api<TreasuryBalances>('/treasury', { signal }) : Promise.resolve(null)), [], 30_000)
   const state = useApi<TreasuryList>((signal) => api('/treasury/requests', { query: { status: status || undefined, size: 100 }, signal }), [status], 30_000)
 
   // The server filters by status; search, type and date narrow the loaded page in the browser.
@@ -45,6 +48,21 @@ export default function TreasuryPage() {
         </div>
         {has('COMMISSION_MANAGE') && <Button onClick={() => setPanel({ kind: 'refill' })}>Refill commission pool</Button>}
       </div>
+
+      {balances.data && Number(amountOf(balances.data.commissionPoolBalance)) < POOL_LOW && (
+        <div role="alert" className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-900">
+          <span className="min-w-0 flex-1"><b>The commission pool is low.</b> It holds {formatTzs(balances.data.commissionPoolBalance)}. When it runs out, agents are still paid later: each commission is recorded as owed and paid after the next refill.</span>
+          {has('COMMISSION_MANAGE') && <Button onClick={() => setPanel({ kind: 'refill' })}>Refill pool</Button>}
+        </div>
+      )}
+
+      {balances.data && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label="Company balances">
+          {([['Escrow bank', balances.data.escrowBalance, 'Real money in the trust account'], ['Revenue', balances.data.revenueBalance, 'Fees kept by WalletPesa'], ['Commission pool', balances.data.commissionPoolBalance, 'Pays agent commission']] as const).map(([label, value, sub]) => (
+            <div key={label} className="rounded-2xl border border-line bg-white p-5"><span className="text-[13px] font-semibold text-muted">{label}</span><p className="text-xl font-extrabold tabular-nums">{formatTzs(value)}</p><span className="text-xs text-muted">{sub}</span></div>
+          ))}
+        </div>
+      )}
 
       {summary && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -108,14 +126,17 @@ export default function TreasuryPage() {
         <ReviewPanel request={panel.request} canManage={canManage} onClose={() => setPanel(null)} onDone={() => { setPanel(null); state.reload() }} />
       )}
       {panel?.kind === 'refill' && (
-        <RefillPanel onClose={() => setPanel(null)} onDone={() => { setPanel(null); state.reload() }} />
+        <RefillPanel onClose={() => setPanel(null)} onDone={() => { setPanel(null); state.reload(); balances.reload() }} />
       )}
+
+      {has('TREASURY_OPERATE') && <OperationsSection />}
     </div>
   )
 }
 
 function ReviewPanel({ request: r, canManage, onClose, onDone }: { request: TreasuryRequest; canManage: boolean; onClose: () => void; onDone: () => void }) {
   const [note, setNote] = useState('')
+  const [checked, setChecked] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const pending = r.status === 'PENDING'
@@ -155,14 +176,17 @@ function ReviewPanel({ request: r, canManage, onClose, onDone }: { request: Trea
           <label className="flex flex-col gap-1.5 text-sm font-semibold">Decision note <span className="font-normal text-muted">(required to reject)</span>
             <textarea id="tr-note" value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={255} placeholder="e.g. Slip matched on CRDB statement, 09:41"
               className="rounded-xl border border-slate-300 p-3 text-sm font-normal" /></label>
+          {r.hasSlip && <label className="flex items-start gap-2.5 rounded-xl bg-blue-50 p-3 text-sm font-semibold text-brand-dark"><input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} className="mt-0.5 h-4 w-4" />I checked the escrow statement. {formatTzs(r.amount)} arrived with the reference {r.agentNumber}.</label>}
           {error && <p role="alert" className="text-sm font-medium text-[#BE123C]">{error}</p>}
           <div className="flex gap-2">
-            <Button block loading={busy} onClick={() => void decide('approve')}>Approve {formatTzs(r.amount, { symbol: false })}</Button>
+            <Button block loading={busy} disabled={r.hasSlip && !checked} onClick={() => void decide('approve')}>Approve {formatTzs(r.amount, { symbol: false })}</Button>
             <Button variant="danger" disabled={busy} onClick={() => void decide('reject')}>Reject</Button>
           </div>
         </div>
       ) : undefined}>
       <div className="mb-4"><StatusBadge status={r.status} /></div>
+      {r.hasSlip && <div className="mb-4"><h3 className="mb-2 text-sm font-extrabold">Deposit slip</h3><SlipView requestId={r.requestId} />
+        <p className="mt-2 text-xs text-muted">Find slip <b>{r.externalReference}</b> on the escrow statement, for {formatTzs(r.amount)}, with the reference <b>{r.agentNumber}</b>.</p></div>}
       <h3 className="mb-1 text-sm font-extrabold">Request details</h3>
       {facts.map(([k, v]) => <DetailRow key={k} label={k}>{v}</DetailRow>)}
 

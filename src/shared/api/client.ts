@@ -132,13 +132,15 @@ function buildUrl(path: string, query?: RequestOptions['query']): string {
 
 async function send(path: string, opts: RequestOptions): Promise<Response> {
   const headers: Record<string, string> = { Accept: 'application/json' }
-  if (opts.body !== undefined) headers['Content-Type'] = 'application/json'
+  const isForm = typeof FormData !== 'undefined' && opts.body instanceof FormData
+  // A file upload sets its own multipart boundary, so no Content-Type is given for it.
+  if (opts.body !== undefined && !isForm) headers['Content-Type'] = 'application/json'
   if (opts.idempotencyKey) headers['Idempotency-Key'] = opts.idempotencyKey
   if (!opts.anonymous && accessToken) headers.Authorization = `Bearer ${accessToken}`
   return fetch(buildUrl(path, opts.query), {
     method: opts.method ?? 'GET',
     headers,
-    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+    body: opts.body === undefined ? undefined : isForm ? (opts.body as FormData) : JSON.stringify(opts.body),
     credentials: 'same-origin',
     signal: opts.signal,
   })
@@ -165,6 +167,21 @@ export async function api<T = void>(path: string, opts: RequestOptions = {}): Pr
   if (!text) return undefined as T
   const body = JSON.parse(text) as ApiEnvelope<T>
   return body.data
+}
+
+/** A file the server only gives to signed-in people, such as a deposit slip photo. */
+export async function apiBlob(path: string, signal?: AbortSignal): Promise<Blob> {
+  const attempt = () => fetch(buildUrl(path), { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}, credentials: 'same-origin', signal })
+  let response = await attempt()
+  if (response.status === 401) {
+    try { await refreshSession(); response = await attempt() } catch {
+      setAccessToken(null)
+      onSessionLost?.()
+      throw new ApiError(401, 'Your session has ended. Please sign in again.')
+    }
+  }
+  if (!response.ok) throw await toApiError(response)
+  return response.blob()
 }
 
 /** Cookie-authenticated POSTs (logout) that must carry the CSRF header. */

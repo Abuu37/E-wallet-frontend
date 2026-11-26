@@ -128,7 +128,7 @@ export default function AgentCommission() {
         )}
       </TableCard>
 
-      {openRef && <TransactionPanel reference={openRef} own={own} onClose={() => setOpenRef(null)} />}
+      {openRef && <TransactionPanel reference={openRef} onClose={() => setOpenRef(null)} />}
     </div>
   )
 }

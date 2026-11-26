@@ -34,7 +34,14 @@ export interface TreasuryRequest {
   externalReference: string | null
   requestedByUserId: string | null
   requestedByUserName: string | null
+  hasSlip: boolean
 }
+
+/** What the escrow account, revenue and the commission pool hold right now. */
+export interface TreasuryBalances { escrowBalance: number | string; revenueBalance: number | string; commissionPoolBalance: number | string }
+
+/** Below this the commission pool is low and agents may be owed commission. */
+export const POOL_LOW = 100_000
 
 export interface TreasuryList {
   summary: {

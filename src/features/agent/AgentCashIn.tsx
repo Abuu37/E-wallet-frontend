@@ -79,7 +79,6 @@ export default function AgentCashIn() {
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-5 tabular-nums">
       <div className="flex flex-col gap-1">
-        <Link to="/agent" className="text-sm font-bold text-brand-dark">← Dashboard</Link>
         <h1 className="text-[28px] font-extrabold tracking-tight">Cash-in</h1>
         <p className="text-sm text-slate-600">Customer gives you cash, you move it from your float to their wallet.</p>
       </div>
@@ -124,7 +123,7 @@ export default function AgentCashIn() {
             
             {error && <p role="alert" className="text-sm font-medium text-[#BE123C]">{error}</p>}
             <Button type="submit" block loading={busy} disabled={!valid} className="h-14 rounded-[14px] text-[17px]">
-              {amountOk ? `Confirm cash-in of ${formatTzs(clean)}` : 'Confirm cash-in'}
+              {amountOk ? `Confirm ${formatTzs(clean)}` : 'Confirm'}
             </Button>
           </form>
 

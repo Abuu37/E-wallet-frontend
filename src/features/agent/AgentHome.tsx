@@ -4,6 +4,8 @@ import { useApi } from '../../shared/api/useApi'
 import { formatDate, formatTime } from '../../shared/lib/dates'
 import { formatTzs } from '../../shared/lib/money'
 import { EmptyState, ErrorState, LoadingState } from '../../shared/ui/controls'
+import { LiveWithdrawals } from './LiveWithdrawals'
+import { WeeklyChart } from './WeeklyChart'
 
 type Amount = number | string
 export interface AgentOverview {
@@ -34,7 +36,7 @@ export default function AgentHome() {
           <h1 className="text-[28px] font-extrabold tracking-tight">Dashboard</h1>
           <span className="text-sm text-slate-600">{d.agentProfile.businessName} · Agent {d.agentProfile.agentCode}</span>
         </div>
-        <Link to="/agent/float" className={BTN_SECONDARY}>Request float</Link>
+        <Link to="/agent/float" className={BTN_SECONDARY}>Top up float</Link>
         <Link to="/agent/cash-in" className={BTN_PRIMARY}>New cash-in</Link>
       </div>
 
@@ -63,10 +65,9 @@ export default function AgentHome() {
         </section>
       </div>
 
-      <section aria-label="Live withdrawals" className="flex flex-col gap-3 rounded-3xl bg-ink px-6 py-5 text-white">
-        <div className="flex items-center gap-2.5"><span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-slate-500" /><h2 className="text-base font-extrabold">Customer withdrawals · live</h2></div>
-        <p className="text-sm text-slate-400">Customer-initiated withdrawals are coming soon. Each approved withdrawal will appear here with its match code, and you mark the cash as handed over.</p>
-      </section>
+      <LiveWithdrawals />
+
+      <WeeklyChart />
 
       <section aria-label="Recent transactions" className="flex flex-col gap-2 rounded-[20px] border border-line bg-white p-5">
         <div className="flex items-baseline justify-between"><h2 className="text-lg font-extrabold">Recent</h2><Link to="/agent/transactions" className="text-sm font-bold text-brand-dark">All transactions</Link></div>
