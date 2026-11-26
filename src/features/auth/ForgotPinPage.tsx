@@ -3,29 +3,27 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ApiError, api } from '../../shared/api/client'
 import { WEAK_PIN_MESSAGE, isWeakPin } from '../../shared/lib/pin'
-import { maskEmail } from '../../shared/lib/phone'
+import { groupedTz, toE164Tz } from '../../shared/lib/phone'
 import { Button } from '../../shared/ui/controls'
 import { reportError, toast } from '../../shared/ui/toast'
 import { AuthShell, type AuthSide, type SideStep } from './AuthShell'
-import { FieldError, PinField, TextField } from './authFields'
+import { FieldError, PhoneField, PinField, TextField } from './authFields'
 import { bind } from './bind'
-import { codeSchema, digitsOf, email as emailRule, newPinSchema, pinRules } from './schemas'
-import * as yup from 'yup'
+import { codeSchema, digitsOf, forgotSchema, newPinSchema, pinRules } from './schemas'
 
-type Step = 'email' | 'code' | 'pin' | 'done'
-const ORDER: Step[] = ['email', 'code', 'pin']
-const STEPS: [string, string][] = [['Your account', 'The email on your wallet'], ['Email code', '6 digits, valid 5 minutes'], ['New PIN', 'Other devices are signed out']]
+type Step = 'who' | 'code' | 'pin' | 'done'
+const ORDER: Step[] = ['who', 'code', 'pin']
+const STEPS: [string, string][] = [['Your phone', 'Phone and last 4 NIDA digits'], ['Email code', '6 digits, valid 5 minutes'], ['New PIN', 'Other devices are signed out']]
 const BTN = 'h-[52px] text-[15px] shadow-[0_10px_20px_-10px_rgba(37,99,235,0.7)]'
-const emailSchema = yup.object({ email: emailRule })
 const pinSchema = newPinSchema()
 
-/** Reset (and unlock) flow, web layout: email, emailed code, new PIN, done. */
+/** Reset your PIN (customers): phone + last 4 NIDA digits, a code by email, a new PIN. Agents and staff ask an administrator. */
 export default function ForgotPinPage() {
   const navigate = useNavigate()
-  const [step, setStep] = useState<Step>('email')
-  const [email, setEmail] = useState('')
+  const [step, setStep] = useState<Step>('who')
+  const [phone, setPhone] = useState('')
+  const [nidaLast4, setNidaLast4] = useState('')
   const [code, setCode] = useState('')
-  const [codeError, setCodeError] = useState<string | null>(null)
   const [resendIn, setResendIn] = useState(60)
   const [resending, setResending] = useState(false)
   const [pinVisible, setPinVisible] = useState(false)
@@ -36,10 +34,11 @@ export default function ForgotPinPage() {
     return () => window.clearTimeout(t)
   }, [step, resendIn])
 
-  async function requestCode(to: string): Promise<boolean> {
+  /** Always the same answer from the server, so the screen moves on whether or not the details matched. */
+  async function requestCode(p: string, n: string): Promise<boolean> {
     try {
-      await api('/auth/forgot-pin', { method: 'POST', anonymous: true, body: { email: to } })
-      toast.success('Code sent', { description: `Check ${maskEmail(to)}. It is valid for 5 minutes.` })
+      await api('/auth/forgot-pin', { method: 'POST', anonymous: true, body: { phone: toE164Tz(p), nidaLast4: n } })
+      toast.success('Check your email', { description: 'If these details match an account, we sent a code to the email on file.' })
       return true
     } catch (err) {
       reportError(err, 'Could not send the code')
@@ -47,12 +46,11 @@ export default function ForgotPinPage() {
     }
   }
 
-  const emailForm = useFormik({
-    initialValues: { email },
-    validationSchema: emailSchema,
+  const whoForm = useFormik({
+    initialValues: { phone, nidaLast4 },
+    validationSchema: forgotSchema,
     onSubmit: async (v) => {
-      const to = v.email.trim()
-      if (await requestCode(to)) { setEmail(to); setCode(''); setCodeError(null); setResendIn(60); setStep('code') }
+      if (await requestCode(v.phone, v.nidaLast4)) { setPhone(v.phone); setNidaLast4(v.nidaLast4); setCode(''); setResendIn(60); setStep('code') }
     },
   })
 
@@ -60,7 +58,15 @@ export default function ForgotPinPage() {
     initialValues: { code },
     validationSchema: codeSchema,
     enableReinitialize: true,
-    onSubmit: (v) => { setCode(v.code); setCodeError(null); setStep('pin') },
+    onSubmit: async (v, { setFieldError, setFieldValue }) => {
+      try {
+        await api('/otp/verify', { method: 'POST', anonymous: true, body: { phone: toE164Tz(phone), otp: v.code } })
+        setCode(v.code); setStep('pin')
+      } catch (err) {
+        void setFieldValue('code', '', false)
+        setFieldError('code', reportError(err, 'Code not accepted', 'Could not check the code.'))
+      }
+    },
   })
 
   const pinForm = useFormik({
@@ -68,13 +74,13 @@ export default function ForgotPinPage() {
     validationSchema: pinSchema,
     onSubmit: async (v, { resetForm }) => {
       try {
-        await api('/auth/reset-pin', { method: 'POST', anonymous: true, body: { email, otp: code, newPin: v.pin } })
+        await api('/auth/reset-pin', { method: 'POST', anonymous: true, body: { phone: toE164Tz(phone), otp: code, newPin: v.pin } })
         resetForm(); setCode(''); setStep('done')
         toast.success('PIN reset', { description: 'Other devices were signed out.' })
       } catch (err) {
         const msg = reportError(err, 'PIN not reset')
-        // The code is only checked when the new PIN is sent, so a bad code sends the person back to retype it.
-        if (err instanceof ApiError && /otp|code|expired/i.test(msg)) { resetForm(); setCode(''); setCodeError(msg); setStep('code') }
+        // The code stopped working (expired, used up): go back to ask for a fresh one.
+        if (err instanceof ApiError && /code|expired|attempts/i.test(msg)) { resetForm(); setCode(''); setStep('who') }
       }
     },
   })
@@ -82,7 +88,7 @@ export default function ForgotPinPage() {
   async function resend() {
     if (resendIn > 0 || resending) return
     setResending(true)
-    if (await requestCode(email)) { setCode(''); setCodeError(null); setResendIn(60) }
+    if (await requestCode(phone, nidaLast4)) { void codeForm.setFieldValue('code', '', false); setResendIn(60) }
     setResending(false)
   }
 
@@ -90,7 +96,7 @@ export default function ForgotPinPage() {
   const sideSteps: SideStep[] = STEPS.map(([label, sub], i) => ({ label, sub, number: i + 1, state: step === 'done' || i < idx ? 'done' : i === idx ? 'current' : 'todo' }))
   const side: AuthSide = {
     title: 'Get back into your wallet.',
-    body: 'Confirm it’s you, then set a new PIN. Your money stays where it is. This also unlocks a locked account.',
+    body: 'Confirm it’s you with your phone, then set a new PIN. Your money stays where it is.',
     steps: step === 'done' ? undefined : sideSteps,
     note: { title: 'WalletPesa will never call you for this code.', text: 'Don’t share it with anyone, including agents and staff.' },
   }
@@ -100,6 +106,7 @@ export default function ForgotPinPage() {
   const pinErr = pinForm.errors.pin && isWeakPin(pinForm.values.pin) ? WEAK_PIN_MESSAGE : pinForm.errors.pin
   const pin1 = bind(pinForm, 'pin')
   const pin2 = bind(pinForm, 'pin2')
+  const codeField = bind(codeForm, 'code')
 
   return (
     <AuthShell cta="login" side={side}>
@@ -111,40 +118,42 @@ export default function ForgotPinPage() {
           </div>
         )}
 
-        {step === 'email' && (
-          <form onSubmit={emailForm.handleSubmit} noValidate className="flex flex-col gap-[18px]">
+        {step === 'who' && (
+          <form onSubmit={whoForm.handleSubmit} noValidate className="flex flex-col gap-[18px]">
             <div className="flex flex-col gap-1.5"><h1 className="text-[30px] font-extrabold tracking-tight">Reset your PIN</h1>
-              <p className="text-[15px] text-slate-600">Enter the email on your wallet. If an account exists we’ll send a 6-digit code.</p></div>
-            <TextField id="fp-email" label="Email" type="email" inputMode="email" autoComplete="email" {...bind(emailForm, 'email')} />
-            <Button type="submit" block loading={emailForm.isSubmitting} className={BTN}>Send code</Button>
+              <p className="text-[15px] text-slate-600">We’ll email a 6-digit code to the address on your wallet.</p></div>
+            <PhoneField id="fp-phone" {...bind(whoForm, 'phone')} />
+            <div className="flex flex-col gap-1.5">
+              <TextField id="fp-nida" label="Last 4 digits of your NIDA number" inputMode="numeric" maxLength={4} placeholder="0000" autoComplete="off"
+                {...bind(whoForm, 'nidaLast4')} onChange={(v) => bind(whoForm, 'nidaLast4').onChange(digitsOf(v).slice(0, 4))}
+                hint="A second check, so a stolen SIM alone can’t reset your PIN." />
+            </div>
+            <Button type="submit" block loading={whoForm.isSubmitting} className={BTN}>Send code</Button>
             <p className="text-center text-sm text-slate-600">Remembered it? <Link to="/login" className="font-semibold text-brand-dark no-underline hover:underline">Log in</Link></p>
+            <p className="rounded-xl border border-line bg-surface px-3.5 py-3 text-[13px] leading-normal text-slate-600">Agents and staff: ask your administrator to reset your PIN.</p>
           </form>
         )}
 
-        {step === 'code' && (() => {
-          const c = bind(codeForm, 'code')
-          const err = c.error || codeError || ''
-          return (
-            <form onSubmit={codeForm.handleSubmit} noValidate className="flex flex-col gap-[18px]">
-              <div className="flex flex-col gap-1.5"><h1 className="text-[30px] font-extrabold tracking-tight">Enter the code</h1>
-                <p className="text-[15px] text-slate-600">Sent by email to <b className="text-ink">{maskEmail(email)}</b>. <button type="button" onClick={() => setStep('email')} className="font-semibold text-brand-dark hover:underline">Change</button></p></div>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="fp-code" className="text-sm font-semibold">6-digit code</label>
-                <input id="fp-code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={c.value} onChange={(e) => { setCodeError(null); c.onChange(digitsOf(e.target.value).slice(0, 6)) }} placeholder="••••••"
-                  aria-invalid={err ? true : undefined} aria-describedby="fp-code-err"
-                  className={`h-[60px] w-full rounded-xl border bg-white px-4 text-center text-[26px] font-extrabold tracking-[0.5em] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 ${err ? 'border-[#DC2626]' : 'border-slate-300 focus-visible:border-brand'}`} />
-                <FieldError id="fp-code-err">{err}</FieldError>
-              </div>
-              <div className="flex items-center justify-between text-sm text-slate-600">
-                <span>Expires in 5 min</span>
-                <button type="button" onClick={() => void resend()} disabled={resendIn > 0 || resending} className={`font-semibold ${resendIn > 0 ? 'text-slate-400' : 'text-brand-dark hover:underline'}`}>
-                  {resendIn > 0 ? `Resend in ${Math.floor(resendIn / 60)}:${String(resendIn % 60).padStart(2, '0')}` : 'Resend code'}
-                </button>
-              </div>
-              <Button type="submit" block className={BTN}>Continue</Button>
-            </form>
-          )
-        })()}
+        {step === 'code' && (
+          <form onSubmit={codeForm.handleSubmit} noValidate className="flex flex-col gap-[18px]">
+            <div className="flex flex-col gap-1.5"><h1 className="text-[30px] font-extrabold tracking-tight">Enter the code</h1>
+              <p className="text-[15px] text-slate-600">If these details match an account, we sent a code to the email on file for {groupedTz(phone)}. <button type="button" onClick={() => setStep('who')} className="font-semibold text-brand-dark hover:underline">Change</button></p></div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="fp-code" className="text-sm font-semibold">6-digit code</label>
+              <input id="fp-code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={codeField.value} onChange={(e) => codeField.onChange(digitsOf(e.target.value).slice(0, 6))} placeholder="••••••"
+                aria-invalid={codeField.error ? true : undefined} aria-describedby="fp-code-err"
+                className={`h-[60px] w-full rounded-xl border bg-white px-4 text-center text-[26px] font-extrabold tracking-[0.5em] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 ${codeField.error ? 'border-[#DC2626]' : 'border-slate-300 focus-visible:border-brand'}`} />
+              <FieldError id="fp-code-err">{codeField.error}</FieldError>
+            </div>
+            <div className="flex items-center justify-between text-sm text-slate-600">
+              <span>5 tries · expires in 5 min</span>
+              <button type="button" onClick={() => void resend()} disabled={resendIn > 0 || resending} className={`font-semibold ${resendIn > 0 ? 'text-slate-400' : 'text-brand-dark hover:underline'}`}>
+                {resendIn > 0 ? `Resend in ${Math.floor(resendIn / 60)}:${String(resendIn % 60).padStart(2, '0')}` : 'Resend code'}
+              </button>
+            </div>
+            <Button type="submit" block loading={codeForm.isSubmitting} className={BTN}>Verify code</Button>
+          </form>
+        )}
 
         {step === 'pin' && (
           <form onSubmit={pinForm.handleSubmit} noValidate className="flex flex-col gap-[18px]">
@@ -162,7 +171,7 @@ export default function ForgotPinPage() {
               })}
             </ul>
             <FieldError id="fp-pin-err">{submitted ? pinErr || pinForm.errors.pin2 || '' : ''}</FieldError>
-            <div className="rounded-xl border border-orange-200 bg-orange-50 px-3.5 py-3 text-[13px] leading-normal text-orange-900">For your safety, every other device is signed out after the reset.</div>
+            <div className="rounded-xl border border-orange-200 bg-orange-50 px-3.5 py-3 text-[13px] leading-normal text-orange-900">For your safety, every other device is signed out after the reset, and we email you to confirm.</div>
             <Button type="submit" block loading={pinForm.isSubmitting} className={BTN}>Reset PIN</Button>
           </form>
         )}
@@ -171,8 +180,8 @@ export default function ForgotPinPage() {
           <div className="flex flex-col items-start gap-[18px]">
             <span aria-hidden="true" className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-3xl text-green-600">✓</span>
             <div className="flex flex-col gap-1.5"><h1 className="text-[30px] font-extrabold tracking-tight">New PIN set</h1>
-              <p className="text-[15px] leading-normal text-slate-600">We signed out every other device. Log in with your new PIN.</p></div>
-            <div className="w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13px] leading-normal text-slate-600">Didn’t do this? Contact support right away so we can lock your wallet while we check.</div>
+              <p className="text-[15px] leading-normal text-slate-600">We signed out every other device and emailed you to confirm. Log in with your new PIN.</p></div>
+            <div className="w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-[13px] leading-normal text-slate-600">Didn’t do this? Call support right away and we’ll lock your wallet while we check.</div>
             <Button type="button" block onClick={() => navigate('/login')} className={BTN}>Log in</Button>
           </div>
         )}

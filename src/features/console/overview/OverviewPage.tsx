@@ -117,7 +117,7 @@ export default function OverviewPage() {
 
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-5">
         <Kpi dark label="Escrow bank" value={formatCompact(d.liquidityCards.escrowBankBalance)} unit="TZS" sub="Ledger escrow wallet · backs all e-money" icon={Landmark} iconClass="bg-white/10 text-white" />
-        <Kpi label="Company master" value={formatCompact(d.liquidityCards.companyMasterBalance)} unit="TZS" sub="Available to issue as float" icon={Building2} iconClass="bg-slate-100 text-slate-600" />
+        <Kpi label="Commission pool" value={formatCompact(d.liquidityCards.commissionPoolBalance)} unit="TZS" sub={Number(amountOf(d.liquidityCards.commissionPoolBalance)) < 100_000 ? 'Pool is low: refill it from revenue' : 'Pays agents their commission'} icon={Building2} iconClass={Number(amountOf(d.liquidityCards.commissionPoolBalance)) < 100_000 ? 'bg-orange-50 text-orange-700' : 'bg-slate-100 text-slate-600'} subClass={Number(amountOf(d.liquidityCards.commissionPoolBalance)) < 100_000 ? 'font-bold text-orange-700' : undefined} />
         <Kpi label="Transactions" value={d.transactionMetrics.totalCount.toLocaleString('en-US')} sub={`Completed ${rangeLabel}`} icon={Receipt} subClass="text-green-600" />
         <Kpi label="Revenue" value={formatCompact(d.liquidityCards.companyRevenueBalance)} unit="TZS" sub="Fees collected to date" icon={TrendingUp} iconClass="bg-green-50 text-green-600" subClass="text-green-600" />
         <Kpi label="Ledger status" value={balanced ? 'Balanced' : 'Not balanced'} sub={`Checked ${refreshed}`} icon={ScrollText}

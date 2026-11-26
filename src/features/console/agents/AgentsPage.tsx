@@ -12,9 +12,10 @@ import { Button, EmptyState, ErrorState, Field, LoadingState } from '../../../sh
 import { Avatar, BalanceBlock, DateField, ExportButton, FilterBar, KpiRow, PageHeader, PersonCell, SearchField, SelectField, TableCard } from '../../../shared/ui/console'
 import { rowProps } from '../../../shared/ui/rowProps'
 import { Modal } from '../../../shared/ui/Modal'
+import { ResetPinButton } from '../../../shared/ui/ResetPinButton'
 import { DetailRow, SidePanel, StatusBadge } from '../../../shared/ui/SidePanel'
 import { reportError, toast } from '../../../shared/ui/toast'
-import { formatTin, makeAgentUsername, onboardAgentSchema, type OnboardAgentValues } from './onboardSchema'
+import { formatTin, onboardAgentSchema, type OnboardAgentValues } from './onboardSchema'
 
 interface AgentRow {
   agentId: string
@@ -124,24 +125,14 @@ function OnboardDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
     onSubmit: async (values, { setErrors }) => {
       const v = onboardAgentSchema.cast(values)
       try {
-        let attempt = 0
-        for (;;) {
-          try {
-            await api('/agents/onboard', {
-              method: 'POST',
-              body: {
-                username: makeAgentUsername(v.businessName), businessName: v.businessName, tinNumber: formatTin(v.tinNumber),
-                firstName: v.firstName, middleName: v.middleName || undefined, lastName: v.lastName, gender: v.gender,
-                dateOfBirth: v.dateOfBirth, phone: toE164Tz(v.phone), email: v.email.toLowerCase(), regionId: v.regionId, districtId: v.districtId,
-              },
-            })
-            break
-          } catch (err) {
-            // The generated login name collided with someone else's: try another one.
-            if (err instanceof ApiError && err.status === 409 && /username/i.test(err.message) && attempt++ < 3) continue
-            throw err
-          }
-        }
+        await api('/agents/onboard', {
+            method: 'POST',
+            body: {
+              businessName: v.businessName, tinNumber: formatTin(v.tinNumber),
+              firstName: v.firstName, middleName: v.middleName || undefined, lastName: v.lastName, gender: v.gender,
+              dateOfBirth: v.dateOfBirth, phone: toE164Tz(v.phone), email: v.email.toLowerCase(), regionId: v.regionId, districtId: v.districtId,
+            },
+          })
         toast.success('Agent onboarded', { description: `${v.businessName} is active. A one-time PIN was emailed to ${maskEmail(v.email)}.` })
         onDone()
       } catch (err) {
@@ -217,6 +208,7 @@ function OnboardDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
 }
 
 function StatusPanel({ agent, canUpdate, onClose, onDone }: { agent: AgentRow; canUpdate: boolean; onClose: () => void; onDone: () => void }) {
+  const { has } = useSession()
   const [next, setNext] = useState<'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED'>(agent.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE')
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -254,6 +246,7 @@ function StatusPanel({ agent, canUpdate, onClose, onDone }: { agent: AgentRow; c
           <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} maxLength={255} className="rounded-xl border border-slate-300 p-3 text-sm font-normal" /></label>
         <p className="text-xs text-muted">The reason is required and is recorded in the audit log with your name.</p>
       </div>}
+      {has('AGENT_MANAGE') && <div className="mt-5"><ResetPinButton path={`/agents/${agent.agentId}/reset-pin`} name={`${agent.firstName} ${agent.lastName}`} /></div>}
     </SidePanel>
   )
 }

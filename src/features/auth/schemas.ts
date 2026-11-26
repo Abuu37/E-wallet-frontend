@@ -93,3 +93,10 @@ export const newPinSchema = (dob?: string) => yup.object({
     .test('strong', 'Choose a PIN that passes every rule above.', (v) => pinRules(v ?? '', dob).every((r) => r.ok) && !isWeakPin(v ?? '')),
   pin2: yup.string().default('').test('match', 'The two PINs don’t match.', (v, ctx) => v === ctx.parent.pin),
 })
+
+// ---- forgot PIN: phone + last 4 NIDA digits ----------------------------------------------------
+
+export const forgotSchema = yup.object({
+  phone,
+  nidaLast4: yup.string().default('').required('Enter the last 4 digits').matches(/^\d{4}$/, 'Enter the last 4 digits'),
+})

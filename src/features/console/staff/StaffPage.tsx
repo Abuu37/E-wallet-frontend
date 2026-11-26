@@ -3,6 +3,7 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { ApiError, api } from '../../../shared/api/client'
 import { useApi } from '../../../shared/api/useApi'
 import { useSession } from '../../../shared/auth/context'
+import { ResetPinButton } from '../../../shared/ui/ResetPinButton'
 import { formatDateTime } from '../../../shared/lib/dates'
 import { downloadCsv } from '../../../shared/lib/csv'
 import { maskEmail, maskPhone, toE164Tz } from '../../../shared/lib/phone'
@@ -81,7 +82,7 @@ export default function StaffPage() {
 }
 
 function AddPanel({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const [v, setV] = useState({ username: '', firstName: '', middleName: '', lastName: '', email: '', phone: '', jobTitle: '' })
+  const [v, setV] = useState({ firstName: '', middleName: '', lastName: '', email: '', phone: '', jobTitle: '' })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -103,7 +104,6 @@ function AddPanel({ onClose, onDone }: { onClose: () => void; onDone: () => void
   return (
     <SidePanel open title="Add staff member" onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-3.5">
-        <Field label="Username" value={v.username} onChange={set('username')} error={errors.username} required />
         <div className="grid grid-cols-2 gap-3">
           <Field label="First name" value={v.firstName} onChange={set('firstName')} error={errors.firstName} required />
           <Field label="Last name" value={v.lastName} onChange={set('lastName')} error={errors.lastName} required />
@@ -121,6 +121,8 @@ function AddPanel({ onClose, onDone }: { onClose: () => void; onDone: () => void
 }
 
 function EditPanel({ id, canEdit, onClose, onDone }: { id: string; canEdit: boolean; onClose: () => void; onDone: () => void }) {
+  const { session } = useSession()
+  const isAdmin = session?.roles.includes('ADMIN') ?? false
   const detail = useApi<StaffDetail>((signal) => api(`/staff/${id}`, { signal }), [id])
   const [draft, setDraft] = useState<{ firstName: string; middleName: string; lastName: string; jobTitle: string } | null>(null)
   const [busy, setBusy] = useState(false)
@@ -156,6 +158,7 @@ function EditPanel({ id, canEdit, onClose, onDone }: { id: string; canEdit: bool
           <Field label="Job title" value={form.jobTitle} disabled={!canEdit} onChange={(e) => setDraft({ ...form, jobTitle: e.target.value })} />
           {error && <p role="alert" className="text-sm font-medium text-[#BE123C]">{error}</p>}
           {canEdit && <Button type="submit" block loading={busy} disabled={!draft}>Save changes</Button>}
+          {isAdmin && <ResetPinButton path={`/staff/${id}/reset-pin`} name={`${d.firstName} ${d.lastName}`} />}
         </form>
       )}
     </SidePanel>

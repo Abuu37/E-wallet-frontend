@@ -8,7 +8,7 @@ export interface OverviewResponse {
   currency: string
   liquidityCards: {
     escrowBankBalance: Amount
-    companyMasterBalance: Amount
+    commissionPoolBalance: Amount
     companyRevenueBalance: Amount
     totalAgentFloatBalance: Amount
     totalAgentCommissionBalance: Amount

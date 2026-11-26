@@ -5,18 +5,18 @@ export type RequestType = 'TOPUP' | 'WITHDRAWAL' | 'MINT' | 'COMMISSION_TOPUP'
 export const TYPE_LABEL: Record<RequestType, string> = {
   TOPUP: 'Float top-up',
   WITHDRAWAL: 'Float withdrawal',
-  MINT: 'Mint',
-  COMMISSION_TOPUP: 'Commission top-up',
+  MINT: 'Mint (retired)',
+  COMMISSION_TOPUP: 'Commission top-up (retired)',
 }
 
-/** Mint and commission top-up are maker-checker; agent float requests are decided by one staff member. */
-export const needsSecondStaff = (t: RequestType) => t === 'MINT' || t === 'COMMISSION_TOPUP'
+/** Float comes straight from escrow now. Mint and commission-request rows only remain so old history still reads. */
+export const isRetired = (t: RequestType) => t === 'MINT' || t === 'COMMISSION_TOPUP'
 
 export interface TreasuryRequest {
   requestId: string
   requestRef: string
   requestType: RequestType
-  /** Null for staff-raised mint and commission requests. */
+  /** Null for the retired staff-raised requests. */
   agentId: string | null
   agentNumber: string | null
   agentName: string | null

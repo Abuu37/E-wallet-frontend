@@ -31,12 +31,6 @@ const STEP_LABELS: [Step, string, string][] = [['details', 'About you', 'Name, N
 /** Server field names, mapped to the form's own. */
 const SERVER_FIELD: Record<string, keyof DetailsValues> = { firstName: 'first', middleName: 'middle', lastName: 'last', nidaNumber: 'nida', dateOfBirth: 'dob', email: 'email', address: 'address' }
 
-/** A technical login name the person never sees or types: their name plus random digits. */
-function makeUsername(v: DetailsValues): string {
-  const base = `${v.first}${v.last}`.toLowerCase().replace(/[^a-z]/g, '').slice(0, 20) || 'user'
-  return `${base}${Math.floor(1000 + Math.random() * 9000)}`
-}
-
 interface KycLimits { basic: { perPayment: number | string; daily: number | string; maxBalance: number | string } }
 
 
@@ -73,23 +67,13 @@ export default function RegisterPage() {
     onSubmit: async (values, { setErrors }) => {
       const d = detailsSchema.cast(values) as DetailsValues
       try {
-        let attempt = 0
-        for (;;) {
-          try {
-            await api('/customers/register', {
-              method: 'POST', anonymous: true,
-              body: {
-                username: makeUsername(d), firstName: d.first, middleName: d.middle || undefined, lastName: d.last,
-                email: d.email, phone: toE164Tz(phone), nidaNumber: digitsOf(d.nida), dateOfBirth: d.dob, address: d.address,
-              },
-            })
-            break
-          } catch (err) {
-            // The generated login name collided with someone else's: try another one.
-            if (err instanceof ApiError && err.status === 409 && /username/i.test(err.message) && attempt++ < 3) continue
-            throw err
-          }
-        }
+        await api('/customers/register', {
+          method: 'POST', anonymous: true,
+          body: {
+            firstName: d.first, middleName: d.middle || undefined, lastName: d.last,
+            email: d.email, phone: toE164Tz(phone), nidaNumber: digitsOf(d.nida), dateOfBirth: d.dob, address: d.address,
+          },
+        })
         setV(d); setResendIn(60); setStep('code')
         toast.success('Account created', { description: `We emailed a 6-digit code to ${maskEmail(d.email)}.` })
       } catch (err) {
@@ -117,7 +101,7 @@ export default function RegisterPage() {
     validationSchema: codeSchema,
     onSubmit: async (values, { setFieldError, setFieldValue }) => {
       try {
-        await api('/otp/verify', { method: 'POST', anonymous: true, body: { email: v.email, otp: values.code } })
+        await api('/otp/verify', { method: 'POST', anonymous: true, body: { phone: toE164Tz(phone), otp: values.code } })
         setStep('pin')
         toast.success('Email verified')
       } catch (err) {
@@ -131,7 +115,7 @@ export default function RegisterPage() {
     if (resendIn > 0 || resending) return
     setResending(true)
     try {
-      await api('/otp/resend', { method: 'POST', anonymous: true, body: { email: v.email } })
+      await api('/otp/resend', { method: 'POST', anonymous: true, body: { phone: toE164Tz(phone) } })
       void codeForm.setFieldValue('code', '', false); setResendIn(60)
       toast.info('New code sent', { description: `Check ${maskEmail(v.email)}.` })
     } catch (err) { reportError(err, 'Could not send a new code', 'Could not send a new code.') } finally { setResending(false) }

@@ -7,11 +7,11 @@ import { formatTzs, normalizeAmount } from '../../../shared/lib/money'
 import { reportError, toast } from '../../../shared/ui/toast'
 import { Button, EmptyState, ErrorState, Field, LoadingState } from '../../../shared/ui/controls'
 import { DetailRow, SidePanel, StatusBadge } from '../../../shared/ui/SidePanel'
-import { needsSecondStaff, TYPE_LABEL, type TreasuryList, type TreasuryRequest } from './types'
+import { isRetired, TYPE_LABEL, type TreasuryList, type TreasuryRequest } from './types'
 
-type Panel = { kind: 'review'; request: TreasuryRequest } | { kind: 'mint' } | { kind: 'commission' } | null
+type Panel = { kind: 'review'; request: TreasuryRequest } | { kind: 'refill' } | null
 
-const FILTER_TYPES = [['', 'All types'], ['MINT', 'Mint'], ['TOPUP', 'Float top-up'], ['WITHDRAWAL', 'Float withdrawal'], ['COMMISSION_TOPUP', 'Commission top-up']]
+const FILTER_TYPES = [['', 'All types'], ['TOPUP', 'Float top-up'], ['WITHDRAWAL', 'Float withdrawal']]
 
 export default function TreasuryPage() {
   const { has } = useSession()
@@ -41,14 +41,9 @@ export default function TreasuryPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-2xl">
           <h1 className="text-2xl font-extrabold tracking-tight">Treasury</h1>
-          <p className="text-sm text-muted">Mint and commission top-ups need two people: you cannot approve your own. Agent float requests are decided by one staff member.</p>
+          <p className="text-sm text-muted">Float is issued from escrow once the agent's deposit is checked against the escrow statement. One staff member decides each request.</p>
         </div>
-        {canManage && (
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => setPanel({ kind: 'commission' })}>Request commission top-up</Button>
-            <Button onClick={() => setPanel({ kind: 'mint' })}>Request mint</Button>
-          </div>
-        )}
+        {has('COMMISSION_MANAGE') && <Button onClick={() => setPanel({ kind: 'refill' })}>Refill commission pool</Button>}
       </div>
 
       {summary && (
@@ -95,7 +90,7 @@ export default function TreasuryPage() {
                   <tr key={r.requestId} className="border-t border-line hover:bg-surface">
                     <td className="px-5 py-3 text-muted">{i + 1}</td>
                     <td className="font-mono text-xs">{r.requestRef}</td>
-                    <td><span className="inline-flex items-center gap-2"><span aria-hidden="true" className={`h-2 w-2 rounded-full ${needsSecondStaff(r.requestType) ? 'bg-brand' : 'bg-accent'}`} />{TYPE_LABEL[r.requestType]}</span></td>
+                    <td><span className="inline-flex items-center gap-2"><span aria-hidden="true" className={`h-2 w-2 rounded-full ${isRetired(r.requestType) ? 'bg-slate-300' : 'bg-accent'}`} />{TYPE_LABEL[r.requestType]}</span></td>
                     <td>{r.agentName ? <><b className="block">{r.agentName}</b><span className="text-xs text-muted">{r.accountNumber}</span></> : <span className="text-muted">Company ledger</span>}</td>
                     <td className="text-right font-bold tabular-nums">{formatTzs(r.amount, { symbol: false })}</td>
                     <td className="pl-4 text-xs">{formatDate(r.createdAt)}</td>
@@ -112,22 +107,20 @@ export default function TreasuryPage() {
       {panel?.kind === 'review' && (
         <ReviewPanel request={panel.request} canManage={canManage} onClose={() => setPanel(null)} onDone={() => { setPanel(null); state.reload() }} />
       )}
-      {(panel?.kind === 'mint' || panel?.kind === 'commission') && (
-        <RaisePanel kind={panel.kind} onClose={() => setPanel(null)} onDone={() => { setPanel(null); state.reload() }} />
+      {panel?.kind === 'refill' && (
+        <RefillPanel onClose={() => setPanel(null)} onDone={() => { setPanel(null); state.reload() }} />
       )}
     </div>
   )
 }
 
 function ReviewPanel({ request: r, canManage, onClose, onDone }: { request: TreasuryRequest; canManage: boolean; onClose: () => void; onDone: () => void }) {
-  const { session } = useSession()
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const pending = r.status === 'PENDING'
-  // Maker-checker: the person who raised a mint or commission request cannot decide it.
-  const own = needsSecondStaff(r.requestType) && r.requestedByUserId !== null && r.requestedByUserId === session?.userId
-  const canDecide = pending && canManage && !own
+  const retired = isRetired(r.requestType)
+  const canDecide = pending && canManage && !retired
 
   async function decide(kind: 'approve' | 'reject') {
     if (kind === 'reject' && note.trim().length < 3) {
@@ -179,15 +172,15 @@ function ReviewPanel({ request: r, canManage, onClose, onDone }: { request: Trea
         {!pending && <li className="flex gap-3"><span aria-hidden="true" className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${r.status === 'APPROVED' ? 'bg-teal-500' : 'bg-rose-500'}`} /><span><b>{r.status === 'APPROVED' ? 'Approved' : 'Rejected'}</b>{r.decidedByUserName ? ` by ${r.decidedByUserName}` : ''}<br /><span className="text-xs text-muted">{formatDateTime(r.decidedAt)}</span>{r.decisionNote && <><br /><span>{r.decisionNote}</span></>}</span></li>}
       </ol>
 
-      {own && pending && (
-        <div role="status" className="mt-5 rounded-xl bg-amber-50 p-3 text-sm text-amber-900"><b>You requested this.</b> Another staff member must approve or reject it.</div>
+      {retired && pending && (
+        <div role="status" className="mt-5 rounded-xl bg-amber-50 p-3 text-sm text-amber-900"><b>This request type is retired.</b> Float now comes straight from escrow, so this old request cannot be decided.</div>
       )}
       {pending && !canManage && <p className="mt-4 text-sm text-muted">You can view this request but cannot decide it.</p>}
     </SidePanel>
   )
 }
 
-function RaisePanel({ kind, onClose, onDone }: { kind: 'mint' | 'commission'; onClose: () => void; onDone: () => void }) {
+function RefillPanel({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const [amount, setAmount] = useState('')
   const [description, setDescription] = useState('')
   const [busy, setBusy] = useState(false)
@@ -195,27 +188,26 @@ function RaisePanel({ kind, onClose, onDone }: { kind: 'mint' | 'commission'; on
   const [attemptKey] = useState(newIdempotencyKey) // one key per opened form; a double tap re-sends the same key
   const clean = normalizeAmount(amount)
   const valid = clean !== '' && clean !== '0.00' && !clean.startsWith('-') && description.trim().length >= 3
-  const title = kind === 'mint' ? 'Request mint' : 'Request commission top-up'
 
   async function submit() {
     setBusy(true); setError(null)
     try {
-      await api(kind === 'mint' ? '/treasury/mint' : '/treasury/commission/topup', { method: 'POST', body: { amount: clean, description: description.trim() }, idempotencyKey: attemptKey })
-      toast.success('Request submitted', { description: 'Another staff member must approve it before any money moves.' })
+      await api('/treasury/commission/topup', { method: 'POST', body: { amount: clean, description: description.trim() }, idempotencyKey: attemptKey })
+      toast.success('Commission pool refilled', { description: 'The money moved from revenue to the commission pool.' })
       onDone()
     } catch (err) {
-      setError(reportError(err, 'Request not submitted', 'Could not submit the request.'))
+      setError(reportError(err, 'Pool not refilled', 'Could not refill the commission pool.'))
     } finally { setBusy(false) }
   }
 
   return (
-    <SidePanel open title={title} subtitle="Needs a second staff member" onClose={onClose}
+    <SidePanel open title="Refill commission pool" subtitle="From revenue · one finance staff member" onClose={onClose}
       footer={<div className="flex flex-col gap-3">{error && <p role="alert" className="text-sm font-medium text-[#BE123C]">{error}</p>}
-        <Button block loading={busy} disabled={!valid} onClick={() => void submit()}>Submit request {valid ? `for ${formatTzs(clean)}` : ''}</Button></div>}>
+        <Button block loading={busy} disabled={!valid} onClick={() => void submit()}>Refill pool {valid ? `with ${formatTzs(clean)}` : ''}</Button></div>}>
       <div className="flex flex-col gap-4">
         <Field label="Amount (TZS)" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} hint="Whole shillings, e.g. 5,000,000" />
-        <Field label="Description" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={255} hint={kind === 'mint' ? 'e.g. Bank deposit slip 118' : 'Why the commission pool needs funding'} />
-        <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-900">Sandbox · demo money. No money moves until a different staff member approves this request.</p>
+        <Field label="Description" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={255} hint="Why the pool needs funding, e.g. start of month" />
+        <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-900">Sandbox · demo money. The money moves from revenue to the commission pool straight away, and agents are paid their commission from it. It must be covered by the revenue balance.</p>
       </div>
     </SidePanel>
   )
