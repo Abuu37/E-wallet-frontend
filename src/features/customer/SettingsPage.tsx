@@ -9,12 +9,6 @@ import { ErrorState, LoadingState } from '../../shared/ui/controls'
 import { DetailRow } from '../../shared/ui/SidePanel'
 import type { KycInfo, Profile, Wallet } from './types'
 
-/** 038769344094 is shown as WP-0387-69344094, so it reads like the number on the design. */
-function accountLabel(n: string | undefined): string {
-  if (!n) return '—'
-  return /^\d{12}$/.test(n) ? `WP-${n.slice(0, 4)}-${n.slice(4)}` : n
-}
-
 function Card({ title, children, aside }: { title: string; children: React.ReactNode; aside?: React.ReactNode }) {
   return (
     <section aria-label={title} className="flex flex-col gap-2 rounded-[22px] border border-line bg-white p-6">
@@ -45,7 +39,7 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Card title="Account & limits" aside={k && <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${verified ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-brand-dark'}`}>{verified ? 'Verified' : 'Basic'}</span>}>
-          <DetailRow label="Account number">{accountLabel(wallet.data?.accountNumber)}</DetailRow>
+          <DetailRow label="Account number">{wallet.data?.accountNumber ?? '—'}</DetailRow>
           <DetailRow label="Phone">{profile.data ? formatPhone(profile.data.phoneNumber) : '—'}</DetailRow>
           {k && <>
             <DetailRow label="Per payment">{formatTzs(k.perPaymentLimit, { symbol: false })} TZS</DetailRow>

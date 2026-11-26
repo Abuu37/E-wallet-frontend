@@ -6,9 +6,11 @@ import { useApi } from '../../shared/api/useApi'
 import { useSession } from '../../shared/auth/context'
 import { maskEmail } from '../../shared/lib/phone'
 import { LogoutConfirm } from '../../shared/ui/LogoutConfirm'
-import type { Profile } from '../../features/customer/types'
+import { formatDate, formatTime } from '../../shared/lib/dates'
+import { formatTzs } from '../../shared/lib/money'
+import { typeLabel, type MyTransactionList, type Profile } from '../../features/customer/types'
 import { SideNav, type SideNavItem } from './SideNav'
-import { TopBar } from './TopBar'
+import { TopBar, type NotificationItem } from './TopBar'
 
 /** Order follows the design. Add money is tagged Soon until the Plaid bank link is built. */
 const ITEMS: SideNavItem[] = [
@@ -26,6 +28,23 @@ export default function CustomerLayout() {
   const { session } = useSession()
   const [menuOpen, setMenuOpen] = useState(false)
   const [logoutOpen, setLogoutOpen] = useState(false)
+  const recent = useApi<MyTransactionList>((signal) => api('/transactions/me', { query: { size: 8 }, signal }), [], 30_000)
+  const [readIds, setReadIds] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('wp.read.' + (session?.userId ?? '')) ?? '[]') as string[] } catch { return [] }
+  })
+  const markRead = (ids: string[]) => {
+    const next = [...new Set([...readIds, ...ids])].slice(-60)
+    setReadIds(next)
+    try { localStorage.setItem('wp.read.' + (session?.userId ?? ''), JSON.stringify(next)) } catch { /* private window: unread just comes back */ }
+  }
+  const notifications: NotificationItem[] = (recent.data?.items ?? []).map((t) => ({
+    id: t.referenceNo,
+    title: t.type === 'TRANSFER' ? (t.direction === 'IN' ? `You received ${formatTzs(t.amount, { symbol: false })} TZS` : `You sent ${formatTzs(t.amount, { symbol: false })} TZS`) : `${typeLabel(t)} · ${formatTzs(t.amount, { symbol: false })} TZS`,
+    body: t.counterpartyName ? `${t.direction === 'IN' ? 'From' : 'To'} ${t.counterpartyName}${t.matchCode ? ` · code ${t.matchCode}` : ''}` : t.status,
+    when: `${formatDate(t.createdAt)} ${formatTime(t.createdAt)}`,
+    href: `/app/transactions?ref=${t.referenceNo}`,
+    tone: t.direction === 'IN' ? 'in' : 'out',
+  }))
   const profile = useApi<Profile>((signal) => api('/customers/profile', { signal }), [])
 
   const name = profile.data?.fullName ?? 'You'
@@ -44,7 +63,7 @@ export default function CustomerLayout() {
         </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar roleLine="Customer" name={name} initials={initials} email={maskEmail(session?.email)} settingsTo="/app/settings"
+        <TopBar roleLine="Customer" name={name} initials={initials} email={maskEmail(session?.email)} settingsTo="/app/settings" notifications={notifications} readIds={readIds} onMarkRead={markRead}
           menuOpen={menuOpen} onToggleMenu={() => setMenuOpen((v) => !v)} onSignOut={() => setLogoutOpen(true)} />
         <main id="main" className="mx-auto w-full max-w-[1100px] flex-1 px-4 py-6 lg:px-8"><Outlet /></main>
       </div>

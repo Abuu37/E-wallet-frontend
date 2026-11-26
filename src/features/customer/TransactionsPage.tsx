@@ -1,4 +1,4 @@
-import { ArrowDownLeft, ArrowUpRight, Copy, Download, Search } from 'lucide-react'
+import { ArrowDownLeft, ArrowUpRight, Copy, Download, Search, Share2 } from 'lucide-react'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../../shared/api/client'
@@ -38,13 +38,27 @@ export default function TransactionsPage() {
     try { await navigator.clipboard.writeText(text); toast.success('Reference copied', { description: text }) } catch { toast.error('Could not copy', { description: 'Select it and copy by hand.' }) }
   }
 
-  function download(rc: Receipt) {
-    const lines = [
+  function receiptLines(rc: Receipt): string[] {
+    return [
       'WalletPesa receipt', '', `Reference: ${rc.reference}`, `Date: ${formatDateTime(rc.createdAt)}`, `Type: ${typeLabel({ type: rc.type, direction: rc.direction ?? 'OUT' })}`,
       `${rc.direction === 'IN' ? 'From' : 'To'}: ${rc.counterpartyName ?? ''} ${rc.counterpartyPhone ?? ''}`.trim(),
       `Amount: TZS ${formatTzs(rc.amount, { symbol: false })}`, `Fee: TZS ${formatTzs(rc.fee, { symbol: false })}`, `Status: ${rc.status}`,
       ...(rc.matchCode ? [`Withdrawal code: ${rc.matchCode}`] : []),
     ]
+  }
+
+  /** The phone's share sheet when there is one, otherwise the receipt text is copied. */
+  async function share(rc: Receipt) {
+    const text = receiptLines(rc).join('\n')
+    if (typeof navigator.share === 'function') {
+      try { await navigator.share({ title: 'WalletPesa receipt', text }) } catch { /* the person closed the share sheet */ }
+      return
+    }
+    try { await navigator.clipboard.writeText(text); toast.success('Receipt copied', { description: 'Paste it into a message to share it.' }) } catch { toast.error('Could not share', { description: 'Use Download instead.' }) }
+  }
+
+  function download(rc: Receipt) {
+    const lines = receiptLines(rc)
     const url = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/plain' }))
     const a = document.createElement('a')
     a.href = url; a.download = `${rc.reference}.txt`; a.click(); URL.revokeObjectURL(url)
@@ -93,6 +107,7 @@ export default function TransactionsPage() {
       <Modal open={Boolean(open)} radius="small" width={480} title={r ? `${incoming ? '+' : '−'}${formatTzs(r.amount, { symbol: false })} TZS` : 'Receipt'} subtitle={r?.reference} onClose={() => setParams({})}
         footer={r ? <>
           <Button variant="secondary" onClick={() => void copy(r.reference)}><Copy aria-hidden="true" size={16} /> Copy reference</Button>
+          <Button variant="secondary" onClick={() => void share(r)}><Share2 aria-hidden="true" size={16} /> Share</Button>
           <Button onClick={() => download(r)}><Download aria-hidden="true" size={16} /> Download</Button>
         </> : undefined}>
         {receipt.loading && !r ? <LoadingState /> : receipt.error && !r ? <ErrorState error={receipt.error} onRetry={receipt.reload} /> : r && (

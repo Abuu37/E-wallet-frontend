@@ -2,6 +2,8 @@ import { Bell, ChevronDown, LogOut, Menu, Settings, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
+export interface NotificationItem { id: string; title: string; body: string; when: string; href?: string; tone?: 'in' | 'out' | 'info' }
+
 interface TopBarProps {
   /** e.g. "Agent · Mrema Shop · 378418" */
   roleLine: string
@@ -11,6 +13,11 @@ interface TopBarProps {
   /** Already masked. */
   email?: string | null
   settingsTo?: string
+  /** What the bell lists. Without it the bell says there is nothing to show. */
+  notifications?: NotificationItem[]
+  /** Ids already read. Kept by the caller so it can remember them. */
+  readIds?: string[]
+  onMarkRead?: (ids: string[]) => void
   menuOpen: boolean
   onToggleMenu: () => void
   onSignOut: () => void
@@ -22,9 +29,10 @@ function greeting(): string {
 }
 
 /** The sticky header shared by the staff console and the agent portal (design: greeting, Sandbox badge, bell, profile). */
-export function TopBar({ roleLine, name, initials, email, settingsTo, menuOpen, onToggleMenu, onSignOut }: TopBarProps) {
+export function TopBar({ roleLine, name, initials, email, settingsTo, notifications = [], readIds = [], onMarkRead, menuOpen, onToggleMenu, onSignOut }: TopBarProps) {
   const [bellOpen, setBellOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const unread = notifications.filter((n) => !readIds.includes(n.id))
   const today = new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Dar_es_Salaam', weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }).format(new Date())
 
   return (
@@ -42,14 +50,32 @@ export function TopBar({ roleLine, name, initials, email, settingsTo, menuOpen, 
       </span>
 
       <div className="relative">
-        <button type="button" aria-label="Notifications" aria-expanded={bellOpen} onClick={() => { setBellOpen((v) => !v); setProfileOpen(false) }}
-          className="flex h-[42px] w-[42px] items-center justify-center rounded-full border border-line bg-white text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200">
+        <button type="button" aria-label={unread.length ? `Notifications, ${unread.length} unread` : 'Notifications'} aria-expanded={bellOpen} onClick={() => { setBellOpen((v) => !v); setProfileOpen(false) }}
+          className="relative flex h-[42px] w-[42px] items-center justify-center rounded-full border border-line bg-white text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200">
           <Bell aria-hidden="true" size={19} />
+          {unread.length > 0 && <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-[#DC2626] px-1 text-[10px] font-bold text-white">{unread.length > 9 ? '9+' : unread.length}</span>}
         </button>
         {bellOpen && (
-          <section aria-label="Notifications" className="absolute right-0 top-[50px] z-40 w-80 rounded-2xl border border-line bg-white p-4 shadow-xl">
-            <b className="text-sm">Notifications</b>
-            <p className="mt-2 text-sm text-muted">Notifications arrive with SMS alerts. Nothing to show yet.</p>
+          <section aria-label="Notifications" className="absolute right-0 top-[50px] z-40 w-[340px] max-w-[calc(100vw-32px)] rounded-2xl border border-line bg-white py-1.5 shadow-xl">
+            <div className="flex items-center justify-between px-4 py-2"><b className="text-sm">Notifications</b>
+              {unread.length > 0 && <button type="button" onClick={() => onMarkRead?.(notifications.map((n) => n.id))} className="text-xs font-semibold text-brand-dark hover:underline">Mark all read</button>}</div>
+            {notifications.length === 0 ? <p className="px-4 pb-3 pt-1 text-sm text-muted">You are all caught up. New activity shows here.</p> : (
+              <ul className="max-h-[360px] overflow-y-auto">
+                {notifications.map((n) => {
+                  const isNew = !readIds.includes(n.id)
+                  const inner = (
+                    <>
+                      <span aria-hidden="true" className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${isNew ? 'bg-brand' : 'bg-transparent'}`} />
+                      <span className="flex min-w-0 flex-col gap-0.5"><b className="text-[13px]">{n.title}</b><span className="text-xs leading-snug text-slate-600">{n.body}</span><span className="text-[11px] text-slate-400">{n.when}</span></span>
+                    </>
+                  )
+                  const cls = `flex w-full gap-2.5 border-t border-slate-100 px-4 py-2.5 text-left no-underline text-ink hover:bg-surface ${isNew ? 'bg-blue-50/40' : ''}`
+                  return <li key={n.id}>{n.href
+                    ? <Link to={n.href} onClick={() => { onMarkRead?.([n.id]); setBellOpen(false) }} className={cls}>{inner}</Link>
+                    : <button type="button" onClick={() => onMarkRead?.([n.id])} className={cls}>{inner}</button>}</li>
+                })}
+              </ul>
+            )}
           </section>
         )}
       </div>
