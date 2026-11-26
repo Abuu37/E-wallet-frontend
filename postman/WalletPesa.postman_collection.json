@@ -22,6 +22,10 @@
     {
       "key": "accessToken",
       "value": ""
+    },
+    {
+      "key": "bankId",
+      "value": ""
     }
   ],
   "item": [
@@ -1638,6 +1642,723 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"reason\": \"Amount does not match the bank deposit\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Banks (Plaid Sandbox)",
+      "item": [
+        {
+          "name": "Create Plaid link token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/banks/link-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "banks",
+                "link-token"
+              ]
+            },
+            "description": "Open Plaid Link with this token. Sandbox: pick any bank and sign in with user_good / pass_good. Customers and agents."
+          }
+        },
+        {
+          "name": "Link the chosen bank",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/banks/exchange",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "banks",
+                "exchange"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"publicToken\": \"public-sandbox-...\",\n  \"accountId\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "The one-time public token from Plaid Link. accountId is optional: without it the first checking or savings account is used. The access token stays on the server, encrypted."
+          }
+        },
+        {
+          "name": "My linked banks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/banks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "banks"
+              ]
+            },
+            "description": "nameCheck is MATCHED, SKIPPED_SANDBOX (demo only) or MISMATCH. A MISMATCH bank cannot be used for money."
+          }
+        },
+        {
+          "name": "Bank balance (TZS at the demo rate)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/banks/:id/balance",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "banks",
+                ":id",
+                "balance"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Remove a linked bank",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/banks/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "banks",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customer bank money",
+      "item": [
+        {
+          "name": "Add money from my bank",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Required. Resend the same key to retry safely; the stored answer comes back."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transactions/bank-topup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transactions",
+                "bank-topup"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"linkedBankId\": \"{{bankId}}\",\n  \"amount\": 50000,\n  \"pin\": \"2580\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Escrow to wallet. No fee. Checks the bank balance, the Basic or Verified limits and the PIN. Demo: Plaid Sandbox."
+          }
+        },
+        {
+          "name": "Withdraw to my bank",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Required. Resend the same key to retry safely; the stored answer comes back."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transactions/bank-withdraw",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transactions",
+                "bank-withdraw"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"linkedBankId\": \"{{bankId}}\",\n  \"amount\": 20000,\n  \"pin\": \"2580\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Fee 1,000. Starts PENDING; becomes COMPLETED when the Sandbox credit is posted, or FAILED with the amount and fee returned. Poll Get transaction by reference."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Agent bank and float",
+      "item": [
+        {
+          "name": "Bank top-ups today (the meter)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/agent/float/bank-summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "float",
+                "bank-summary"
+              ]
+            },
+            "description": "dailyCap, usedToday and leftToday for the Float screen."
+          }
+        },
+        {
+          "name": "Top up float from my bank",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Required. Resend the same key to retry safely; the stored answer comes back."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/agent/float/bank-topup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "float",
+                "bank-topup"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"linkedBankId\": \"{{bankId}}\",\n  \"amount\": 250000,\n  \"pin\": \"4829\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Escrow to float. No approval. Daily cap 5,000,000 TZS (agent.float.bank-topup-daily-cap); over it the answer points to Request float."
+          }
+        },
+        {
+          "name": "Send float to my bank",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Required. Resend the same key to retry safely; the stored answer comes back."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/agent/float/bank-withdraw",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "float",
+                "bank-withdraw"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"linkedBankId\": \"{{bankId}}\",\n  \"amount\": 50000,\n  \"pin\": \"4829\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "No fee. PENDING then COMPLETED, or returned if the bank refuses."
+          }
+        },
+        {
+          "name": "Send commission to my bank",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Required. Resend the same key to retry safely; the stored answer comes back."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/agent/commission/bank-withdraw",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "commission",
+                "bank-withdraw"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"linkedBankId\": \"{{bankId}}\",\n  \"amount\": 10000,\n  \"pin\": \"4829\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "No fee. There is no move from commission to float."
+          }
+        },
+        {
+          "name": "Escrow details for a deposit",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/agent/float/escrow-details",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "float",
+                "escrow-details"
+              ]
+            },
+            "description": "Bank, account name, account number, and the reference to write on the deposit (the agent ID)."
+          }
+        },
+        {
+          "name": "Request float with a deposit slip (Path B)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Required."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/agent/float/requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "float",
+                "requests"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "amount",
+                  "value": "500000",
+                  "type": "text"
+                },
+                {
+                  "key": "depositReference",
+                  "value": "SLIP-12345",
+                  "type": "text",
+                  "description": "The slip number from the bank. Each can be used once."
+                },
+                {
+                  "key": "slip",
+                  "type": "file",
+                  "src": [],
+                  "description": "JPG, PNG or PDF, up to 5 MB."
+                }
+              ]
+            },
+            "description": "One open request at a time. A staff member checks the escrow statement and approves or rejects it."
+          }
+        },
+        {
+          "name": "View a deposit slip",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/treasury/requests/:requestId/slip",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "treasury",
+                "requests",
+                ":requestId",
+                "slip"
+              ],
+              "variable": [
+                {
+                  "key": "requestId",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Staff with FLOAT_VIEW, or the agent who sent it."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Agent till history",
+      "item": [
+        {
+          "name": "My transactions (cash-ins and withdrawals paid)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/agent/transactions?type=&from=2026-11-01&to=2026-11-30&q=&page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "transactions"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": ""
+                },
+                {
+                  "key": "from",
+                  "value": "2026-11-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-11-30"
+                },
+                {
+                  "key": "q",
+                  "value": ""
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Phone masked in the list. The response also has today KPIs."
+          }
+        },
+        {
+          "name": "One transaction (full phone)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/agent/transactions/:reference",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "transactions",
+                ":reference"
+              ],
+              "variable": [
+                {
+                  "key": "reference",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Full phone and account number. A reference that is not yours answers not found."
+          }
+        },
+        {
+          "name": "Live withdrawals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/agent/withdrawals/live?minutes=15",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "withdrawals",
+                "live"
+              ],
+              "query": [
+                {
+                  "key": "minutes",
+                  "value": "15"
+                }
+              ]
+            },
+            "description": "Last 15 minutes by default, up to 1440. The app polls every 5 seconds."
+          }
+        },
+        {
+          "name": "Last 7 days",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/agent/dashboard/weekly",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agent",
+                "dashboard",
+                "weekly"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Treasury operations (two staff)",
+      "item": [
+        {
+          "name": "Ask for a sweep",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Required. Resend the same key to retry safely; the stored answer comes back."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/treasury/operations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "treasury",
+                "operations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"SWEEP\",\n  \"amount\": 100000,\n  \"reason\": \"Monthly sweep to the company bank\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "type: SWEEP, REVERSAL, ADJUSTMENT_PAY_IN or ADJUSTMENT_CHARGE. For REVERSAL send targetReference instead of amount."
+          }
+        },
+        {
+          "name": "Ask to reverse a transfer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Required. Resend the same key to retry safely; the stored answer comes back."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/treasury/operations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "treasury",
+                "operations"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"REVERSAL\",\n  \"reason\": \"Sent to the wrong number\",\n  \"targetReference\": \"TRF-20261126-AB12CD34\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List operations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/treasury/operations?status=PENDING",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "treasury",
+                "operations"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Approve (a different staff member)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Required. Resend the same key to retry safely; the stored answer comes back."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/treasury/operations/:id/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "treasury",
+                "operations",
+                ":id",
+                "approve"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "The person who asked cannot approve their own request."
+          }
+        },
+        {
+          "name": "Reject or withdraw",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/treasury/operations/:id/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "treasury",
+                "operations",
+                ":id",
+                "reject"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Not needed\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
