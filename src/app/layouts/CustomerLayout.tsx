@@ -1,25 +1,53 @@
-import { LogOut } from 'lucide-react'
+import { ArrowDownToLine, Landmark, LayoutGrid, List, MapPin, Send, Settings, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
-import { useT } from '../../shared/i18n'
+import { api } from '../../shared/api/client'
+import { useApi } from '../../shared/api/useApi'
+import { useSession } from '../../shared/auth/context'
+import { maskEmail } from '../../shared/lib/phone'
 import { LogoutConfirm } from '../../shared/ui/LogoutConfirm'
+import type { Profile } from '../../features/customer/types'
+import { SideNav, type SideNavItem } from './SideNav'
+import { TopBar } from './TopBar'
+
+/** Order follows the design. Add money is tagged Soon until the Plaid bank link is built. */
+const ITEMS: SideNavItem[] = [
+  { to: '/app', label: 'Dashboard', icon: LayoutGrid, end: true },
+  { to: '/app/transactions', label: 'Transactions', icon: List },
+  { to: '/app/send', label: 'Send money', icon: Send },
+  { to: '/app/withdraw', label: 'Withdraw', icon: ArrowDownToLine },
+  { to: '/app/agents', label: 'Find an agent', icon: MapPin },
+  { to: '/app/add-money', label: 'Add money', icon: Landmark, badge: 'Soon' },
+  { to: '/app/verify', label: 'Verify identity', icon: ShieldCheck },
+  { to: '/app/settings', label: 'Settings', icon: Settings },
+]
 
 export default function CustomerLayout() {
-  const { t, locale, setLocale } = useT()
+  const { session } = useSession()
+  const [menuOpen, setMenuOpen] = useState(false)
   const [logoutOpen, setLogoutOpen] = useState(false)
+  const profile = useApi<Profile>((signal) => api('/customers/profile', { signal }), [])
+
+  const name = profile.data?.fullName ?? 'You'
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase() || 'W'
+
+  const nav = <SideNav surface="Customer" items={ITEMS} onNavigate={() => setMenuOpen(false)}
+    who={{ initials, name, role: maskEmail(session?.email) }} />
+
   return (
-    <div className="min-h-screen bg-surface text-ink">
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-white px-4 py-3">
-        <span className="flex items-center gap-2 text-base font-extrabold"><span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-brand text-white">W</span> WalletPesa</span>
-        <div className="flex items-center gap-2">
-          <button type="button" onClick={() => setLocale(locale === 'en' ? 'sw' : 'en')} aria-label="Change language" className="rounded-full px-3 py-1.5 text-xs font-bold hover:bg-slate-100">{locale === 'en' ? 'Kiswahili' : 'English'}</button>
-          <button type="button" onClick={() => setLogoutOpen(true)}
-            className="flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200">
-            <LogOut aria-hidden="true" size={16} /> {t('common.signOut')}
-          </button>
+    <div className="flex min-h-screen bg-surface text-ink">
+      <div className="hidden lg:block">{nav}</div>
+      {menuOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
+          <button type="button" aria-label="Close menu" className="absolute inset-0 bg-black/40" onClick={() => setMenuOpen(false)} />
+          <div className="relative h-full w-64">{nav}</div>
         </div>
-      </header>
-      <main id="main" className="mx-auto w-full max-w-[1240px] p-4"><Outlet /></main>
+      )}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <TopBar roleLine="Customer" name={name} initials={initials} email={maskEmail(session?.email)} settingsTo="/app/settings"
+          menuOpen={menuOpen} onToggleMenu={() => setMenuOpen((v) => !v)} onSignOut={() => setLogoutOpen(true)} />
+        <main id="main" className="mx-auto w-full max-w-[1100px] flex-1 px-4 py-6 lg:px-8"><Outlet /></main>
+      </div>
       <LogoutConfirm open={logoutOpen} onClose={() => setLogoutOpen(false)} />
     </div>
   )

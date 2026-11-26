@@ -59,7 +59,9 @@ export default function AgentCashIn() {
         body: { agentAccountNumber: float.accountNumber, accountNumber: account.trim(), amount: clean, phone: toE164Tz(phone), agentPin: pin },
       })
       setReceipt(result)
-      toast.success('Cash-in complete', { description: 'The receipt is on screen.' })
+      toast.success('Cash-in complete', {
+         description: 'The receipt is on screen.' 
+        })
     } catch (err) {
       setPin('')
       attemptKey.current = '' // a failed attempt may be corrected and retried as a new attempt
@@ -99,18 +101,27 @@ export default function AgentCashIn() {
         </section>
       ) : (
         <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
+
           <form onSubmit={submit} className="flex flex-col gap-[18px] rounded-3xl border border-line bg-white p-7">
             <div className="flex flex-col gap-1.5"><label htmlFor="ci-phone" className="text-sm font-semibold">Customer phone</label>
-              <input id="ci-phone" inputMode="tel" autoComplete="off" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0712 345 678" className={INPUT} /></div>
+              <input id="ci-phone" inputMode="tel" autoComplete="off" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0712 345 678" className={INPUT} />
+            </div>
+
             <div className="flex flex-col gap-1.5"><label htmlFor="ci-acc" className="text-sm font-semibold">Customer wallet account number</label>
               <input id="ci-acc" inputMode="numeric" autoComplete="off" value={account} onChange={(e) => setAccount(e.target.value)} className={INPUT} />
-              <span className="text-[13px] text-slate-600">Ask the customer to show it in their app. Name lookup arrives with send money.</span></div>
+              <span className="text-[13px] text-slate-600">Ask the customer to show it in their app. Name lookup arrives with send money.</span>
+            </div>
+
             <div className="flex flex-col gap-1.5"><label htmlFor="ci-amt" className="text-sm font-semibold">Cash received</label>
               <input id="ci-amt" inputMode="decimal" autoComplete="off" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="50,000"
                 className="h-[60px] rounded-[14px] border-2 border-brand px-4 text-[28px] font-extrabold text-ink shadow-[0_0_0_4px_#DBEAFE] focus-visible:outline-none" />
-              <span className="text-[13px] text-slate-600">Minimum 1,000 TZS</span></div>
+              <span className="text-[13px] text-slate-600">Minimum 1,000 TZS</span>
+            </div>
+
             <div className="flex flex-col gap-1.5"><label htmlFor="ci-pin" className="text-sm font-semibold">Your agent PIN</label>
-              <input id="ci-pin" type="password" inputMode="numeric" autoComplete="off" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} className={`${INPUT} w-44 tracking-[0.3em]`} /></div>
+              <input id="ci-pin" type="password" inputMode="numeric" autoComplete="off" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} className={`${INPUT} w-44 tracking-[0.3em]`} />
+            </div>
+            
             {error && <p role="alert" className="text-sm font-medium text-[#BE123C]">{error}</p>}
             <Button type="submit" block loading={busy} disabled={!valid} className="h-14 rounded-[14px] text-[17px]">
               {amountOk ? `Confirm cash-in of ${formatTzs(clean)}` : 'Confirm cash-in'}

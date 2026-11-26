@@ -1081,6 +1081,223 @@
       ]
     },
     {
+      "name": "Customer money",
+      "item": [
+        {
+          "name": "Look up a phone number",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/wallets/lookup?phone=0754123210",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wallets",
+                "lookup"
+              ],
+              "query": [
+                {
+                  "key": "phone",
+                  "value": "0754123210"
+                }
+              ]
+            },
+            "description": "Customers only. Returns a masked name (\"Amina J.\") and whether they can receive. Rate-limited."
+          }
+        },
+        {
+          "name": "Fee quote",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tariffs/quote?type=TRANSFER&amount=20000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tariffs",
+                "quote"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "TRANSFER"
+                },
+                {
+                  "key": "amount",
+                  "value": "20000"
+                }
+              ]
+            },
+            "description": "type: TRANSFER, CASH_OUT (withdraw at an agent) or BANK_WITHDRAWAL. Returns fee and total."
+          }
+        },
+        {
+          "name": "Send money (wallet to wallet)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Required. Resend the same key to retry safely; the stored answer comes back."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transactions/transfer",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transactions",
+                "transfer"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"0754123210\",\n  \"amount\": 20000,\n  \"pin\": \"2580\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Customer approves with their own PIN. Needs Idempotency-Key."
+          }
+        },
+        {
+          "name": "Withdraw at an agent (by till number)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Required. Resend the same key to retry safely; the stored answer comes back."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transactions/withdraw",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transactions",
+                "withdraw"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tillNumber\": \"220341\",\n  \"amount\": 30000,\n  \"pin\": \"2580\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "The agent never sees the PIN. The response has a 4-digit match code for the agent."
+          }
+        },
+        {
+          "name": "My transactions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/transactions/me?type=TRANSFER&from=2026-11-01&to=2026-11-30&q=&page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transactions",
+                "me"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "TRANSFER"
+                },
+                {
+                  "key": "from",
+                  "value": "2026-11-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-11-30"
+                },
+                {
+                  "key": "q",
+                  "value": ""
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Saved recipients",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/beneficiaries",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "beneficiaries"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Find an agent",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/agents/nearby?region={{regionId}}&q=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "agents",
+                "nearby"
+              ],
+              "query": [
+                {
+                  "key": "region",
+                  "value": "{{regionId}}"
+                },
+                {
+                  "key": "q",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Transactions",
       "item": [
         {
@@ -1111,42 +1328,6 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"agentAccountNumber\": \"{{agentAccount}}\",\n  \"accountNumber\": \"{{customerAccount}}\",\n  \"phone\": \"+255712345678\",\n  \"amount\": 10000,\n  \"agentPin\": \"2580\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          }
-        },
-        {
-          "name": "Cash out (customer withdraws at agent)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Idempotency-Key",
-                "value": "{{$guid}}",
-                "description": "Required. Resend the same key to retry safely; the stored answer comes back."
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/transactions/cash-out",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "transactions",
-                "cash-out"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"agentAccountNumber\": \"{{agentAccount}}\",\n  \"agentPin\": \"2580\",\n  \"customerAccountNumber\": \"{{customerAccount}}\",\n  \"phone\": \"+255712345678\",\n  \"customerPin\": \"2580\",\n  \"amount\": 5000\n}",
               "options": {
                 "raw": {
                   "language": "json"
