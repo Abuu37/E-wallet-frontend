@@ -12,7 +12,7 @@ import MainService from '../features/public/pages/services/MainService'
 import PayBills from '../features/public/pages/services/PayBills'
 import SendMoney from '../features/public/pages/services/SendMoney'
 import { RequirePermission, RequireRole, RequireSession } from '../shared/auth/guards'
-import { ComingSoon, LoadingState } from '../shared/ui/controls'
+import { LoadingState } from '../shared/ui/controls'
 import RouteError from './RouteError'
 
 const SignInPage = lazy(() => import('../features/auth/SignInPage'))
@@ -21,6 +21,7 @@ const CustomerTransactions = lazy(() => import('../features/customer/Transaction
 const SendMoneyPage = lazy(() => import('../features/customer/SendMoneyPage'))
 const WithdrawPage = lazy(() => import('../features/customer/WithdrawPage'))
 const FindAgentPage = lazy(() => import('../features/customer/FindAgentPage'))
+const AddMoneyPage = lazy(() => import('../features/customer/AddMoneyPage'))
 const CustomerSettings = lazy(() => import('../features/customer/SettingsPage'))
 const ForgotPinPage = lazy(() => import('../features/auth/ForgotPinPage'))
 const ChangePinPage = lazy(() => import('../features/auth/ChangePinPage'))
@@ -87,7 +88,7 @@ const router = createBrowserRouter([
             { path: 'send', element: <Suspense fallback={fallback}><SendMoneyPage /></Suspense> },
             { path: 'withdraw', element: <Suspense fallback={fallback}><WithdrawPage /></Suspense> },
             { path: 'agents', element: <Suspense fallback={fallback}><FindAgentPage /></Suspense> },
-            { path: 'add-money', element: <Suspense fallback={fallback}><ComingSoon title="Add money from your bank" description="Linking your bank with Plaid is coming next. For now, cash in at an agent." /></Suspense> },
+            { path: 'add-money', element: <Suspense fallback={fallback}><AddMoneyPage /></Suspense> },
             { path: 'verify', element: <Suspense fallback={fallback}><VerifyIdentityPage /></Suspense> },
             { path: 'settings', element: <Suspense fallback={fallback}><CustomerSettings /></Suspense> },
           ],

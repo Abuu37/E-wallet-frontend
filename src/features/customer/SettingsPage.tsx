@@ -1,12 +1,19 @@
-import { Mail, ShieldCheck } from 'lucide-react'
+import { Landmark, Mail, ShieldCheck, Trash2 } from 'lucide-react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api } from '../../shared/api/client'
+import { ApiError, api } from '../../shared/api/client'
 import { useApi } from '../../shared/api/useApi'
 import { useSession } from '../../shared/auth/context'
 import { amountOf, formatTzs } from '../../shared/lib/money'
 import { formatPhone, maskEmail } from '../../shared/lib/phone'
 import { ErrorState, LoadingState } from '../../shared/ui/controls'
 import { DetailRow } from '../../shared/ui/SidePanel'
+import { Button } from '../../shared/ui/controls'
+import { Modal } from '../../shared/ui/Modal'
+import { toast } from '../../shared/ui/toast'
+import { BankCard } from './banks'
+import { DEMO_LABEL, bankName, type LinkedBank } from './bankTypes'
+import { useLinkBank } from './useLinkBank'
 import type { KycInfo, Profile, Wallet } from './types'
 
 function Card({ title, children, aside }: { title: string; children: React.ReactNode; aside?: React.ReactNode }) {
@@ -24,6 +31,17 @@ export default function SettingsPage() {
   const wallet = useApi<Wallet>((signal) => api('/wallets/me', { signal }), [])
   const profile = useApi<Profile>((signal) => api('/customers/profile', { signal }), [])
   const kyc = useApi<KycInfo>((signal) => api('/kyc/status', { signal }), [])
+  const banks = useApi<LinkedBank[]>((signal) => api('/banks', { signal }), [])
+  const linker = useLinkBank(() => banks.reload())
+  const [removing, setRemoving] = useState<LinkedBank | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  async function remove(bank: LinkedBank) {
+    setBusy(true)
+    try { await api(`/banks/${bank.id}`, { method: 'DELETE' }); toast.success('Bank removed', { description: bankName(bank) }); setRemoving(null); banks.reload() }
+    catch (err) { toast.error('Could not remove this bank', { description: err instanceof ApiError ? err.message : 'Please try again.' }) }
+    finally { setBusy(false) }
+  }
 
   if ((wallet.loading && !wallet.data) || (kyc.loading && !kyc.data)) return <LoadingState />
   if (wallet.error && !wallet.data) return <ErrorState error={wallet.error} onRetry={wallet.reload} />
@@ -51,6 +69,14 @@ export default function SettingsPage() {
           </>}
         </Card>
 
+        <Card title="Linked banks" aside={<span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">{DEMO_LABEL}</span>}>
+          {linker.launcher}
+          {(banks.data ?? []).length === 0
+            ? <p className="text-sm text-slate-600">No bank linked. Link one to add money from it or withdraw to it. The bank must be in your own name.</p>
+            : <div className="flex flex-col gap-2">{(banks.data ?? []).map((b) => <BankCard key={b.id} bank={b} right={<button type="button" aria-label={`Remove ${bankName(b)}`} onClick={() => setRemoving(b)} className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-rose-50 hover:text-rose-700"><Trash2 aria-hidden="true" size={16} /></button>} />)}</div>}
+          <div><Button variant="secondary" loading={linker.busy} onClick={linker.start}><Landmark aria-hidden="true" size={16} /> Link a bank</Button></div>
+        </Card>
+
         <Card title="Profile">
           <DetailRow label="Name">{profile.data?.fullName ?? '—'}</DetailRow>
           <DetailRow label="Phone">{profile.data ? formatPhone(profile.data.phoneNumber) : '—'}</DetailRow>
@@ -68,6 +94,10 @@ export default function SettingsPage() {
             <span><b>Email alerts are on.</b><br />We email you about money in and out, withdrawals and security changes. SMS alerts come later.</span></div>
         </Card>
       </div>
+      <Modal open={Boolean(removing)} radius="small" width={420} title="Remove this bank?" onClose={() => setRemoving(null)}
+        footer={<><Button variant="secondary" onClick={() => setRemoving(null)}>Keep it</Button><Button loading={busy} onClick={() => removing && void remove(removing)}>Remove</Button></>}>
+        <p className="pb-2 text-sm text-slate-600">{removing ? bankName(removing) : ''} will be unlinked from WalletPesa. You can link it again any time.</p>
+      </Modal>
     </div>
   )
 }

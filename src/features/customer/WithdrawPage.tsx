@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, Landmark, Loader2, MapPin, ShieldAlert } from 'lucide-react'
+import { ArrowLeft, Check, Loader2, MapPin, ShieldAlert } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError, api, newIdempotencyKey } from '../../shared/api/client'
@@ -8,6 +8,8 @@ import { Button } from '../../shared/ui/controls'
 import { PinPad } from '../../shared/ui/PinPad'
 import { toast } from '../../shared/ui/toast'
 import { groupTill, type KycInfo, type Quote, type WithdrawResult, type Wallet } from './types'
+import { WithdrawTabs, type WithdrawMode } from './WithdrawTabs'
+import { WithdrawToBank } from './WithdrawToBank'
 
 type Step = 'form' | 'confirm' | 'processing' | 'approved' | 'failed'
 const CHIPS = ['10000', '20000', '50000', '100000']
@@ -20,6 +22,7 @@ export default function WithdrawPage() {
   const wallet = useApi<Wallet>((signal) => api('/wallets/me', { signal }), [])
   const kyc = useApi<KycInfo>((signal) => api('/kyc/status', { signal }), [])
 
+  const [mode, setMode] = useState<WithdrawMode>(params.get('to') === 'bank' ? 'bank' : 'agent')
   const [step, setStep] = useState<Step>('form')
   const [till, setTill] = useState((params.get('till') ?? '').replace(/\D/g, '').slice(0, 6))
   const [amount, setAmount] = useState('')
@@ -75,6 +78,10 @@ export default function WithdrawPage() {
 
   if (wallet.loading && !wallet.data) return <div className="p-10 text-center text-muted"><Loader2 aria-hidden="true" className="mx-auto animate-spin" /></div>
 
+  if (mode === 'bank') {
+    return <div className="mx-auto flex w-full max-w-xl flex-col gap-5 tabular-nums"><WithdrawToBank wallet={wallet.data} kyc={kyc.data} mode={mode} onMode={setMode} /></div>
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-5 tabular-nums">
       {(step === 'form' || step === 'confirm') && (
@@ -86,10 +93,7 @@ export default function WithdrawPage() {
 
       {step === 'form' && (
         <>
-          <div role="tablist" aria-label="How to withdraw" className="flex gap-1 rounded-full bg-slate-100 p-1">
-            <button type="button" role="tab" aria-selected="true" className="flex-1 rounded-full bg-white px-4 py-2 text-sm font-bold shadow-sm">Cash at an agent</button>
-            <button type="button" role="tab" aria-selected="false" disabled title="Coming soon" className="flex flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold text-slate-400"><Landmark aria-hidden="true" size={15} /> To my bank <span className="text-[11px] font-semibold">soon</span></button>
-          </div>
+          <WithdrawTabs mode={mode} onChange={setMode} />
           <section className="flex flex-col gap-4 rounded-[22px] border border-line bg-white p-6">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="wd-till" className="text-sm font-semibold">Agent till number</label>

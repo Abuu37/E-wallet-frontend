@@ -99,6 +99,19 @@ export default function VerifyIdentityPage() {
     }
   }
 
+  /** Ask the server to read the result again, for a verification that is still pending. */
+  async function refresh() {
+    try {
+      const result = await api<KycStatus>('/kyc/plaid/complete', { method: 'POST' })
+      status.reload()
+      if (result.status === 'VERIFIED') toast.success('Identity verified', { description: 'Your higher limits are now active.' })
+      else if (result.status === 'FAILED') toast.error('Verification not approved', { description: 'You can try again.' })
+      else toast.info('Still checking', { description: 'Try again in a minute.' })
+    } catch (err) {
+      toast.error('Could not check your verification', { description: err instanceof ApiError ? err.message : 'Please try again.' })
+    }
+  }
+
   useEffect(() => {
     if (phase !== 'checking') return
     const timer = window.setInterval(async () => {
@@ -169,6 +182,12 @@ export default function VerifyIdentityPage() {
           )}
           {phase === 'timeout' && (
             <div role="status" className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">This is taking longer than usual. Your result will appear here when it is ready; you can leave this page and come back.</div>
+          )}
+          {s.status === 'PENDING' && phase === 'idle' && (
+            <div role="status" className="flex flex-col gap-2.5 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">
+              <span><b>Your verification is still being checked.</b> Your limits stay Basic until it passes.</span>
+              <Button variant="secondary" onClick={() => void refresh()}>Refresh status</Button>
+            </div>
           )}
           {message && <p role="alert" className="text-center text-sm font-medium text-[#BE123C]">{message}</p>}
 

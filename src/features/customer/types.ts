@@ -68,6 +68,8 @@ export function typeLabel(t: Pick<MyTransaction, 'type' | 'direction'>): string 
   if (t.type === 'TRANSFER') return t.direction === 'IN' ? 'Money received' : 'Money sent'
   if (t.type === 'CASH_IN') return 'Cash-in at agent'
   if (t.type === 'CASH_OUT') return 'Withdrawal at agent'
+  if (t.type === 'BANK_TOPUP') return 'Added from bank'
+  if (t.type === 'BANK_WITHDRAWAL') return 'Withdrawal to bank'
   return t.type.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase())
 }
 

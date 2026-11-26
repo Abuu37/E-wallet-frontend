@@ -12,14 +12,14 @@ import { typeLabel, type MyTransactionList, type Profile } from '../../features/
 import { SideNav, type SideNavItem } from './SideNav'
 import { TopBar, type NotificationItem } from './TopBar'
 
-/** Order follows the design. Add money is tagged Soon until the Plaid bank link is built. */
+/** Order follows the design. */
 const ITEMS: SideNavItem[] = [
   { to: '/app', label: 'Dashboard', icon: LayoutGrid, end: true },
   { to: '/app/transactions', label: 'Transactions', icon: List },
   { to: '/app/send', label: 'Send money', icon: Send },
   { to: '/app/withdraw', label: 'Withdraw', icon: ArrowDownToLine },
   { to: '/app/agents', label: 'Find an agent', icon: MapPin },
-  { to: '/app/add-money', label: 'Add money', icon: Landmark, badge: 'Soon' },
+  { to: '/app/add-money', label: 'Add money', icon: Landmark },
   { to: '/app/verify', label: 'Verify identity', icon: ShieldCheck },
   { to: '/app/settings', label: 'Settings', icon: Settings },
 ]

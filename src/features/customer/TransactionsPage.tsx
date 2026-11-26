@@ -12,7 +12,7 @@ import { toast } from '../../shared/ui/toast'
 import { typeLabel, type MyTransactionList, type Receipt } from './types'
 
 const SIZE = 15
-const TYPES: [string, string][] = [['', 'All types'], ['TRANSFER', 'Money sent and received'], ['CASH_IN', 'Cash-in at agent'], ['CASH_OUT', 'Withdrawals']]
+const TYPES: [string, string][] = [['', 'All types'], ['TRANSFER', 'Money sent and received'], ['CASH_IN', 'Cash-in at agent'], ['CASH_OUT', 'Withdrawals at agents'], ['BANK_TOPUP', 'Added from my bank'], ['BANK_WITHDRAWAL', 'Withdrawals to my bank']]
 
 /** Transactions (W23) with filters, search and paging, and the receipt (W24). */
 export default function TransactionsPage() {
@@ -40,7 +40,7 @@ export default function TransactionsPage() {
 
   function receiptLines(rc: Receipt): string[] {
     return [
-      'WalletPesa receipt', '', `Reference: ${rc.reference}`, `Date: ${formatDateTime(rc.createdAt)}`, `Type: ${typeLabel({ type: rc.type, direction: rc.direction ?? 'OUT' })}`,
+      'WalletPesa receipt', '', `Reference: ${rc.reference}`, `Date: ${formatDateTime(rc.createdAt)}`, `Type: ${typeLabel({ type: rc.type, direction: rc.direction ?? 'OUT' })}`, ...(rc.type.startsWith('BANK_') ? ['Demo: Plaid Sandbox'] : []),
       `${rc.direction === 'IN' ? 'From' : 'To'}: ${rc.counterpartyName ?? ''} ${rc.counterpartyPhone ?? ''}`.trim(),
       `Amount: TZS ${formatTzs(rc.amount, { symbol: false })}`, `Fee: TZS ${formatTzs(rc.fee, { symbol: false })}`, `Status: ${rc.status}`,
       ...(rc.matchCode ? [`Withdrawal code: ${rc.matchCode}`] : []),
@@ -119,6 +119,7 @@ export default function TransactionsPage() {
             <DetailRow label="Status"><StatusBadge status={r.status} label={r.status.charAt(0) + r.status.slice(1).toLowerCase()} /></DetailRow>
             <DetailRow label="Date">{formatDateTime(r.createdAt)}</DetailRow>
             {r.matchCode && <DetailRow label="Withdrawal code">{r.matchCode}</DetailRow>}
+            {r.type.startsWith('BANK_') && <p className="mt-3 rounded-xl bg-slate-100 px-3 py-2 text-center text-xs font-bold text-slate-700">Demo: Plaid Sandbox</p>}
           </div>
         )}
       </Modal>

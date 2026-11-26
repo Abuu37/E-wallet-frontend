@@ -42,7 +42,7 @@ export default function CustomerHome() {
           <div className="relative flex flex-wrap gap-2.5">
             <Link to="/app/send" className="inline-flex h-12 items-center gap-2 rounded-xl bg-brand px-5 font-bold text-white no-underline hover:bg-brand-dark focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"><Send aria-hidden="true" size={18} /> Send</Link>
             <Link to="/app/withdraw" className="inline-flex h-12 items-center gap-2 rounded-xl border border-slate-600 px-5 font-bold text-white no-underline hover:bg-white/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"><ArrowUpRight aria-hidden="true" size={18} /> Withdraw</Link>
-            <span className="inline-flex h-12 items-center gap-2 rounded-xl border border-slate-700 px-5 font-bold text-slate-500" title="Coming soon"><Landmark aria-hidden="true" size={18} /> Add money<span className="text-[11px] font-semibold">soon</span></span>
+            <Link to="/app/add-money" className="inline-flex h-12 items-center gap-2 rounded-xl border border-slate-600 px-5 font-bold text-white no-underline hover:bg-white/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"><Landmark aria-hidden="true" size={18} /> Add money</Link>
           </div>
         </section>
 
