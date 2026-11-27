@@ -34,11 +34,13 @@ export default function ConsoleLayout() {
     (signal) => canSeeTreasury ? api('/treasury/requests', { query: { status: 'PENDING', size: 1 }, signal }) : Promise.resolve(null), [canSeeTreasury], 30_000)
   const pendingCount = pending.data?.summary.pending.count ?? 0
   const items = NAV.filter((i) => has(i.permission)).map((i) => i.to === '/console/treasury' && pendingCount > 0 ? { ...i, badge: String(pendingCount) } : i)
-  const initials = (session?.email ?? 'S').slice(0, 2).toUpperCase()
+  const me = useApi<{ fullName: string; firstName: string; jobTitle: string | null }>((signal) => api('/staff/profile', { signal }), [])
+  const name = me.data?.fullName ?? 'Staff'
+  const initials = me.data ? name.split(/s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase() : (session?.email ?? 'S').slice(0, 2).toUpperCase()
 
   const nav = (
     <SideNav surface="Staff console" items={items} onNavigate={() => setMenuOpen(false)}
-      who={{ initials, name: 'Staff', role: maskEmail(session?.email) }} />
+      who={{ initials, name, role: me.data?.jobTitle ?? maskEmail(session?.email) }} />
   )
 
   return (
@@ -52,7 +54,7 @@ export default function ConsoleLayout() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar roleLine="Staff" name="Staff" initials={initials} email={maskEmail(session?.email)}
+        <TopBar roleLine="Staff" name={name} initials={initials} email={maskEmail(session?.email)}
           menuOpen={menuOpen} onToggleMenu={() => setMenuOpen((v) => !v)}
           onSignOut={() => setLogoutOpen(true)} />
         <main id="main" className="flex-1 p-4 lg:p-8"><Outlet /></main>

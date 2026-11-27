@@ -44,7 +44,7 @@ export default function TreasuryPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-2xl">
           <h1 className="text-2xl font-extrabold tracking-tight">Treasury</h1>
-          <p className="text-sm text-muted">Float is issued from escrow once the agent's deposit is checked against the escrow statement. One staff member decides each request.</p>
+          <p className="text-sm text-muted">Company balances, float requests and the commission pool.</p>
         </div>
         {has('COMMISSION_MANAGE') && <Button onClick={() => setPanel({ kind: 'refill' })}>Refill commission pool</Button>}
       </div>
@@ -52,7 +52,6 @@ export default function TreasuryPage() {
       {balances.data && Number(amountOf(balances.data.commissionPoolBalance)) < POOL_LOW && (
         <div role="alert" className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-900">
           <span className="min-w-0 flex-1"><b>The commission pool is low.</b> It holds {formatTzs(balances.data.commissionPoolBalance)}. When it runs out, agents are still paid later: each commission is recorded as owed and paid after the next refill.</span>
-          {has('COMMISSION_MANAGE') && <Button onClick={() => setPanel({ kind: 'refill' })}>Refill pool</Button>}
         </div>
       )}
 

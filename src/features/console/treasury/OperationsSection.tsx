@@ -54,12 +54,11 @@ export function OperationsSection() {
   return (
     <section aria-label="Two-person approvals" className="rounded-2xl border border-line bg-white">
       <div className="flex flex-wrap items-start justify-between gap-3 p-5 pb-3">
-        <div className="max-w-2xl"><h2 className="text-base font-extrabold">Two-person approvals</h2>
-          <p className="text-sm text-muted">Sweeps, reversals and escrow corrections need two different staff members. One asks, another approves, and only then does money move.</p></div>
+        <h2 className="text-base font-extrabold">Two-person approvals</h2>
         <Button onClick={() => setCreating(true)}>New request</Button>
       </div>
       {ops.loading && !ops.data ? <LoadingState /> : ops.error && !ops.data ? <ErrorState error={ops.error} onRetry={ops.reload} /> : rows.length === 0 ? (
-        <EmptyState title="Nothing waiting" description="Requests for a sweep, a reversal or an escrow correction show here." />
+        <EmptyState title="Nothing waiting" />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-left text-sm">
