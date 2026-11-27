@@ -15,7 +15,7 @@ export function RequireSession() {
   const { status, session } = useSession()
   const location = useLocation()
   if (status === 'loading') return <Splash />
-  if (status === 'anonymous' || !session) return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  if (status === 'anonymous' || !session) return <Navigate to="/login" replace state={location.pathname === '/change-pin' ? null : { from: location.pathname }} />
   if (session.mustChangePin && location.pathname !== '/change-pin') return <Navigate to="/change-pin" replace />
   return <Outlet />
 }

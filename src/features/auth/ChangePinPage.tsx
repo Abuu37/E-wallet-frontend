@@ -1,109 +1,89 @@
-import { ChevronLeft } from 'lucide-react'
+import { useFormik } from 'formik'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api } from '../../shared/api/client'
+import * as yup from 'yup'
+import { ApiError, api } from '../../shared/api/client'
 import { useSession } from '../../shared/auth/context'
-import { isWeakPin } from '../../shared/lib/pin'
+import { WEAK_PIN_MESSAGE, isWeakPin } from '../../shared/lib/pin'
 import { Button } from '../../shared/ui/controls'
-import { PinPad } from '../../shared/ui/PinPad'
 import { reportError, toast } from '../../shared/ui/toast'
+import { AuthShell, type AuthSide } from './AuthShell'
+import { FieldError, PinField } from './authFields'
+import { bind } from './bind'
+import { pinRules } from './schemas'
 
-type Phase = 'current' | 'create' | 'confirm'
-const ORDER: Phase[] = ['current', 'create', 'confirm']
+const schema = yup.object({
+  current: yup.string().default('').required('Enter your one-time PIN').length(4, 'Your one-time PIN has 4 digits'),
+  pin: yup.string().default('').test('strong', 'Choose a PIN that passes every rule above.', (v) => pinRules(v ?? '').every((r) => r.ok) && !isWeakPin(v ?? '')),
+  pin2: yup.string().default('').test('match', 'The two PINs don’t match.', (v, ctx) => v === ctx.parent.pin),
+})
 
-// Copy follows the app boards A06 "Create PIN" and A07 "Confirm PIN"; the first step is ours (the one-time PIN).
-const COPY: Record<Phase, { title: string; body: string; pad: string }> = {
-  current: { title: 'Enter your one-time PIN', body: 'Use the PIN we sent you. You will replace it in the next step.', pad: 'Enter your one-time PIN' },
-  create: { title: 'Create a 4-digit PIN', body: 'You will use it to sign in and approve payments.', pad: 'Create a 4-digit PIN' },
-  confirm: { title: 'Type it again', body: 'Just to be sure.', pad: 'Type the new PIN again' },
+const SIDE: AuthSide = {
+  title: 'Make this PIN your own.',
+  body: 'You signed in with a one-time PIN. Replace it with a PIN only you know before you continue.',
+  bullets: ['4 digits, nothing guessable', 'You will use it to sign in and approve payments', 'Nobody at WalletPesa will ever ask for it'],
+  note: { title: 'You will sign in again', text: 'After you save your new PIN we take you back to the sign-in page.' },
 }
 
 /** Forced for staff and agents onboarded with a one-time PIN; also reachable as a normal PIN change. */
 export default function ChangePinPage() {
-  const { endSession } = useSession()
+  const { signOut } = useSession()
   const navigate = useNavigate()
-  const [phase, setPhase] = useState<Phase>('current')
-  const [current, setCurrent] = useState('')
-  const [created, setCreated] = useState('')
-  const [again, setAgain] = useState('')
-  const [hint, setHint] = useState<{ text: string; bad: boolean } | null>(null)
-  const [shake, setShake] = useState(0)
-  const [busy, setBusy] = useState(false)
+  const [visible, setVisible] = useState(false)
 
-  const idx = ORDER.indexOf(phase)
-  const value = phase === 'current' ? current : phase === 'create' ? created : again
-  const ready = phase === 'confirm' && again.length === 4 && again === created
-
-  function fail(text: string) { setHint({ text, bad: true }); setShake((n) => n + 1) }
-
-  function onPin(v: string) {
-    setHint(null)
-    if (phase === 'current') {
-      setCurrent(v)
-      if (v.length === 4) setPhase('create')
-    } else if (phase === 'create') {
-      if (v.length === 4 && isWeakPin(v)) { setCreated(''); fail('Too easy to guess. Try another.'); return }
-      setCreated(v)
-      if (v.length === 4) setPhase('confirm')
-    } else {
-      setAgain(v)
-      if (v.length === 4 && v !== created) { setCreated(''); setAgain(''); setPhase('create'); fail('PINs didn’t match. Start again.') }
-    }
-  }
-
-  function back() {
-    setHint(null)
-    if (phase === 'confirm') { setAgain(''); setCreated(''); setPhase('create') }
-    else if (phase === 'create') { setCreated(''); setCurrent(''); setPhase('current') }
-  }
-
-  async function submit() {
-    if (!ready || busy) return
-    setBusy(true)
-    try {
-      await api('/auth/change-pin', { method: 'POST', body: { currentPin: current, newPin: created } })
-      // The server revoked every session on a PIN change; sign in again with the new PIN.
-      endSession()
+  const f = useFormik({
+    initialValues: { current: '', pin: '', pin2: '' },
+    validationSchema: schema,
+    onSubmit: async (v, { setFieldValue }) => {
+      try {
+        await api('/auth/change-pin', { method: 'POST', body: { currentPin: v.current, newPin: v.pin } })
+      } catch (err) {
+        reportError(err, 'PIN not changed', 'Could not change your PIN.')
+        // Most likely the one-time PIN was mistyped: ask for it again, keep what was chosen.
+        if (err instanceof ApiError) void setFieldValue('current', '', false)
+        return
+      }
+      // The server ended every session on a PIN change. Clear this one too, then go to sign in.
+      await signOut()
       toast.success('PIN changed', { description: 'Sign in again with your new PIN.' })
-      navigate('/login', { replace: true })
-    } catch (err) {
-      reportError(err, 'PIN not changed', 'Could not change your PIN.')
-      // Most likely the one-time PIN was mistyped: start over from the first step.
-      setCurrent(''); setCreated(''); setAgain(''); setPhase('current')
-    } finally { setBusy(false) }
-  }
+      navigate('/login', { replace: true, state: null })
+    },
+  })
 
-  const copy = COPY[phase]
-  const shown = hint ?? { text: ready ? 'Strong PIN. Tap Change PIN.' : phase === 'create' ? 'Avoid repeats and sequences like 1234.' : '', bad: false }
+  const rules = [...pinRules(f.values.pin), { text: 'Both entries match', ok: f.values.pin.length === 4 && f.values.pin === f.values.pin2 }]
+  const submitted = f.submitCount > 0
+  const current = bind(f, 'current')
+  const pin1 = bind(f, 'pin')
+  const pin2 = bind(f, 'pin2')
+  const pinErr = f.errors.pin && isWeakPin(f.values.pin) ? WEAK_PIN_MESSAGE : f.errors.pin
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(rgba(255,255,255,0.09)_1px,transparent_1px),linear-gradient(160deg,#2563EB,#1D4ED8)] bg-[length:22px_22px,auto] px-4 py-8 text-ink">
-      <div className="flex w-full max-w-[430px] flex-col gap-5 rounded-3xl bg-white p-6 shadow-[0_40px_80px_-30px_rgba(11,18,32,0.55)] sm:p-8">
-        <div className="flex items-center justify-between">
-          {idx > 0 ? (
-            <button type="button" onClick={back} aria-label="Back" disabled={busy}
-              className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-slate-100 text-ink hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200">
-              <ChevronLeft aria-hidden="true" size={20} strokeWidth={2.2} />
-            </button>
-          ) : <span className="h-11 w-11" aria-hidden="true" />}
-          <span className="text-[13px] font-bold text-slate-600">Step {idx + 1} of 3</span>
-        </div>
-        <div className="flex gap-1.5" aria-hidden="true">{ORDER.map((p, i) => <span key={p} className={`h-1 flex-1 rounded ${i <= idx ? 'bg-brand' : 'bg-line'}`} />)}</div>
-
-        <div className="flex flex-col gap-2">
-          <h1 className="text-[30px] font-extrabold leading-tight tracking-tight">{copy.title}</h1>
-          <p className="text-[15px] leading-normal text-slate-600">{copy.body}</p>
-          {phase === 'current' && <p className="text-[13px] text-muted">You must set a new PIN before you continue.</p>}
+    <AuthShell cta="login" side={SIDE}>
+      <form onSubmit={f.handleSubmit} noValidate className="mx-auto flex w-full max-w-[420px] flex-col gap-[18px]">
+        <div className="flex flex-col gap-1.5">
+          <h1 className="text-[30px] font-extrabold tracking-tight">Set your new PIN</h1>
+          <p className="text-[15px] text-slate-600">Enter the one-time PIN we sent you, then choose a PIN of your own.</p>
         </div>
 
-        <div key={shake} className={shake ? 'animate-[otp-shake_.4s] motion-reduce:animate-none' : ''}>
-          <PinPad value={value} onChange={onPin} label={copy.pad} disabled={busy} />
-        </div>
-        <p role="status" aria-live="polite" className={`min-h-[18px] text-center text-[13px] ${shown.bad ? 'text-[#B91C1C]' : ready ? 'text-teal-700' : 'text-slate-600'}`}>{shown.text}</p>
+        <PinField label="One-time PIN" {...current} autoComplete="current-password" visible={visible} onToggleVisible={() => setVisible((x) => !x)} />
 
-        <Button block loading={busy} disabled={!ready} onClick={() => void submit()}
-          className={`h-[54px] rounded-[14px] text-base ${ready ? '' : '!bg-slate-200 !text-slate-500'}`}>Change PIN</Button>
-      </div>
-    </main>
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+          <PinField label="New PIN" {...pin1} error={pin1.error ? ' ' : ''} autoComplete="new-password" visible={visible} onToggleVisible={() => setVisible((x) => !x)} />
+          <PinField label="Confirm new PIN" {...pin2} error={pin2.error ? ' ' : ''} autoComplete="new-password" visible={visible} onToggleVisible={() => setVisible((x) => !x)} />
+        </div>
+
+        <ul aria-label="PIN rules" className="m-0 flex list-none flex-col gap-1.5 rounded-xl border border-line bg-surface p-3.5 text-[13px]">
+          {rules.map((r) => {
+            const started = f.values.pin.length > 0 || submitted
+            return <li key={r.text} className={`flex items-center gap-2 ${!started ? 'text-slate-600' : r.ok ? 'text-green-700' : 'text-red-700'}`}>
+              <b aria-hidden="true" className="w-4 text-center">{r.ok ? '✓' : submitted ? '✕' : '•'}</b>{r.text}</li>
+          })}
+        </ul>
+        <FieldError id="cp-pin-err">{submitted ? pinErr || f.errors.pin2 || '' : ''}</FieldError>
+
+        <Button type="submit" block loading={f.isSubmitting} className="h-[52px] text-[15px] shadow-[0_10px_20px_-10px_rgba(37,99,235,0.7)]">Save new PIN</Button>
+        <p className="text-center text-xs text-slate-400">WalletPesa staff will never ask for your PIN.</p>
+      </form>
+    </AuthShell>
   )
 }

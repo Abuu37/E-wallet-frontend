@@ -31,7 +31,8 @@ export default function SignInPage() {
       try {
         const session = await signIn(toE164Tz(values.phone), values.pin)
         toast.success('Login successful', { description: 'Welcome back' })
-        navigate(session.mustChangePin ? '/change-pin' : location.state?.from ?? homePathFor(session.roles), { replace: true })
+        const back = location.state?.from
+        navigate(session.mustChangePin ? '/change-pin' : back && back !== '/change-pin' ? back : homePathFor(session.roles), { replace: true })
       } catch (err) {
         void setFieldValue('pin', '', false)
         if (err instanceof ApiError && err.status === 401 && /invalid credentials/i.test(err.message)) {
